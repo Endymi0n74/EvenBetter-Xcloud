@@ -1,5 +1,5 @@
 diff --git a/better-xcloud.user.js b/better-xcloud.user.js
-index 4926cd2..80bdeda 100644
+index 4926cd2..184ca09 100644
 --- a/better-xcloud.user.js
 +++ b/better-xcloud.user.js
 @@ -1,7 +1,7 @@
@@ -17,7 +17,7 @@ index 4926cd2..80bdeda 100644
  // @grant        none
 -// @updateURL    https://raw.githubusercontent.com/redphx/better-xcloud/typescript/dist/better-xcloud.meta.js
 -// @downloadURL  https://github.com/redphx/better-xcloud/releases/latest/download/better-xcloud.user.js
-+// @updateURL    https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.user.js
++// @updateURL    https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.meta.js
 +// @downloadURL  https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.user.js
  // ==/UserScript==
 -/* OPTIMISATIONS v6.7.12-perf10:
