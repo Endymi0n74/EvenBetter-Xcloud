@@ -1,5 +1,5 @@
 diff --git a/better-xcloud.user.js b/better-xcloud.user.js
-index 4926cd2..3e68f30 100644
+index 4926cd2..f13466b 100644
 --- a/better-xcloud.user.js
 +++ b/better-xcloud.user.js
 @@ -1,7 +1,7 @@
@@ -7,7 +7,7 @@ index 4926cd2..3e68f30 100644
  // @name         Better xCloud
  // @namespace    https://github.com/redphx
 -// @version      6.7.12-perf10
-+// @version      6.7.12-perf11
++// @version      1.0.0
  // @description  Improve Xbox Cloud Gaming (xCloud) experience
  // @author       redphx
  // @license      MIT
@@ -16,7 +16,7 @@ index 4926cd2..3e68f30 100644
  // @downloadURL  https://github.com/redphx/better-xcloud/releases/latest/download/better-xcloud.user.js
  // ==/UserScript==
 -/* OPTIMISATIONS v6.7.12-perf10:
-+/* OPTIMISATIONS v6.7.12-perf11:
++/* OPTIMISATIONS v1.0.0:
 +   - StreamStats: fix regression cache opacity/textSize (invalidation jamais faite)
 +   - StreamStats: throttle document.hidden 60s + setTimeout auto-rearme (plus de chevauchement)
 +   - StreamStatsCollector: collect() en un seul parcours du report
