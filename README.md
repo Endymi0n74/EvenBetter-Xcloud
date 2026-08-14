@@ -1,10 +1,12 @@
-# Better xCloud — fork perf11
+# better-xcloud-perf — v1.0.0
 
-Fork du userscript [Better xCloud](https://github.com/redphx/better-xcloud) (redphx),
-version `6.7.12`, orienté **performance**. Ce dépôt contient le script **buildé**
-(`better-xcloud.user.js`) — c'est le fichier à installer tel quel dans un
-gestionnaire d'userscripts. Les optimisations sont listées dans l'en-tête du
-script et détaillées ci-dessous.
+Fork performance du userscript [Better xCloud](https://github.com/redphx/better-xcloud)
+(redphx), orienté **performance**. Dernière release :
+[better-xcloud-perf-v1.0.0](https://github.com/Endymi0n74/better-xcloud-perf/releases/tag/better-xcloud-perf-v1.0.0).
+
+Ce dépôt contient le script **buildé** (`better-xcloud.user.js`) — c'est le
+fichier à installer tel quel dans un gestionnaire d'userscripts. Les
+optimisations sont listées dans l'en-tête du script et détaillées ci-dessous.
 
 ## Installation
 
