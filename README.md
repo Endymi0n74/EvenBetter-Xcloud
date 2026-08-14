@@ -1,5 +1,8 @@
 # better-xcloud-perf — v1.0.0
 
+[![Release](https://img.shields.io/github/v/release/Endymi0n74/better-xcloud-perf?style=for-the-badge&color=green)](https://github.com/Endymi0n74/better-xcloud-perf/releases/latest)
+[![Install](https://img.shields.io/badge/Install-userscript-blue?style=for-the-badge)](https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.user.js)
+
 Fork performance du userscript [Better xCloud](https://github.com/redphx/better-xcloud)
 (redphx), orienté **performance**. Dernière release :
 [better-xcloud-perf-v1.0.0](https://github.com/Endymi0n74/better-xcloud-perf/releases/tag/better-xcloud-perf-v1.0.0).
@@ -54,6 +57,10 @@ l'en-tête du script.
 ## Historique du dépôt
 
 ```
+7ac17bc docs: clarify patch location in patches/README
+72e655c build: bump userscript version to 1.0.0
+21d6652 docs: rename release references to better-xcloud-perf-v1.0.0
+7fe1bce docs: add direct install link to release asset
 560be6c chore: extend .gitignore with IDE and dependency exclusions
 80e086d docs: expand Portage section to make repo self-contained
 1525d4e chore: add .gitignore for temp files and test directories
@@ -72,8 +79,8 @@ nécessaires pour reconstruire ou porter les optimisations.
 ### Reconstruire le build (round-trip vérifié octet-pour-octet)
 
 ```bash
-# Baseline perf10 (commit 055d3a0) + patch global → build perf11 identique
-# au fichier better-xcloud.user.js du repo (commit 289f38b).
+# Baseline perf10 (commit 055d3a0) + patch global → build v1.0.0 identique
+# au fichier better-xcloud.user.js du repo.
 git show 055d3a0:better-xcloud.user.js > better-xcloud.user.js
 # Important sous Windows : core.autocrlf=false, sinon le contexte du patch ne matche pas
 git -c core.autocrlf=false apply better-xcloud-perf11.patch
