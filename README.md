@@ -8,6 +8,15 @@ script et détaillées ci-dessous.
 
 ## Installation
 
+**Installation directe** (recommandé) — ouvrir ce lien dans un navigateur avec
+Tampermonkey / Violentmonkey installé :
+
+```
+https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.user.js
+```
+
+Ou manuellement :
+
 1. **Copie** le contenu de `better-xcloud.user.js` (ou installe le fichier
    directement) dans Tampermonkey / Violentmonkey / Greasemonkey.
 2. Le script se déclenche automatiquement sur `https://www.xbox.com/*/play*`
@@ -43,6 +52,8 @@ l'en-tête du script.
 ## Historique du dépôt
 
 ```
+560be6c chore: extend .gitignore with IDE and dependency exclusions
+80e086d docs: expand Portage section to make repo self-contained
 1525d4e chore: add .gitignore for temp files and test directories
 338f509 chore: add global perf10→perf11 patch
 3d8b78e docs: add per-optimization patches with compatibility matrix
