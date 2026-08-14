@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Better xCloud
 // @namespace    https://github.com/redphx
-// @version      1.0.0
+// @version      1.1.0
 // @description  Improve Xbox Cloud Gaming (xCloud) experience
 // @author       redphx
 // @license      MIT
@@ -10,10 +10,10 @@
 // @exclude      https://www.xbox.com/*/xbox-game-pass/play-day-one
 // @run-at       document-start
 // @grant        none
-// @updateURL    https://raw.githubusercontent.com/redphx/better-xcloud/typescript/dist/better-xcloud.meta.js
-// @downloadURL  https://github.com/redphx/better-xcloud/releases/latest/download/better-xcloud.user.js
+// @updateURL    https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.user.js
+// @downloadURL  https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.user.js
 // ==/UserScript==
-/* OPTIMISATIONS v1.0.0:
+/* OPTIMISATIONS v1.1.0:
    - StreamStats: fix regression cache opacity/textSize (invalidation jamais faite)
    - StreamStats: throttle document.hidden 60s + setTimeout auto-rearme (plus de chevauchement)
    - StreamStatsCollector: collect() en un seul parcours du report
