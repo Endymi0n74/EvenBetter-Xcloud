@@ -1,0 +1,23 @@
+# Fichiers temporaires
+*.tmp
+*.bak
+*.swp
+*~
+
+# Dossiers temporaires
+.tmp/
+tmp/
+temp/
+
+# Dossiers de test / scratch
+test*/
+scratch/
+reprotest/
+patchtest*/
+
+# Logs
+*.log
+
+# Artefacts locaux (système)
+.DS_Store
+Thumbs.db
