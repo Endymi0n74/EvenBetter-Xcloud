@@ -43,16 +43,51 @@ l'en-tête du script.
 ## Historique du dépôt
 
 ```
+1525d4e chore: add .gitignore for temp files and test directories
+338f509 chore: add global perf10→perf11 patch
+3d8b78e docs: add per-optimization patches with compatibility matrix
+c099b29 docs: add README with perf11 optimizations and install guide
 289f38b perf: apply v6.7.12-perf11 optimizations
 055d3a0 chore: import v6.7.12-perf10 userscript as baseline
 ```
 
 ## Portage
 
-- `better-xcloud-perf11.patch` (racine du workspace) : patch global perf10 → perf11,
-  vérifié en round-trip octet-pour-octet.
-- `patches/` : 14 patches individuels (un par optimisation) avec une matrice de
-  compatibilité, pour portage sélectif.
+Ce dépôt est autonome : il contient la baseline, le build et tous les patches
+nécessaires pour reconstruire ou porter les optimisations.
+
+### Reconstruire le build (round-trip vérifié octet-pour-octet)
+
+```bash
+# Baseline perf10 (commit 055d3a0) + patch global → build perf11 identique
+# au fichier better-xcloud.user.js du repo (commit 289f38b).
+git show 055d3a0:better-xcloud.user.js > better-xcloud.user.js
+# Important sous Windows : core.autocrlf=false, sinon le contexte du patch ne matche pas
+git -c core.autocrlf=false apply better-xcloud-perf11.patch
+node --check better-xcloud.user.js
+```
+
+### Tout porter d'un coup
+
+- `better-xcloud-perf11.patch` : patch global perf10 → perf11, vérifié en
+  round-trip octet-pour-octet sur la baseline. À appliquer avec
+  `git -c core.autocrlf=false apply better-xcloud-perf11.patch`.
+
+### Portage sélectif
+
+- `patches/` : 14 patches individuels (un par optimisation), chacun applicable
+  seul sur la baseline perf10. Lisez `patches/README.md` pour la liste détaillée,
+  la matrice de compatibilité par paires et les zones non empilables (le build
+  minifié a des lignes géantes : plusieurs optimisations de la même zone
+  modifient la même ligne physique et leurs patches ne se cumulent pas).
+
+### Portage sur le source upstream (branche typescript)
+
+Les patches buildés ne s'appliquent **pas** sur la branche `typescript`
+(le source TS diffère du build). Le portage upstream se fait par fichiers
+source : `src/modules/player/webgl2/webgl2-player.ts`,
+`src/modules/patcher/patches/src/controller-customization.ts`,
+`src/modules/touch-controller.ts`, etc.
 
 ## Licence
 
