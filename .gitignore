@@ -9,6 +9,17 @@
 tmp/
 temp/
 
+# Dépendances
+node_modules/
+
+# IDE / éditeurs
+.idea/
+.vscode/
+*.code-workspace
+*.sublime-project
+*.sublime-workspace
+*.iml
+
 # Dossiers de test / scratch
 test*/
 scratch/
