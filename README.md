@@ -1,11 +1,11 @@
-# better-xcloud-perf — v1.0.0
+# better-xcloud-perf — v1.1.0
 
 [![Release](https://img.shields.io/github/v/release/Endymi0n74/better-xcloud-perf?style=for-the-badge&color=green)](https://github.com/Endymi0n74/better-xcloud-perf/releases/latest)
 [![Install](https://img.shields.io/badge/Install-userscript-blue?style=for-the-badge)](https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.user.js)
 
 Fork performance du userscript [Better xCloud](https://github.com/redphx/better-xcloud)
 (redphx), orienté **performance**. Dernière release :
-[better-xcloud-perf-v1.0.0](https://github.com/Endymi0n74/better-xcloud-perf/releases/tag/better-xcloud-perf-v1.0.0).
+[better-xcloud-perf-v1.1.0](https://github.com/Endymi0n74/better-xcloud-perf/releases/tag/better-xcloud-perf-v1.1.0).
 
 Ce dépôt contient le script **buildé** (`better-xcloud.user.js`) — c'est le
 fichier à installer tel quel dans un gestionnaire d'userscripts. Les
@@ -30,6 +30,14 @@ Ou manuellement :
 
 > Ne pas installer en même temps que le Better xCloud officiel — les deux
 > écriraient les mêmes préférences `localStorage` et entreraient en conflit.
+
+> **⚠️ Upgrade depuis la v1.0.0 (ou antérieure)** : si le script a été installé
+> avant la v1.1.0, son `@updateURL` pointe encore vers l'upstream redphx —
+> Tampermonkey ne verra pas les mises à jour du fork (et pourrait même
+> proposer de « mettre à jour » vers le Better xCloud officiel, dont la
+> version `6.7.12` est numériquement supérieure à `1.1.0`). **Réinstallez
+> manuellement une fois** via le lien ci-dessus pour basculer l'auto-update
+> vers ce fork ; les versions suivantes se mettront à jour toutes seules.
 
 ## Optimisations perf11
 
@@ -79,7 +87,7 @@ nécessaires pour reconstruire ou porter les optimisations.
 ### Reconstruire le build (round-trip vérifié octet-pour-octet)
 
 ```bash
-# Baseline perf10 (commit 055d3a0) + patch global → build v1.0.0 identique
+# Baseline perf10 (commit 055d3a0) + patch global → build v1.1.0 identique
 # au fichier better-xcloud.user.js du repo.
 git show 055d3a0:better-xcloud.user.js > better-xcloud.user.js
 # Important sous Windows : core.autocrlf=false, sinon le contexte du patch ne matche pas
