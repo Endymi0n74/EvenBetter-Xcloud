@@ -74,7 +74,7 @@ d'une même zone sur une branche :
 
 ### Pour tout porter d'un coup
 
-Utilise le patch global `better-xcloud-perf11.patch` (racine du workspace),
+Utilise le patch global `better-xcloud-perf11.patch` (racine du dépôt),
 vérifié en round-trip octet-pour-octet sur la baseline :
 
 ```bash
