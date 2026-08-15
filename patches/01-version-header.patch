@@ -1,5 +1,5 @@
 diff --git a/better-xcloud.user.js b/better-xcloud.user.js
-index 4926cd2..6232cae 100644
+index 4926cd2..2cd3244 100644
 --- a/better-xcloud.user.js
 +++ b/better-xcloud.user.js
 @@ -1,7 +1,7 @@
@@ -7,11 +7,11 @@ index 4926cd2..6232cae 100644
  // @name         Better xCloud
  // @namespace    https://github.com/redphx
 -// @version      6.7.12-perf10
-+// @version      1.5.0
++// @version      1.6.0
  // @description  Improve Xbox Cloud Gaming (xCloud) experience
  // @author       redphx
  // @license      MIT
-@@ -10,10 +10,28 @@
+@@ -10,10 +10,29 @@
  // @exclude      https://www.xbox.com/*/xbox-game-pass/play-day-one
  // @run-at       document-start
  // @grant        none
@@ -21,7 +21,8 @@ index 4926cd2..6232cae 100644
 +// @downloadURL  https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.user.js
  // ==/UserScript==
 -/* OPTIMISATIONS v6.7.12-perf10:
-+/* OPTIMISATIONS v1.5.0:
++/* OPTIMISATIONS v1.6.0:
++   - WebGL2: updateCanvas ne recalcule les 7 gl.uniform* que si les options/canvas ont change (flag dirty : chemin stable 60 Hz = 1 lecture + branche, au lieu de la comparaison complete de valeurs)
 +   - WebGL2: valeurs des uniforms mises en cache dans updateCanvas (7 gl.uniform* sautes par frame quand rien ne change, invalidation par comparaison de valeurs)
 +   - WebGL2: fix texStorage2D internal format gl.RGB -> gl.RGB8 (format non-sized = INVALID_ENUM, ecran noir WebGL2 corrige)
 +   - Controller customization: structuredClone -> reference directe au relachement Home (allocation supprimee)
