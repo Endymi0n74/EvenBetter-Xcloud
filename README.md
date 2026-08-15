@@ -81,6 +81,7 @@ script complet que si une nouvelle version existe. Évite de télécharger 479 K
 | 14 | `WebGL2Player` : fix viewport | `drawingBufferHeight` à la place de `drawingBufferWidth` |
 | 15 | `poll_gamepad_default` : `structuredClone` → référence directe | Le `structuredClone` de l'état Home au relâchement était inutile (objet non muté entre lecture et `=null`) — zéro allocation, chemin mesuré 1236 ns → 280 ns (-77 %) |
 | 16 | `WebGL2Player` : `bindTexture` par frame supprimé | La texture reste liée entre les frames (une seule texture, contexte dédié) — 60 appels GL/s de moins |
+| 17 | `WebGL2Player` : flag expérimental `WebGL2NoColorConversion` | `gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE)` avant les uploads vidéo — skippe la conversion sRGB du navigateur (gain potentiel sur le chemin le plus cher) ; désactivé par défaut, à activer via `BX_FLAGS` avec validation visuelle |
 
 L'historique perf1–perf10 (Set O(1) du patcher, debounce localStorage, cache
 `getBattery()`, uniform locations pré-calculées, etc.) est conservé dans
@@ -89,6 +90,7 @@ l'en-tête du script.
 ## Historique du dépôt
 
 ```
+561595d feat: add experimental WebGL2NoColorConversion flag (video upload)
 62abcd9 build: prepare v1.3.0 with hot-loop optimizations
 366fb41 docs: document meta.js auto-update flow and refresh history for v1.2.0
 95e41a9 build: bump userscript to 1.2.0
@@ -135,7 +137,7 @@ node --check better-xcloud.user.js
 
 ### Portage sélectif
 
-- `patches/` : 16 patches individuels (un par optimisation), chacun applicable
+- `patches/` : 17 patches individuels (un par optimisation), chacun applicable
   seul sur la baseline perf10. Lisez `patches/README.md` pour la liste détaillée,
   la matrice de compatibilité par paires et les zones non empilables (le build
   minifié a des lignes géantes : plusieurs optimisations de la même zone
