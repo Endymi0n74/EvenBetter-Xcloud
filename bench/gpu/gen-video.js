@@ -4,9 +4,13 @@ const fs = require("fs");
 const OUT = process.argv[2] || "test.webm";
 const DURATION_MS = 4500;
 const W = 640, H = 360;
+// --channel=chromium pour Linux/CI (Chromium fourni par Playwright), sinon msedge (Windows)
+const CHANNEL = process.argv.includes("--channel=chromium") ? "chromium" : "msedge";
 
 (async () => {
-  const browser = await chromium.launch({ channel: "msedge", headless: true });
+  const launchOpts = { headless: true };
+  if (CHANNEL !== "chromium") launchOpts.channel = CHANNEL;
+  const browser = await chromium.launch(launchOpts);
   const page = await browser.newPage({ viewport: { width: W, height: H } });
   await page.setContent(`<!doctype html><html><body>
     <canvas id="c" width="${W}" height="${H}"></canvas>

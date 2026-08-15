@@ -4,10 +4,18 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      gpu:
+        description: "Lancer aussi le job GPU (protocole 6 seeds) — requiert un runner self-hosted avec GPU (labels : self-hosted, linux, gpu)"
+        type: boolean
+        default: false
 
 jobs:
   hotloops-ratios:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - name: Checkout (historique complet — la baseline perf10 055d3a0 est requise)
         uses: actions/checkout@v4
@@ -26,13 +34,100 @@ jobs:
           tail -20 "$RUNNER_TEMP/bench-out.txt"
 
       - name: Vérifie les ratios des hot loops (seuils CI)
-        run: node bench/check-ratios.js "$RUNNER_TEMP/bench-out.txt"
-
-      - name: Résumé en commentaire/notice
-        if: always()
         run: |
-          if [ "${{ job.status }}" = "success" ]; then
-            echo "::notice::bench : hot loops OK (ratios dans les seuils)"
-          else
-            echo "::error::bench : un ratio de hot loop est hors seuil — voir la sortie du check"
-          fi
+          node bench/check-ratios.js "$RUNNER_TEMP/bench-out.txt" --markdown="$RUNNER_TEMP/bench-summary.md"
+          echo "summary=$RUNNER_TEMP/bench-summary.md" >> "$GITHUB_ENV"
+
+      - name: Upload bench-out.txt (en cas d'échec uniquement)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-out-${{ github.sha }}
+          path: ${{ runner.temp }}/bench-out.txt
+          if-no-files-found: error
+
+      - name: Commente la PR avec le tableau des ratios (créé puis mis à jour)
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync(process.env.RUNNER_TEMP + '/bench-summary.md', 'utf8');
+            const marker = '<!-- bench-ratios -->';
+            const body = summary + '\n' + marker;
+            const opts = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            };
+            const { data: comments } = await github.rest.issues.listComments({
+              ...opts,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find((c) => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                ...opts,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                ...opts,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+            console.log(existing ? 'commentaire mis à jour' : 'commentaire créé');
+
+  # Optionnel (workflow_dispatch + input « gpu ») : protocole GPU 6 seeds sur
+  # un runner SELF-HOSTED avec GPU (les runners GitHub hébergés n'en ont pas).
+  # Le harnais utilise --channel=chromium (Linux) ; les seuils de check-gpu.js
+  # sont volontairement bas (machine/driver inconnus) — le vrai signal est le
+  # ratio upload perf10/build (≥ 1,3) et les compteurs GL (chemin fonctionnel).
+  gpu-upload:
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.gpu == 'true'
+    runs-on: [self-hosted, linux, gpu]
+    steps:
+      - name: Checkout (historique complet — la baseline perf10 055d3a0 est requise)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Installe Playwright (Chromium + dépendances système)
+        run: |
+          npm install playwright
+          sudo npx playwright install-deps chromium || echo "::warning::install-deps a échoué — prévoir les dépendances système sur le runner"
+          npx playwright install chromium
+
+      - name: Génère la vidéo de test (test.webm, gitignoré)
+        run: node bench/gpu/gen-video.js bench/gpu/test.webm --channel=chromium
+
+      - name: Protocole figé — 6 seeds × 3 passes (upload, wallTotal, draw)
+        run: |
+          for S in 100 200 300 400 500 600; do
+            echo "== seed $S =="
+            node bench/gpu/gpu-runner.js \
+              --cls-p10=bench/gpu/gpu-perf10-webgl2player.txt \
+              --cls-new=bench/gpu/gpu-v140-webgl2player.txt \
+              --label-new=v1.4.0 \
+              --no-fix --frames=120 --passes=3 --seed=$S \
+              --channel=chromium \
+              > bench/gpu/run-s$S.json || exit 1
+          done
+          node bench/gpu/agg-seeds.js 100 200 300 400 500 600
+
+      - name: Vérifie upload / wallTotal / draw + chemin GL
+        run: node bench/gpu/check-gpu.js 100 200 300 400 500 600 --markdown="$RUNNER_TEMP/gpu-summary.md"
+
+      - name: Upload des runs GPU (en cas d'échec uniquement)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpu-runs-${{ github.sha }}
+          path: bench/gpu/run-s*.json
+          if-no-files-found: error

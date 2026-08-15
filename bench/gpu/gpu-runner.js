@@ -11,6 +11,9 @@ const argVal = (flag, dflt) => {
   const a = process.argv.find((x) => x.startsWith(flag + "="));
   return a ? a.split("=")[1] : dflt;
 };
+// Canal navigateur : msedge par défaut (Windows, GPU ANGLE/D3D11) ;
+// --channel=chromium pour Linux/CI (Chromium fourni par Playwright).
+const CHANNEL = argVal("--channel", "msedge");
 const DIR = __dirname;
 // Défauts alignés sur le protocole figé (cf. README du repo) : la classe
 // v1.4.0 contient déjà gl.RGB8 (patch 18) → mesurer avec --no-fix.
@@ -280,7 +283,9 @@ const HARNESS = ({ clsP10, clsNew, LABEL_P10, LABEL_NEW, FRAMES, WARMUP, PASSES,
 
 (async () => {
   await new Promise((r) => server.listen(PORT, "127.0.0.1", r));
-  const browser = await chromium.launch({ channel: "msedge", headless: !HEADED });
+  const launchOpts = { headless: !HEADED };
+  if (CHANNEL !== "chromium") launchOpts.channel = CHANNEL; // "chromium" = build fourni par Playwright
+  const browser = await chromium.launch(launchOpts);
   const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
   page.on("console", (m) => console.log(`  [page] ${m.text()}`));
   page.on("pageerror", (e) => console.log(`  [pageerror] ${e.message}`));

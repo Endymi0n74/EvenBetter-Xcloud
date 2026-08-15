@@ -8,22 +8,28 @@
  * d'un plancher ; les scénarios « équivalents » (ACTIF, commun, updateFrame)
  * doivent rester dans une fourchette. Sort avec le code 1 si un ratio régresse
  * au-delà de son seuil (le workflow GitHub Actions échoue alors et signale la
- * régression) ; imprime aussi des annotations `::error::`/`::notice::` quand
+ * régression) ; imprime des annotations `::error::`/`::notice::` quand
  * GITHUB_ACTIONS est défini.
  *
- * Usage : node bench/check-ratios.js <sortie-de-run-all.sh>
+ * `--markdown=<fichier>` : écrit aussi le résumé en tableau markdown (pour le
+ * commentaire automatique de PR) — écrit même en cas d'échec, avant l'exit.
+ *
+ * Usage : node bench/check-ratios.js <sortie-de-run-all.sh> [--markdown=out.md]
  *   bash bench/run-all.sh --skip-page-eval > bench-out.txt
- *   node bench/check-ratios.js bench-out.txt
+ *   node bench/check-ratios.js bench-out.txt --markdown=bench-summary.md
  */
 "use strict";
 
 const fs = require("fs");
+const path = require("path");
 
 const file = process.argv[2];
 if (!file) {
-  console.error("Usage : node bench/check-ratios.js <bench-out.txt>");
+  console.error("Usage : node bench/check-ratios.js <bench-out.txt> [--markdown=out.md]");
   process.exit(2);
 }
+const markdownArg = process.argv.find((a) => a.startsWith("--markdown="));
+const markdownFile = markdownArg ? markdownArg.split("=").slice(1).join("=") : null;
 const text = fs.readFileSync(file, "utf-8");
 
 // ---------- seuils (ratio perf10/build) ----------
@@ -66,11 +72,13 @@ for (const line of text.split(/\r?\n/)) {
 
 // ---------- vérification ----------
 const fmt = (n) => n.toFixed(2).replace(".", ",");
+const fmtTh = (th) => (th.max >= 20 ? `≥ ${fmt(th.min)}` : `${fmt(th.min)}–${fmt(th.max)}`);
 const ann = (level, msg) => {
   const line = process.env.GITHUB_ACTIONS ? `::${level}::${msg}` : `${level.toUpperCase()} : ${msg}`;
   console.log(line);
 };
 
+const rows = []; // { sc, p10, build, ratio, th, ok }
 let failures = 0;
 console.log("=== Hot loops — vérification des ratios (perf10/build) ===");
 for (const sc of ORDER) {
@@ -78,18 +86,42 @@ for (const sc of ORDER) {
   const th = THRESHOLDS[sc];
   if (!data || data.perf10 == null || data.build == null) {
     ann("error", `scénario « ${sc} » introuvable dans la sortie du harnais (run-all.sh a-t-il réussi ?)`);
+    rows.push({ sc, p10: null, build: null, ratio: null, th, ok: false });
     failures++;
     continue;
   }
   const ratio = data.perf10 / data.build;
   const ok = ratio >= th.min && ratio <= th.max;
-  const ctx = `perf10 ${fmt(data.perf10)} ns / build ${fmt(data.build)} ns → ratio ${fmt(ratio)} [seuil ${fmt(th.min)}–${fmt(th.max)}]`;
+  const ctx = `perf10 ${fmt(data.perf10)} ns / build ${fmt(data.build)} ns → ratio ${fmt(ratio)} [seuil ${fmtTh(th)}]`;
   if (ok) {
     console.log(`  ✓ ${sc.padEnd(12)} ${ctx}`);
   } else {
-    ann("error", `RÉGRESSION DÉTECTÉE : ${sc} → ratio ${fmt(ratio)} hors seuil ${fmt(th.min)}–${fmt(th.max)} (${ctx})`);
+    ann("error", `RÉGRESSION DÉTECTÉE : ${sc} → ratio ${fmt(ratio)} hors seuil ${fmtTh(th)} (${ctx})`);
     failures++;
   }
+  rows.push({ sc, p10: data.perf10, build: data.build, ratio, th, ok });
+}
+
+// ---------- résumé markdown (commentaire PR) ----------
+if (markdownFile) {
+  const lines = [
+    "### Bench hot loops — ratios perf10/build (seuils CI)",
+    "",
+    "| Scénario | perf10 | build | Ratio | Seuil | Statut |",
+    "|---|---|---|---|---|---|",
+  ];
+  for (const r of rows) {
+    const statut = r.ok ? "✅" : "❌";
+    const ratio = r.ratio != null ? fmt(r.ratio) : "n/a";
+    const med = r.p10 != null ? `${fmt(r.p10)} ns` : "n/a";
+    const bld = r.build != null ? `${fmt(r.build)} ns` : "n/a";
+    lines.push(`| ${r.sc} | ${med} | ${bld} | ${ratio} | ${fmtTh(r.th)} | ${statut} |`);
+  }
+  const verdict = failures === 0 ? "✅ PASS (5/5)" : `❌ ÉCHEC (${failures} scénario(s) hors seuil)`;
+  lines.push("", `**Résultat : ${verdict}**`);
+  lines.push("", "_Régression = ratio perf10/build hors seuil (plancher ×4 pour IDLE/relâchement, fourchette 0,5–2,0 pour les scénarios équivalents). Sortie complète du harnais dans l'artefact `bench-out.txt` du workflow._");
+  fs.writeFileSync(markdownFile, lines.join("\n") + "\n");
+  console.log(`Résumé markdown écrit : ${markdownFile}`);
 }
 
 console.log();

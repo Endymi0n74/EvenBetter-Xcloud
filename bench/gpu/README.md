@@ -29,6 +29,7 @@ chapitre Benchmarks du README principal.
 | `gpu-runner.js` | Harnais : serveur local, injection, instrumentation GL, GPU timestamps, agrégation par seed |
 | `agg-seeds.js` | Agrège les runs (`run-s<seed>.json`) : min / max / médiane des médianes + ratios |
 | `gpu-update-readme.js` | Régénère la table « GPU » du README en place |
+| `check-gpu.js` | CI : vérifie upload/wallTotal/draw (seuils) + chemin GL fonctionnel (compteurs) ; résumé markdown + exit code |
 
 ## Setup (une fois)
 
@@ -56,6 +57,11 @@ for S in 100 200 300 400 500 600; do
 done
 node bench/gpu/agg-seeds.js 100 200 300 400 500 600
 ```
+
+Canal navigateur : `--channel=msedge` par défaut (Windows, GPU via
+ANGLE/D3D11) ; **`--channel=chromium`** pour Linux/CI (Chromium fourni par
+Playwright — le générateur de vidéo accepte le même flag :
+`node bench/gpu/gen-video.js bench/gpu/test.webm --channel=chromium`).
 
 Règles d'agrégation : chaque run imprime l'`agg` par version (médiane sur
 les 3 passes de l'upload, du wallTotal et du draw) ; `agg-seeds.js` agrège
@@ -100,6 +106,25 @@ et les sessions, pas seulement des nombres).
 - `readPixels` sur une texture ≥ dimensions de la vidéo (sinon
   « Offset overflows texture dimensions »).
 - `WEBGL_debug_renderer_info` pour identifier le renderer.
+
+## CI GPU (optionnel, workflow_dispatch)
+
+Le job `gpu-upload` de `.github/workflows/bench.yml` rejoue le protocole sur
+un **runner self-hosted avec GPU** (labels `self-hosted`, `linux`, `gpu` —
+les runners GitHub hébergés n'ont pas de GPU), lancé manuellement via
+`workflow_dispatch` + input `gpu` : installation Playwright (Chromium +
+dépendances système), génération de `test.webm`, 6 seeds × 3 passes
+(`--channel=chromium`), agrégation, puis `check-gpu.js`.
+
+`check-gpu.js` échoue le job si : upload ratio perf10/build < `--upload-min`
+(défaut **1,3** — Windows observe 1,5-2,2, plancher bas car machine/driver
+CI inconnus), wallTotal < `--wall-min` (1,2), draw hors `--draw-min/--draw-max`
+(0,5-2,0), ou **chemin GL non fonctionnel** (le build récent doit uploader par
+`texSubImage2D` avec 0 `texImage2D` — un revert du patch 13/16 est détecté
+même sans régression de timing). Les `run-s*.json` sont uploadés en artefact
+en cas d'échec. Les seuils sont ajustables au premier run sur une machine
+réelle : `node bench/gpu/check-gpu.js 100 200 300 400 500 600
+[--upload-min=…] [--wall-min=…] [--draw-min=…] [--draw-max=…]`.
 
 Le harnais CPU (parse, hot loops, éval page) vit dans `bench/` — voir
 `bench/README.md`. La section « Repro » du README principal documente les

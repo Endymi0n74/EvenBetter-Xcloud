@@ -118,8 +118,22 @@ Un ratio hors seuil = échec du workflow (annotations `::error::`) :
 
 ```bash
 bash bench/run-all.sh --skip-page-eval > bench-out.txt
-node bench/check-ratios.js bench-out.txt   # exit 0 = PASS, exit 1 = régression
+node bench/check-ratios.js bench-out.txt                   # exit 0 = PASS, exit 1 = régression
+node bench/check-ratios.js bench-out.txt --markdown=out.md # + résumé markdown (tableau + statut)
 ```
+
+Le workflow enrichit le signal : en cas d'échec, `bench-out.txt` est uploadé
+en artefact (`actions/upload-artifact`, `if: failure()`), et sur les PR le
+tableau des ratios est posté en commentaire (`actions/github-script`,
+marqueur `<!-- bench-ratios -->` → mis à jour au run suivant, pas de doublon).
+Nécessite la permission `pull-requests: write` sur le job.
+
+**Job GPU optionnel** (`workflow_dispatch` + input `gpu`) : le workflow
+contient aussi `gpu-upload`, qui rejoue le protocole 6 seeds de `bench/gpu/`
+sur un **runner self-hosted avec GPU** (labels `self-hosted, linux, gpu`) et
+échoue si `bench/gpu/check-gpu.js` détecte une régression d'upload (ratio
+perf10/build < 1,3), de wallTotal (< 1,2), de draw, ou un chemin GL non
+fonctionnel (compteurs `texSubImage2D`) — voir `bench/gpu/README.md`.
 
 Détails des pièges de chaque harnais dans la section « Repro » du README principal.
 Le harnais **GPU** (renderer WebGL2, compteurs GL, GPU timestamps) vit dans
