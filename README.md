@@ -182,10 +182,11 @@ WebGL2, méthodes GL instrumentées (compteurs) et rasterisation mesurée via
 > wallTotal **×2,82** ; draw 10,2 vs 9,2 µs — **état bas** (ratio ≥ 4),
 > machine froide et peu chargée (GPU 50-53 °C, SM 1725 MHz / P0 constants,
 > CPU load 22-69 %) — cohérent avec la session du soir. Split émission/sync
-> (nouveau) : v1.6.0 emit 10,0 / sync 24,5 / total 33,3 µs ; perf10 emit
-> 54,7 / sync 84,7 / total 162,5 µs — le total v1.6.0 (émission + sync readback)
-> est stable vs le contrôle seed 42 (~31 µs), la sync perf10 reste la plus
-> variable.
+> (nouveau) : v1.6.0 emit 7,7–11,8 (stable) / sync 19,5–75,0 / total 29–84 µs
+> selon le seed (contrôle seed 42 : ~31 µs, dans la fourchette basse) ;
+> perf10 emit 42,2–77,7 / sync 69,7–112,0 / total 112–165 µs — la **sync
+> readback est le composant volatile** (pas l'émission) : la prédiction
+> « total stable » n'est pas confirmée (cf. tableau des sessions).
 
 | Mesure | perf10 | v1.6.0 | Δ |
 |---|---|---|---|
@@ -207,14 +208,25 @@ session, pas du build** : le même code mesure ×1,8-2,1 en état haut et
 ×4,3-6,6 en état bas — comparer deux sessions = comparer les ratios et le
 draw, jamais les absolus.
 
-| Session | Version | Upload perf10 (µs) | Upload build (µs) | Ratio upload | État | Draw (µs) |
-|---|---|---|---|---|---|---|
-| Origine (sans stabilisation) | v1.3.0 | 200–235 | 64–66 | ×3,3 | transitionnel | — |
-| Session 1 (6 seeds stabilisés) | v1.4.0 | 80,5–93 | 43,8–50,3 | **×1,8** | haut | 10,2 |
-| Session 2 (protocole figé) | v1.4.0 | 98,5–150,7 | 54,7–74,5 | **×2,1** | haut | 10,2 |
-| Matin 15 août (6 seeds) | v1.5.0 | 61,8–137 | 10,3–76,8 | **×1,7** (s300 : ×6,0) | mixte | 10,2 |
-| Soir 15 août (6 seeds) | v1.6.0 | 48,2–61,3 | 8,5–11,3 | **×4,86** | bas | 10,2 |
-| Soir 15 août — re-mesure (6 seeds + état machine) | v1.6.0 | 42,2–77,7 | 7,7–11,8 | **×5,47** | bas | 10,2 vs 9,2 |
+| Session | Version | Upload perf10 (µs) | Upload build — émission (µs) | Ratio upload | État | Sync build (µs) | Total build (µs) | Draw (µs) |
+|---|---|---|---|---|---|---|---|---|
+| Origine (sans stabilisation) | v1.3.0 | 200–235 | 64–66 | ×3,3 | transitionnel | — | — | — |
+| Session 1 (6 seeds stabilisés) | v1.4.0 | 80,5–93 | 43,8–50,3 | **×1,8** | haut | — | — | 10,2 |
+| Session 2 (protocole figé) | v1.4.0 | 98,5–150,7 | 54,7–74,5 | **×2,1** | haut | — | — | 10,2 |
+| Matin 15 août (6 seeds) | v1.5.0 | 61,8–137 | 10,3–76,8 | **×1,7** (s300 : ×6,0) | mixte | — | — | 10,2 |
+| Soir 15 août (6 seeds) | v1.6.0 | 48,2–61,3 | 8,5–11,3 | **×4,86** | bas | — | — | 10,2 |
+| Soir 15 août — re-mesure (6 seeds + état machine) | v1.6.0 | 42,2–77,7 | 7,7–11,8 | **×5,47** | bas | 24,5 (19,5–75) | **33,3** (29–83,8) | 10,2 vs 9,2 |
+
+_Split émission/sync (readback `readPixels`, cf. bench/gpu/README.md) mesuré
+seulement depuis la re-mesure du soir (gpu-runner.js v2) — les sessions
+antérieures n'ont que l'émission (uploadNs historique = colonne « Upload
+build — émission »). **Prédiction « total stable » (backpressure) : non
+confirmée** — la **sync readback est le composant volatile** (v1.6.0 :
+19,5–75,0 µs selon le seed, total 29–83,8 µs ; perf10 : sync 69,7–112,0,
+total 111,7–165,5 µs) alors que l'émission reste stable (7,7–11,8 µs). La
+bimodalité (état haut/bas) s'exprime donc dans la sync readback ET dans
+l'émission selon les sessions, pas comme un total stable — à affiner avec
+une session en état haut._
 
 Lecture des résultats :
 
