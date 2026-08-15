@@ -401,7 +401,10 @@ node bench/gpu/check-gpu.js 100 200 300 400 500 600
 `run-gpu-ci.sh` : canal auto-détecté (`msedge` Windows / `chromium` Linux),
 `--seeds=`, `--keep-video`/`--force-video`, `--label-new=` (propagé à
 `agg-seeds.js` — ex. `--cls-new=... --label-new=v1.5.0` pour mesurer un autre
-build), `--no-fix` par défaut. Voir `bench/gpu/README.md` pour toutes les options.
+build), `--no-fix` par défaut, **`--resume`** (saute les seeds dont
+`run-s<seed>.json` est complet — reprise après un run timeout/partiel sans
+re-mesurer les seeds déjà faits ; un fichier corrompu ou au label incohérent
+est re-mesuré). Voir `bench/gpu/README.md` pour toutes les options.
 
 Règles d'agrégation : chaque run imprime l'`agg` par version (médiane sur
 les 3 passes de l'upload, du wallTotal et du draw) ; `agg-seeds.js` agrège

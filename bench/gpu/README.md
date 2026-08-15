@@ -63,6 +63,15 @@ v1.5.0) avec `--cls-new=... --label-new=v1.5.0`. Les `run-s*.json` produits
 sont conservés (gitignorés) pour relancer l'agrégation/vérification sans
 re-mesurer.
 
+**`--resume`** : saute les seeds dont `run-s<seed>.json` est **déjà complet**
+(JSON valide, `agg` avec les 2 versions — dont le label demandé — et toutes
+les passes terminées). Un fichier partiel (run timeout, JSON corrompu) ou
+avec un label incohérent (ex. fichiers mesurés avec `--label-new=v1.4.0`
+mais relance avec `v1.5.0`) est **re-mesuré** — après un run interrompu, seuls
+les seeds manquants/corrompus sont re-mesurés, les autres sont skippés.
+Validé : skip 6/6 sur jeu complet, re-mesure ciblée sur fichier manquant et
+sur label incohérent.
+
 Commandes équivalentes, à la main :
 
 ```bash

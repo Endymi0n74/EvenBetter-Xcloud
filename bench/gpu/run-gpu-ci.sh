@@ -31,6 +31,10 @@
 #   --force-video  régénère test.webm même s'il existe
 #   --keep-video   réutilise test.webm existant
 #   --markdown=PATH  résumé markdown de check-gpu.js (défaut : console seule)
+#   --resume       saute les seeds dont run-s<seed>.json est déjà COMPLET (JSON
+#                  valide, les 2 versions aggées, toutes les passes terminées) —
+#                  après un run timeout/partiel, seuls les seeds manquants ou
+#                  corrompus sont re-mesurés
 #
 # Les run-s<seed>.json sont conservés (gitignorés) : agg-seeds.js et
 # check-gpu.js peuvent être relancés sans re-mesurer. Nettoyage manuel :
@@ -49,6 +53,7 @@ NO_FIX=1
 FORCE_VIDEO=0
 KEEP_VIDEO=0
 MARKDOWN=""
+RESUME=0
 for arg in "$@"; do
   case "$arg" in
     --seeds=*)     SEEDS="${arg#--seeds=}" ;;
@@ -62,6 +67,7 @@ for arg in "$@"; do
     --force-video) FORCE_VIDEO=1 ;;
     --keep-video)  KEEP_VIDEO=1 ;;
     --markdown=*)  MARKDOWN="${arg#--markdown=}" ;;
+    --resume)      RESUME=1 ;;
     *) echo "Option inconnue : $arg" >&2; exit 1 ;;
   esac
 done
@@ -80,6 +86,27 @@ if ! node -e "require('playwright')" 2>/dev/null && ! node -e "require('playwrig
   exit 1
 fi
 
+# Un seed est considéré « déjà mesuré » (--resume) si son run-s<seed>.json est
+# complet : JSON valide, `agg` avec les 2 versions (perf10 + label), et toutes
+# les passes terminées (PASSES × 2 mesures). Un fichier partiel (run timeout,
+# JSON corrompu) est ignoré et re-mesuré.
+run_is_complete() {
+  node -e "
+    const fs = require('fs');
+    const PASSES = parseInt(process.argv[1], 10);
+    const LABEL = process.argv[2];
+    const file = process.argv[3];
+    if (!fs.existsSync(file)) process.exit(1);
+    const txt = fs.readFileSync(file, 'utf8');
+    try {
+      const res = JSON.parse(txt.slice(txt.indexOf('{')));
+      const okAgg = res.agg && res.agg.perf10 && res.agg[LABEL];
+      const okPasses = Array.isArray(res.passes) && res.passes.length === PASSES * 2;
+      process.exit(okAgg && okPasses ? 0 : 1);
+    } catch (e) { process.exit(1); }
+  " "$PASSES" "$LABEL_NEW" "bench/gpu/run-s$1.json"
+}
+
 VIDEO="bench/gpu/test.webm"
 if [ "$KEEP_VIDEO" = "1" ] && [ -f "$VIDEO" ]; then
   echo "== Vidéo : réutilisation de $VIDEO (--keep-video) =="
@@ -91,8 +118,12 @@ else
 fi
 
 echo
-echo "== Protocole figé — $(echo $SEEDS | wc -w) seed(s) × $PASSES passes × $FRAMES frames (canal $CHANNEL, $LABEL_NEW) =="
+echo "== Protocole figé — $(echo $SEEDS | wc -w) seed(s) × $PASSES passes × $FRAMES frames (canal $CHANNEL, $LABEL_NEW)$([ "$RESUME" = "1" ] && echo ", --resume") =="
 for S in $SEEDS; do
+  if [ "$RESUME" = "1" ] && run_is_complete "$S"; then
+    echo "  seed $S : déjà mesuré (run-s$S.json complet) — skip (--resume)"
+    continue
+  fi
   echo "  seed $S ..."
   node bench/gpu/gpu-runner.js \
     --cls-p10="$CLS_P10" \
