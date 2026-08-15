@@ -111,6 +111,7 @@ jobs:
         run: |
           for S in 100 200 300 400 500 600; do
             echo "== seed $S =="
+            node bench/gpu/machine-state.js before > bench/gpu/state-s$S.before.json 2>/dev/null || true
             node bench/gpu/gpu-runner.js \
               --cls-p10=bench/gpu/gpu-perf10-webgl2player.txt \
               --cls-new=bench/gpu/gpu-v160-webgl2player.txt \
@@ -118,11 +119,19 @@ jobs:
               --no-fix --frames=120 --passes=3 --seed=$S \
               --channel=chromium \
               > bench/gpu/run-s$S.json || exit 1
+            node bench/gpu/machine-state.js after > bench/gpu/state-s$S.after.json 2>/dev/null || true
           done
           node bench/gpu/agg-seeds.js 100 200 300 400 500 600
 
-      - name: Vérifie upload / wallTotal / draw + chemin GL
+      - name: Vérifie upload / wallTotal / draw + chemin GL (résumé markdown avec ligne de session)
         run: node bench/gpu/check-gpu.js 100 200 300 400 500 600 --markdown="$RUNNER_TEMP/gpu-summary.md"
+
+      - name: Upload du résumé GPU (tableau + ligne de session prête à coller dans le README)
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpu-summary-${{ github.sha }}
+          path: ${{ runner.temp }}/gpu-summary.md
+          if-no-files-found: error
 
       - name: Upload des runs GPU (en cas d'échec uniquement)
         if: failure()

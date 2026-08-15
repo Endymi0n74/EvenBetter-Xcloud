@@ -97,6 +97,26 @@ const drawRatio = drawP10.med / drawNew.med;
 const glOk = cNew.texSubImage2D >= 1 && cNew.texImage2D === 0;
 const p10GlOk = cP10.texImage2D >= 1 && cP10.texSubImage2D === 0;
 
+// ---------- ligne de session (tableau « Sessions GPU » du README) ----------
+// État dérivé du ratio upload perf10/build (mêmes seuils que le README) :
+// bas ≥ ~4 (émission pure), haut ≤ ~2,5 (coût fixe de backpressure qui masque
+// l'avantage), transitionnel entre les deux. Date : capture machine-state du
+// 1er seed (state-s<seed>.before.json, écrit par run-gpu-ci.sh / le workflow),
+// repli sur la date courante si absente.
+const etat = upRatio >= 4 ? "bas" : upRatio <= 2.5 ? "haut" : "transitionnel";
+const stFile = path.join(__dirname, `state-s${seeds[0]}.before.json`);
+let sessionDate = "";
+if (fs.existsSync(stFile)) {
+  try {
+    const st = JSON.parse(fs.readFileSync(stFile, "utf8"));
+    sessionDate = st.iso ? st.iso.slice(0, 10) : "";
+  } catch (e) {
+    /* état illisible → repli date courante */
+  }
+}
+if (!sessionDate) sessionDate = new Date().toISOString().slice(0, 10);
+console.log(`Session ${sessionDate} : ${seeds.length} seeds, ratio upload ×${fmt(upRatio)}, état ${etat}`);
+
 console.log(`=== Bench GPU — vérification des ratios (${P10} vs ${NEW}, ${seeds.length} seeds) ===`);
 add("Upload vidéo (µs)", `${fmt(upP10.med)} (${fmt(upP10.range[0])}–${fmt(upP10.range[1])})`, `${fmt(upNew.med)} (${fmt(upNew.range[0])}–${fmt(upNew.range[1])})`, upRatio, `≥ ${fmt(UPLOAD_MIN)}`, upRatio >= UPLOAD_MIN);
 add("wallTotal (ms)", `${fmt(wallP10.med)} (${fmt(wallP10.range[0])}–${fmt(wallP10.range[1])})`, `${fmt(wallNew.med)} (${fmt(wallNew.range[0])}–${fmt(wallNew.range[1])})`, wallRatio, `≥ ${fmt(WALL_MIN)}`, wallRatio >= WALL_MIN);
@@ -127,6 +147,15 @@ if (markdownFile) {
   for (const r of rows) {
     lines.push(`| ${r.metric} | ${r.p10} | ${r.nw} | ${r.ratio != null ? fmt(r.ratio) : "—"} | ${r.seuil} | ${r.ok ? "✅" : "❌"} |`);
   }
+  // Ligne de session prête à coller dans le tableau « Sessions GPU » du README
+  // (même en-tête, même format : plages, ratio, état, draw).
+  lines.push("", "**Session — ligne à ajouter au tableau « Sessions GPU » du README :**");
+  lines.push("", "| Session | Version | Upload perf10 (µs) | Upload build (µs) | Ratio upload | État | Draw (µs) |");
+  lines.push("|---|---|---|---|---|---|---|");
+  lines.push(
+    `| CI ${sessionDate} (${seeds.length} seeds) | ${NEW} | ${fmt(upP10.med)} (${fmt(upP10.range[0])}–${fmt(upP10.range[1])}) | ` +
+      `${fmt(upNew.med)} (${fmt(upNew.range[0])}–${fmt(upNew.range[1])}) | **×${fmt(upRatio)}** | ${etat} | ${fmt(drawP10.med)} vs ${fmt(drawNew.med)} |`
+  );
   const verdict = failures === 0 ? "✅ PASS" : `❌ ÉCHEC (${failures} check(s) hors seuil)`;
   lines.push("", `**Résultat : ${verdict}**`);
   lines.push("", "_Upload = `texImage2D` (réalloue le storage GPU) vs `texSubImage2D` (storage immuable) — le ratio doit rester ≥ 1,3. Les absolus varient selon la machine/le driver ; les compteurs GL vérifient le chemin fonctionnel indépendamment des timings._");

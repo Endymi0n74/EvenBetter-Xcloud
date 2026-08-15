@@ -32,7 +32,7 @@ chapitre Benchmarks du README principal.
 | `machine-state.js` | Capture l'état machine avant/après chaque seed (GPU nvidia-smi : temp/util/clocks/puissance/P-state ; CPU : charge %, % de la fréquence de base si compteurs perf OK, fréquence base via WMI ; top 5 processus) — JSON tolérant (outil absent → champ null) |
 | `agg-seeds.js` | Agrège les runs (`run-s<seed>.json`) : min / max / médiane des médianes + ratios, et affiche l'état machine par seed (corrélation état haut/bas des uploads) |
 | `gpu-update-readme.js` | Régénère la table « GPU » du README en place |
-| `check-gpu.js` | CI : vérifie upload/wallTotal/draw (seuils) + chemin GL fonctionnel (compteurs) ; résumé markdown + exit code |
+| `check-gpu.js` | CI : vérifie upload/wallTotal/draw (seuils) + chemin GL fonctionnel (compteurs) ; résumé markdown + **ligne de session** (état haut/bas + date, prête à coller dans le tableau « Sessions GPU » du README) + exit code |
 
 ## Setup (une fois)
 
@@ -183,9 +183,15 @@ dépendances système), génération de `test.webm`, 6 seeds × 3 passes
 CI inconnus), wallTotal < `--wall-min` (1,2), draw hors `--draw-min/--draw-max`
 (0,5-2,0), ou **chemin GL non fonctionnel** (le build récent doit uploader par
 `texSubImage2D` avec 0 `texImage2D` — un revert du patch 13/16 est détecté
-même sans régression de timing). Les `run-s*.json` sont uploadés en artefact
-en cas d'échec. Les seuils sont ajustables au premier run sur une machine
-réelle : `node bench/gpu/check-gpu.js 100 200 300 400 500 600
+même sans régression de timing). Le résumé markdown (`--markdown=`) contient
+en plus la **ligne de session** — date (capture `state-s<seed>.before.json` du
+1er seed, sinon date courante), plages upload, ratio, **état** (bas ≥ ×4 /
+haut ≤ ×2,5 / transitionnel, mêmes seuils que le README) et draw — prête à
+coller telle quelle dans le tableau « Sessions GPU » du README. Le workflow
+capture l'état machine avant/après chaque seed et upload `gpu-summary.md` en
+artefact (`gpu-summary-<sha>`) en plus des `run-s*.json` en cas d'échec. Les
+seuils sont ajustables au premier run sur une machine réelle :
+`node bench/gpu/check-gpu.js 100 200 300 400 500 600
 [--upload-min=…] [--wall-min=…] [--draw-min=…] [--draw-max=…]`.
 
 Le harnais CPU (parse, hot loops, éval page) vit dans `bench/` — voir
