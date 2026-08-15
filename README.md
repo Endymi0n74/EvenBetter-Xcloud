@@ -87,6 +87,52 @@ L'historique perf1–perf10 (Set O(1) du patcher, debounce localStorage, cache
 `getBattery()`, uniform locations pré-calculées, etc.) est conservé dans
 l'en-tête du script.
 
+## Benchmarks
+
+Mesures **perf10 (baseline)** vs **v1.3.0**, même machine (Windows, Edge
+headless, Node V8), harnais jetables dédiés. L'objectif n'est pas la précision
+absolue mais la comparaison relative entre les deux builds.
+
+### Chargement (parse + éval de page)
+
+| Mesure | perf10 | v1.3.0 | Δ |
+|---|---|---|---|
+| Parse/compile (Node `new Function`, ×300, médiane) | 0,135 ms | 0,127 ms | ~-6 % (bruit sub-ms) |
+| Éval complète de page (Edge headless, injection `document-start`, 20 runs, médiane) | 24,8 ms | 24,8 ms | ~0 % |
+
+La série perf11/v1.3.0 visait le **runtime** (hot loops, GPU, caches), pas le
+chargement — confirmé : le coût de démarrage est identique (le `p95` de perf10
+présente des outliers environnementaux, la médiane est stable).
+
+### Hot loops (~60 Hz)
+
+Micro-benchmarks Node (V8), fragments injectés extraits des builds, 200 000
+itérations par scénario.
+
+| Hot loop | perf10 | v1.3.0 | Gain |
+|---|---|---|---|
+| Controller customization — **IDLE** (aucun input, sticks centrés) | 331 ns/poll | **35 ns/poll** | **-89 % (×9)** |
+| Controller customization — ACTIF (bouton + stick) | ~400 ns/poll | ~400 ns/poll | équivalent (±10 % run à run) |
+| `poll_gamepad_default` — chemin commun (Home jamais pressé) | 10,4 ns/poll | 10,4 ns/poll | identique |
+| `poll_gamepad_default` — relâchement du bouton Home | 1059 ns | **111 ns** | **-89 %** |
+| `WebGL2Player.updateFrame` — chemin stable (coût JS seul) | ~150 ns/frame | ~140 ns/frame | équivalent (voir note) |
+
+Notes :
+
+- Le **skip idle** (patch 12) divise par ~9 le coût du poll au repos — le cas
+  commun en jeu (pauses entre inputs) : plus d'allocations
+  `pressedButtons`/`releasedButtons`, plus d'itération du mapping à chaque poll.
+- Le relâchement du bouton Home passait par un `structuredClone` inutile
+  (l'objet `{shortcutPressed, timestamp}` n'est jamais muté entre la lecture et
+  le `=null` qui suit) — remplacé par une référence directe (patch 15).
+- `updateFrame` a un coût JS négligeable dans les deux versions : le gain réel
+  est côté driver GPU — `texImage2D` → `texSubImage2D` (plus de réallocation de
+  texture à chaque frame) et suppression du `bindTexture` par frame (60 appels
+  GL/s en moins). Ces effets ne sont pas mesurables dans un micro-benchmark JS.
+- En absolu, les économies sont de l'ordre de la microseconde par opération :
+  l'intérêt est l'élimination des **allocations à 60 Hz** (pression GC) et du
+  travail driver répété, pas le temps CPU brut.
+
 ## Historique du dépôt
 
 ```
