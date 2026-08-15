@@ -103,6 +103,26 @@ sync (travail déjà fait) → **total stable** — à croiser avec l'état mach
 (capture ci-dessus). `agg-seeds.js` affiche le split par version
 (`upload split (médianes) : emit … / sync … / total … us`).
 
+**Préchauffage du readback** (depuis le fix du spike de 1re passe) : avant la
+mesure timée, 2 cycles de « 100 uploads émis + readPixels drain + flush »
+(réutilise la même sonde, délai 25 ms entre les cycles) pour que le chemin de
+complétion GPU soit chaud. **Validation sur les 6 seeds du protocole** (sync
+v1.6.0 en µs, par ordre d'apparition) :
+
+| | Avant (re-mesure) | Après (avec préchauffage) |
+|---|---|---|
+| 1re sync de chaque seed | 65 – 239 (méd. 77) | 40 – 68 (méd. 48) |
+| Syncs suivantes | 13 – 75 (souvent « mixte ») | 14 – 46 |
+| Médiane des médianes par seed | 23,3 | 18,0 |
+
+Le fix **divise par ~2 le spike de 1re passe et élimine les extrêmes** (239 → 49,
+170 → 68 sur les seeds concernés), mais **ne stabilise pas entièrement la 1re
+mesure** : un résidu ~40-50 µs (vs ~15-20 en régime) persiste, et un spike
+tardif isolé peut encore arriver (s300 passe 3 à 46). L'état stable (passes
+suivantes) est inchangé. Conséquence pratique : les médianes de seeds sont
+plus resserrées (le cas « 2 passes hautes sur 3 » de la bimodalité ne produit
+plus de valeurs > 50 µs).
+
 Commandes équivalentes, à la main :
 
 ```bash

@@ -213,6 +213,20 @@ const HARNESS = ({ clsP10, clsNew, LABEL_P10, LABEL_NEW, FRAMES, WARMUP, PASSES,
       // l'etat du driver (reallocation/cache) et faussaient la 1re passe
       for (let i = 0; i < 50; i++) uploadOnce(g.gl);
       g.gl.flush();
+      // PRÉCHAUFFAGE DU READBACK (fix du spike de 1re passe) : le chemin de
+      // complétion GPU est froid au 1er readPixels timé de chaque passe (sync
+      // 65-239 µs en passe 1 vs 13-25 µs en passe 2 — analyse bimodalité,
+      // mémo projet §7). gl.finish() est un quasi no-op sous ANGLE/D3D11 et
+      // fenceSync ne signale jamais sur ce stack → readPixels est la seule
+      // sonde de complétion fiable : on émet un batch d'uploads puis on draine
+      // (readPixels) 2× avant la mesure timée, pour que le chemin soit chaud.
+      const rb = new Uint8Array(4);
+      for (let w = 0; w < 2; w++) {
+        for (let i = 0; i < 100; i++) uploadOnce(g.gl);
+        g.gl.readPixels(0, 0, 1, 1, g.gl.RGBA, g.gl.UNSIGNED_BYTE, rb);
+        g.gl.flush();
+        await new Promise((r) => setTimeout(r, 25));
+      }
       // ÉMISSION seule : boucle tight SANS flush — coût CPU de mise en file des
       // appels. Si le driver bloque en cours de boucle (file pleine, attente
       // pipeline vidéo/GPU = backpressure), c'est ICI que ça apparaît (état
@@ -231,7 +245,6 @@ const HARNESS = ({ clsP10, clsNew, LABEL_P10, LABEL_NEW, FRAMES, WARMUP, PASSES,
       // Petit → le blocage est DANS l'appel d'upload (émission, backpressure
       // décodeur/pipeline vidéo) ; grand → le GPU est en retard (à croiser avec
       // le draw timé GPU, resté stable).
-      const rb = new Uint8Array(4);
       const t0s = performance.now();
       g.gl.readPixels(0, 0, 1, 1, g.gl.RGBA, g.gl.UNSIGNED_BYTE, rb);
       const uploadSyncNs = ((performance.now() - t0s) / UPLOADS) * 1e6;
