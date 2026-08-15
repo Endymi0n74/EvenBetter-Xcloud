@@ -3,9 +3,11 @@
 const fs = require("fs");
 const path = require("path");
 
-const seeds = process.argv.slice(2);
-const versions = ["perf10", "v1.4.0"];
-const perVersion = { perf10: [], "v1.4.0": [] };
+const argv = process.argv.slice(2);
+const seeds = argv.filter((a) => !a.startsWith("--"));
+const LABEL = (argv.find((a) => a.startsWith("--label-new=")) || "").split("=").slice(1).join("=") || "v1.4.0";
+const versions = ["perf10", LABEL];
+const perVersion = { perf10: [], [LABEL]: [] };
 let orderLines = [];
 
 for (const s of seeds) {
@@ -57,11 +59,11 @@ const ratio = (a, b) => a.med / b.med;
 console.log("== Ratios (mediane des medianes) ==");
 const up = {
   p10: stats(perVersion.perf10, "uploadNs", "us"),
-  v14: stats(perVersion["v1.4.0"], "uploadNs", "us"),
+  v14: stats(perVersion[LABEL], "uploadNs", "us"),
 };
 const wall = {
   p10: stats(perVersion.perf10, "wallTotalMs", "ms"),
-  v14: stats(perVersion["v1.4.0"], "wallTotalMs", "ms"),
+  v14: stats(perVersion[LABEL], "wallTotalMs", "ms"),
 };
-console.log(`  upload perf10/v1.4.0 : x${ratio(up.p10, up.v14).toFixed(2)}`);
-console.log(`  wallTotal perf10/v1.4.0 : x${ratio(wall.p10, wall.v14).toFixed(2)}`);
+console.log(`  upload perf10/${LABEL} : x${ratio(up.p10, up.v14).toFixed(2)}`);
+console.log(`  wallTotal perf10/${LABEL} : x${ratio(wall.p10, wall.v14).toFixed(2)}`);

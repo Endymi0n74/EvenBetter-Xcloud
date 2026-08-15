@@ -150,10 +150,13 @@ WebGL2, méthodes GL instrumentées (compteurs) et rasterisation mesurée via
 `EXT_disjoint_timer_query_webgl2` (`TIME_ELAPSED` autour de `drawArrays`),
 120 frames × 3 passes (ordre mélangé par seed), protocole stabilisé (cf. Repro).
 
-> Table mesurée sur **v1.4.0** : entre v1.4.0 et v1.5.0 le chemin GPU
-> (`updateFrame`/upload/draw) est **inchangé** — seul `updateCanvas` (cache des
-> valeurs de uniforms, côté CPU) a changé, couvert par la table « Hot loops ».
-> Pour re-mesurer : `node bench/gpu/gpu-runner.js` (protocole 6 seeds, cf. Repro GPU).
+> Table mesurée sur **v1.4.0** — **confirmée sur v1.5.0** (protocole 6 seeds,
+> classe extraite `gpu-v150-webgl2player.txt`, `--label-new=v1.5.0`, une
+> commande : `./bench/gpu/run-gpu-ci.sh --cls-new=bench/gpu/gpu-v150-webgl2player.txt
+> --label-new=v1.5.0`) : upload ×2,10, wallTotal ×1,49, draw 10,2 vs 9,2 µs
+> (ratio 1,11 — drift inter-session documenté), chemin GL `texSubImage2D`
+> intact. Entre v1.4.0 et v1.5.0 seul `updateCanvas` (cache des valeurs de
+> uniforms, côté CPU) a changé — couvert par la table « Hot loops ».
 
 | Mesure | perf10 | v1.4.0 | Δ |
 |---|---|---|---|
@@ -377,8 +380,12 @@ Prérequis : Node + Playwright (canal `msedge`) + GPU réel. Points clés :
 racine du repo) :
 
 ```bash
-# Prérequis : test.webm généré (node bench/gpu/gen-video.js bench/gpu/test.webm),
-# Playwright via NODE_PATH (ex. NODE_PATH=/d/Codex/koharu/node_modules).
+# En une commande (même chaîne que le job CI gpu-upload : gen-video →
+# 6 seeds × gpu-runner → agg-seeds → check-gpu) :
+./bench/gpu/run-gpu-ci.sh                      # protocole complet (~30–40 min)
+
+# Équivalent à la main (Prérequis : test.webm généré, Playwright via NODE_PATH,
+# ex. NODE_PATH=/d/Codex/koharu/node_modules) :
 for S in 100 200 300 400 500 600; do
   node bench/gpu/gpu-runner.js \
     --cls-p10=bench/gpu/gpu-perf10-webgl2player.txt \
@@ -388,7 +395,13 @@ for S in 100 200 300 400 500 600; do
     > bench/gpu/run-s$S.json
 done
 node bench/gpu/agg-seeds.js 100 200 300 400 500 600
+node bench/gpu/check-gpu.js 100 200 300 400 500 600
 ```
+
+`run-gpu-ci.sh` : canal auto-détecté (`msedge` Windows / `chromium` Linux),
+`--seeds=`, `--keep-video`/`--force-video`, `--label-new=` (propagé à
+`agg-seeds.js` — ex. `--cls-new=... --label-new=v1.5.0` pour mesurer un autre
+build), `--no-fix` par défaut. Voir `bench/gpu/README.md` pour toutes les options.
 
 Règles d'agrégation : chaque run imprime l'`agg` par version (médiane sur
 les 3 passes de l'upload, du wallTotal et du draw) ; `agg-seeds.js` agrège

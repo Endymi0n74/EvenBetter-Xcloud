@@ -25,6 +25,7 @@ chapitre Benchmarks du README principal.
 | `extract-class.js` | Extrait `class WebGL2Player` d'un build minifié (parenthésage string-aware pour les shaders) |
 | `gpu-perf10-webgl2player.txt` | Classe extraite de la baseline perf10 |
 | `gpu-v140-webgl2player.txt` | Classe extraite du build v1.4.0 (contient déjà `gl.RGB8`) |
+| `gpu-v150-webgl2player.txt` | Classe extraite du build v1.5.0 (idem v1.4.0 + cache uniforms `updateCanvas` — chemin GPU identique, re-mesure ×2,10/×1,49) |
 | `gpu-v130-webgl2player.txt` | Classe v1.3.0 (historique, bug `gl.RGB` non corrigé) |
 | `gpu-runner.js` | Harnais : serveur local, injection, instrumentation GL, GPU timestamps, agrégation par seed |
 | `agg-seeds.js` | Agrège les runs (`run-s<seed>.json`) : min / max / médiane des médianes + ratios |
@@ -45,6 +46,25 @@ node bench/gpu/extract-class.js better-xcloud.user.js bench/gpu/gpu-v140-webgl2p
 
 ## Protocole figé (rejouer la table « GPU » telle quelle)
 
+**En une commande** (équivalent local du job CI `gpu-upload` — même chaîne
+que le workflow : gen-video → 6 seeds × gpu-runner → agg-seeds → check-gpu) :
+
+```bash
+./bench/gpu/run-gpu-ci.sh                     # protocole complet (≈30–40 min)
+./bench/gpu/run-gpu-ci.sh --seeds="100 200"   # sous-ensemble (test rapide)
+```
+
+Canal auto-détecté (`msedge` Windows / `chromium` Linux), Playwright requis
+(`NODE_PATH` vers un install existant sinon), `--no-fix` par défaut (mesure
+strictement le build publié), vidéo régénérée si absente (`--keep-video`
+pour réutiliser, `--force-video` pour forcer). `agg-seeds.js` accepte
+`--label-new=` (défaut `v1.4.0`) — permet de mesurer un autre build (ex.
+v1.5.0) avec `--cls-new=... --label-new=v1.5.0`. Les `run-s*.json` produits
+sont conservés (gitignorés) pour relancer l'agrégation/vérification sans
+re-mesurer.
+
+Commandes équivalentes, à la main :
+
 ```bash
 cd <racine du repo>
 for S in 100 200 300 400 500 600; do
@@ -56,6 +76,7 @@ for S in 100 200 300 400 500 600; do
     > bench/gpu/run-s$S.json
 done
 node bench/gpu/agg-seeds.js 100 200 300 400 500 600
+node bench/gpu/check-gpu.js 100 200 300 400 500 600
 ```
 
 Canal navigateur : `--channel=msedge` par défaut (Windows, GPU via
