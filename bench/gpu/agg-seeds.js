@@ -30,6 +30,40 @@ console.log("Ordre des passes par seed :");
 console.log(orderLines.join("\n"));
 console.log();
 
+// ---------- état machine par seed (avant mesure, si capturé par run-gpu-ci.sh) ----------
+// Permet de corréler l'état « haut » / « bas » des uploads GPU (backpressure/sync
+// du pipeline vidéo/GPU, mémo projet §7) avec la température/clocks/charge réels.
+console.log("État machine par seed (avant mesure) :");
+for (const s of seeds) {
+  const sf = path.join(__dirname, `state-s${s}.before.json`);
+  let line = `  seed ${s}: n/a (pas de state-s${s}.before.json)`;
+  if (fs.existsSync(sf)) {
+    try {
+      const st = JSON.parse(fs.readFileSync(sf, "utf8"));
+      const g = st.gpu;
+      const c = st.cpu;
+      const parts = [];
+      parts.push(
+        g
+          ? `GPU ${g.tempC}°C · util ${g.utilPct}% · SM ${g.smClockMhz} MHz · mem ${g.memClockMhz} MHz · ${g.powerW} W · ${g.pstate}`
+          : "GPU n/a"
+      );
+      parts.push(
+        c
+          ? `CPU load ${c.loadPct}%` + (c.perfPct != null ? ` · perf ${c.perfPct}%` : "") + (c.clockMhz ? ` · base ${c.clockMhz} MHz` : "")
+          : "CPU n/a"
+      );
+      const t = (st.top || []).slice(0, 3).map((x) => `${x.name}(${x.cpuSeconds}s)`).join(" ");
+      if (t) parts.push("top: " + t);
+      line = `  seed ${s}: ${parts.join(" | ")}`;
+    } catch (e) {
+      line = `  seed ${s}: état illisible (${sf})`;
+    }
+  }
+  console.log(line);
+}
+console.log();
+
 // NOTE unités : uploadNs est en ns (runner : (ms/UPLOADS)*1e6) → /1000 pour µs ;
 // wallTotalMs est en ms ; gpuMed est en ms (queryResult/1e6) → *1000 pour µs.
 // (Les versions précédentes affichaient uploadNs en ns et gpuMed en ms sous

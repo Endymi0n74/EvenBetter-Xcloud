@@ -29,7 +29,8 @@ chapitre Benchmarks du README principal.
 | `gpu-v160-webgl2player.txt` | Classe extraite du build v1.6.0 (idem v1.5.0 + flag dirty `updateCanvas` — `updateFrame` et shader octet pour octet identiques, table GPU v1.4.0/v1.5.0 valide) |
 | `gpu-v130-webgl2player.txt` | Classe v1.3.0 (historique, bug `gl.RGB` non corrigé) |
 | `gpu-runner.js` | Harnais : serveur local, injection, instrumentation GL, GPU timestamps, agrégation par seed |
-| `agg-seeds.js` | Agrège les runs (`run-s<seed>.json`) : min / max / médiane des médianes + ratios |
+| `machine-state.js` | Capture l'état machine avant/après chaque seed (GPU nvidia-smi : temp/util/clocks/puissance/P-state ; CPU : charge %, % de la fréquence de base si compteurs perf OK, fréquence base via WMI ; top 5 processus) — JSON tolérant (outil absent → champ null) |
+| `agg-seeds.js` | Agrège les runs (`run-s<seed>.json`) : min / max / médiane des médianes + ratios, et affiche l'état machine par seed (corrélation état haut/bas des uploads) |
 | `gpu-update-readme.js` | Régénère la table « GPU » du README en place |
 | `check-gpu.js` | CI : vérifie upload/wallTotal/draw (seuils) + chemin GL fonctionnel (compteurs) ; résumé markdown + exit code |
 
@@ -72,6 +73,18 @@ mais relance avec `v1.5.0`) est **re-mesuré** — après un run interrompu, seu
 les seeds manquants/corrompus sont re-mesurés, les autres sont skippés.
 Validé : skip 6/6 sur jeu complet, re-mesure ciblée sur fichier manquant et
 sur label incohérent.
+
+**État machine par seed** (activé par défaut, `--no-state` pour désactiver) :
+avant et après chaque seed, `machine-state.js` écrit
+`state-s<seed>.before.json` / `state-s<seed>.after.json` (gitignorés) — GPU
+via `nvidia-smi` (température, utilisation, clocks SM/mémoire, puissance,
+P-state) et CPU (charge %, % de la fréquence de base si les compteurs perf
+sont enregistrés — désactivés sur la machine de bench → repli
+`Win32_Processor.LoadPercentage` ; fréquence de base via WMI ; top 5
+processus en temps CPU cumulé). Objectif : corréler l'état « haut »/« bas »
+des uploads GPU (backpressure/sync du pipeline — mémo projet §7) avec l'état
+réel de la machine au moment de la mesure. `agg-seeds.js` affiche la capture
+« avant » de chaque seed à côté des ordres de passes.
 
 Commandes équivalentes, à la main :
 

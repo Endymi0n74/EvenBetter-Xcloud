@@ -35,10 +35,20 @@
 #                  valide, les 2 versions aggées, toutes les passes terminées) —
 #                  après un run timeout/partiel, seuls les seeds manquants ou
 #                  corrompus sont re-mesurés
+#   --no-state     désactive la capture d'état machine (défaut : activée)
+#
+# État machine : avant et après CHAQUE seed, machine-state.js capture l'état
+# GPU (nvidia-smi : température, utilisation, clocks SM/mémoire, puissance,
+# P-state) et CPU (charge %, % de la fréquence de base si compteurs perf
+# disponibles, fréquence de base via WMI, top 5 processus en temps CPU) dans
+# bench/gpu/state-s<seed>.{before,after}.json (gitignorés). Objectif : corréler
+# l'état « haut » / « bas » des uploads GPU (backpressure/sync du pipeline —
+# mémo projet §7) avec l'état réel de la machine. Tolérant : outil absent →
+# champ null, le protocole continue. Affichage par seed dans agg-seeds.js.
 #
 # Les run-s<seed>.json sont conservés (gitignorés) : agg-seeds.js et
 # check-gpu.js peuvent être relancés sans re-mesurer. Nettoyage manuel :
-#   rm bench/gpu/run-s*.json
+#   rm bench/gpu/run-s*.json bench/gpu/state-s*.json
 set -e
 cd "$(dirname "$0")/../.."
 
@@ -54,6 +64,7 @@ FORCE_VIDEO=0
 KEEP_VIDEO=0
 MARKDOWN=""
 RESUME=0
+STATE=1
 for arg in "$@"; do
   case "$arg" in
     --seeds=*)     SEEDS="${arg#--seeds=}" ;;
@@ -68,6 +79,7 @@ for arg in "$@"; do
     --keep-video)  KEEP_VIDEO=1 ;;
     --markdown=*)  MARKDOWN="${arg#--markdown=}" ;;
     --resume)      RESUME=1 ;;
+    --no-state)    STATE=0 ;;
     *) echo "Option inconnue : $arg" >&2; exit 1 ;;
   esac
 done
@@ -124,6 +136,10 @@ for S in $SEEDS; do
     echo "  seed $S : déjà mesuré (run-s$S.json complet) — skip (--resume)"
     continue
   fi
+  if [ "$STATE" = "1" ]; then
+    echo "  seed $S : état machine (avant)..."
+    node bench/gpu/machine-state.js before > "bench/gpu/state-s$S.before.json" 2>/dev/null || true
+  fi
   echo "  seed $S ..."
   node bench/gpu/gpu-runner.js \
     --cls-p10="$CLS_P10" \
@@ -133,6 +149,10 @@ for S in $SEEDS; do
     --channel="$CHANNEL" \
     $([ "$NO_FIX" = "1" ] && echo --no-fix) \
     > "bench/gpu/run-s$S.json"
+  if [ "$STATE" = "1" ]; then
+    echo "  seed $S : état machine (après)..."
+    node bench/gpu/machine-state.js after > "bench/gpu/state-s$S.after.json" 2>/dev/null || true
+  fi
   echo "  seed $S : OK"
 done
 
