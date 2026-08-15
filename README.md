@@ -244,6 +244,7 @@ draw, jamais les absolus.
 | Soir 15 août (6 seeds) | v1.6.0 | 48,2–61,3 | 8,5–11,3 | **×4,86** | bas | — | — | 10,2 |
 | Soir 15 août — re-mesure (6 seeds + état machine) | v1.6.0 | 42,2–77,7 | 7,7–11,8 | **×5,47** | bas | 24,5 (19,5–75) | **33,3** (29–83,8) | 10,2 vs 9,2 |
 | Nuit 15 août — phase capturée (6 seeds) | v1.6.0 | 57,25 (51,25–60,50) | 11,00 (9,00–11,75) | **×5,20** | bas | 16,75 (15,00–26,25) | **26,25** (25,25–34,25) | 11,26 vs 10,24 |
+| CI 15 août (6 seeds, runner self-hosted Windows/GPU) | v1.6.0 | 47,50 (45,50–52,50) | 10,00 (8,25–11,75) | **×4,75** | bas | 17,25 (14,75–25,25) | **26,75** (24,25–35,50) | 10,24 vs 10,24 |
 
 _Split émission/sync (readback `readPixels`, cf. bench/gpu/README.md) mesuré
 seulement depuis la re-mesure du soir (gpu-runner.js v2) — les sessions
