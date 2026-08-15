@@ -96,28 +96,29 @@ absolue mais la comparaison relative entre les deux builds.
 
 ### Chargement (parse + éval de page)
 
-| Mesure | perf10 | v1.4.0 | Δ |
+| Mesure | perf10 | v1.5.0 | Δ |
 |---|---|---|---|
-| Parse/compile (Node `new Function`, ×300/passe, protocole stabilisé : médiane de 3 passes × 3 seeds) | ~0,12–0,13 ms | ~0,12–0,13 ms | non mesurable : ≈ ±10–20 % run à run (bruit sub-ms) |
-| Éval complète de page (Edge headless, injection `document-start`, 20 runs, médiane) | ~40 ms (min 29) | ~37 ms (min 28) | ~8,2 % |
+| Parse/compile (Node `new Function`, ×300/passe, protocole stabilisé : médiane de 3 passes × 3 seeds) | ~0,11–0,12 ms | ~0,12–0,12 ms | non mesurable : ≈ ±10–20 % run à run (bruit sub-ms) |
+| Éval complète de page (Edge headless, injection `document-start`, 20 runs, médiane) | ~31 ms (min 28) | ~33 ms (min 27) | ~-3,5 % |
 
-La série perf11/v1.3.0 (re-mesurée sur le build v1.4.0 officiel — le code des
-hot loops est inchangé entre v1.3.0 et v1.4.0, seul le renderer WebGL2 a reçu
-le fix RGB8) visait le **runtime** (hot loops, GPU, caches), pas le chargement —
-confirmé : le coût de démarrage est identique (le `p95` de perf10 présente des
-outliers environnementaux, la médiane est stable).
+La série perf11 (re-mesurée sur le build v1.5.0 officiel — entre v1.4.0 et
+v1.5.0, seul `updateCanvas` a changé : cache des valeurs de uniforms) visait le
+**runtime** (hot loops, GPU, caches), pas le chargement — confirmé : le coût de
+démarrage est identique (le `p95` de perf10 présente des outliers
+environnementaux, la médiane est stable).
 
 ### Hot loops (~60 Hz)
 
 Protocole figé — seeds 42 / 2024 / 999 × 3 passes × 200 000 itérations ; chaque cellule = médiane des médianes, plage = min–max inter-seeds. Les absolus varient ~±10–30 % run à run, les ratios sont stables.
 
-| Hot loop | perf10 | v1.4.0 | Gain |
+| Hot loop | perf10 | v1.5.0 | Gain |
 |---|---|---|---|
-| Controller customization — **IDLE** (aucun input, sticks centrés) | ~452 ns/poll (449–493) | **~49,6 ns/poll (46–73)** | **-89,0 % (×9,1)** |
-| Controller customization — ACTIF (bouton + stick) | ~730 ns/poll (526–1060) | ~628 ns/poll (569–681) | équivalent |
-| `poll_gamepad_default` — chemin commun (Home jamais pressé) | ~21,3 ns/poll (17–22) | ~16,0 ns/poll (15–17) | identique |
-| `poll_gamepad_default` — relâchement du bouton Home | ~2069 ns/poll (1702–2786) | **~276 ns/poll (211–285)** | **-86,6 % (×7,5)** |
-| `WebGL2Player.updateFrame` — chemin stable (coût JS seul) | ~228 ns/frame (222–342) | ~244 ns/frame (198–353) | équivalent (voir note) |
+| Controller customization — **IDLE** (aucun input, sticks centrés) | ~384 ns/poll (372–399) | **~43,1 ns/poll (35–46)** | **-88,8 % (×8,9)** |
+| Controller customization — ACTIF (bouton + stick) | ~474 ns/poll (471–483) | ~494 ns/poll (481–537) | équivalent |
+| `poll_gamepad_default` — chemin commun (Home jamais pressé) | ~17,4 ns/poll (12–19) | ~16,5 ns/poll (13–17) | identique |
+| `poll_gamepad_default` — relâchement du bouton Home | ~1490 ns/poll (1430–1528) | **~195 ns/poll (175–206)** | **-86,9 % (×7,6)** |
+| `WebGL2Player.updateFrame` — chemin stable (coût JS seul) | ~207 ns/frame (196–217) | ~185 ns/frame (169–192) | équivalent (voir note) |
+| `WebGL2Player.updateCanvas` — valeurs inchangées (chemin 60 Hz, coût JS seul) | ~296 ns/frame (289–322) | **~21,7 ns/frame (17–22)** | **-92,7 % (×13,7)** |
 
 Notes :
 
@@ -131,6 +132,11 @@ Notes :
   est côté driver GPU — `texImage2D` → `texSubImage2D` (plus de réallocation de
   texture à chaque frame) et suppression du `bindTexture` par frame (60 appels
   GL/s en moins). Ces effets ne sont pas mesurables dans un micro-benchmark JS.
+- Le cache des **uniforms** (`updateCanvas`, patch 19) supprime les 7
+  `gl.uniform*` par frame quand rien ne change (options, taille du canvas) —
+  l'invalidation se fait par comparaison de valeurs, donc `refreshPlayer()`
+  re-upload automatiquement dès qu'une valeur bouge ; le coût du chemin stable
+  passe de ~296 ns à ~22 ns/frame (**×13,7**) dans le harnais JS.
 - En absolu, les économies sont de l'ordre de la microseconde par opération :
   l'intérêt est l'élimination des **allocations à 60 Hz** (pression GC) et du
   travail driver répété, pas le temps CPU brut.
@@ -143,6 +149,11 @@ en headless, vidéo de test 640×360 (VP9) générée en navigateur, classe
 WebGL2, méthodes GL instrumentées (compteurs) et rasterisation mesurée via
 `EXT_disjoint_timer_query_webgl2` (`TIME_ELAPSED` autour de `drawArrays`),
 120 frames × 3 passes (ordre mélangé par seed), protocole stabilisé (cf. Repro).
+
+> Table mesurée sur **v1.4.0** : entre v1.4.0 et v1.5.0 le chemin GPU
+> (`updateFrame`/upload/draw) est **inchangé** — seul `updateCanvas` (cache des
+> valeurs de uniforms, côté CPU) a changé, couvert par la table « Hot loops ».
+> Pour re-mesurer : `node bench/gpu/gpu-runner.js` (protocole 6 seeds, cf. Repro GPU).
 
 | Mesure | perf10 | v1.4.0 | Δ |
 |---|---|---|---|
