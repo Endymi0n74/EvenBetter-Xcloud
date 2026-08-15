@@ -128,7 +128,10 @@ jobs:
           node bench/gpu/agg-seeds.js --label-new=v1.6.0 100 200 300 400 500 600
 
       - name: Vérifie upload / wallTotal / draw + chemin GL (résumé markdown avec ligne de session)
-        run: node bench/gpu/check-gpu.js 100 200 300 400 500 600 --markdown="$RUNNER_TEMP/gpu-summary.md"
+        # ${{ runner.temp }} (expression GitHub) plutôt que $RUNNER_TEMP : le
+        # shell par défaut de Windows est PowerShell, qui n'expand pas la
+        # variable d'env bash (chemin vide → écriture à la racine C:\ → EPERM)
+        run: node bench/gpu/check-gpu.js 100 200 300 400 500 600 --markdown="${{ runner.temp }}/gpu-summary.md"
 
       - name: Upload du résumé GPU (tableau + ligne de session prête à coller dans le README)
         uses: actions/upload-artifact@v4
