@@ -207,6 +207,13 @@ WebGL2, méthodes GL instrumentées (compteurs) et rasterisation mesurée via
 > perf10 emit 42,2–77,7 / sync 69,7–112,0 / total 112–165 µs — la **sync
 > readback est le composant volatile** (pas l'émission) : la prédiction
 > « total stable » n'est pas confirmée (cf. tableau des sessions).
+> **Corrélation état machine : négative** (6 seeds) — l’état capturé était
+> quasi constant (SM 1725 MHz épinglé, temp 50-53 °C, puissance 48-57 W) et
+> ne corrèle avec rien (|r| ≤ 0,68, non significatif à n=6). La variance de
+> sync est **temporelle : effet première passe** — la 1re mesure upload de
+> chaque seed a une sync élevée (65-239 µs) puis chute à 13-24 µs dès la
+> 2e passe (5/6 seeds) ; le préchauffage (50 uploads) ne stabilise pas le
+> readback (amélioration harnais à faire : préchauffer le readback).
 
 | Mesure | perf10 | v1.6.0 | Δ |
 |---|---|---|---|
