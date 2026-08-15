@@ -111,16 +111,16 @@ outliers environnementaux, la médiane est stable).
 
 Micro-benchmarks Node (V8), fragments injectés extraits des builds, 200 000
 itérations par scénario. Valeurs re-mesurées sur le build v1.4.0 officiel
-(`bench/run-all.sh`, session 2) — les absolus varient ~±30 % run à run, les
-ratios sont stables.
+avec le **protocole stabilisé** (`bench/run-all.sh`, médiane de 3 passes ×
+3 seeds) — les absolus varient ~±10–30 % run à run, les ratios sont stables.
 
 | Hot loop | perf10 | v1.4.0 | Gain |
 |---|---|---|---|
-| Controller customization — **IDLE** (aucun input, sticks centrés) | ~305 ns/poll | **~46 ns/poll** | **-85 % (×6,5)** |
-| Controller customization — ACTIF (bouton + stick) | ~360 ns/poll | ~370 ns/poll | équivalent (±10 % run à run) |
-| `poll_gamepad_default` — chemin commun (Home jamais pressé) | ~11 ns/poll | ~11 ns/poll | identique |
-| `poll_gamepad_default` — relâchement du bouton Home | ~1120 ns | **~140 ns** | **-88 %** |
-| `WebGL2Player.updateFrame` — chemin stable (coût JS seul) | ~150 ns/frame | ~140 ns/frame | équivalent (voir note) |
+| Controller customization — **IDLE** (aucun input, sticks centrés) | ~330 ns/poll | **~35 ns/poll** | **-89 % (×9)** |
+| Controller customization — ACTIF (bouton + stick) | ~390–410 ns/poll | ~400–415 ns/poll | équivalent (±10 % run à run) |
+| `poll_gamepad_default` — chemin commun (Home jamais pressé) | ~15 ns/poll | ~13 ns/poll | identique |
+| `poll_gamepad_default` — relâchement du bouton Home | ~1210 ns | **~160 ns** | **-87 %** |
+| `WebGL2Player.updateFrame` — chemin stable (coût JS seul) | ~165 ns/frame | ~150 ns/frame | équivalent (voir note) |
 
 Notes :
 
@@ -150,27 +150,28 @@ WebGL2, méthodes GL instrumentées (compteurs) et rasterisation mesurée via
 | Mesure | perf10 | v1.4.0 | Δ |
 |---|---|---|---|
 | Appels GL par frame | `texImage2D` + `drawArrays` (0 allocation) | `texSubImage2D` + `drawArrays` (0 allocation) | même nombre d'appels |
-| Upload vidéo — boucle tight (µs/upload) | ~70–75 µs | ~40 µs | **×1,8** |
+| Upload vidéo — boucle tight (µs/upload) | ~80–93 µs | ~44–50 µs | **×1,8** |
 | Rasterisation `drawArrays` (µs/draw, médiane GPU) | 10,2 µs | 10,2 µs | identique (même shader) |
-| `updateFrame` — wall total (ms/frame, boucle complète / FRAMES) | ~0,07–0,08 ms | ~0,05 ms | **×1,5–1,8** |
+| `updateFrame` — wall total (ms/frame, boucle complète / FRAMES) | ~0,073–0,085 ms | ~0,049–0,057 ms | **×1,6** |
 
 Lecture des résultats :
 
 - Le **draw** (rasterisation) coûte pareil dans les deux versions — même
   shader, même résolution : attendu.
 - Le vrai levier est l'**upload vidéo** : `texImage2D` **réalloue le storage
-  GPU de la texture à chaque frame** (~2–3× le coût d'un `texSubImage2D` dans un
+  GPU de la texture à chaque frame** (~×1,8 le coût d'un `texSubImage2D` dans un
   storage immuable). C'est le bénéfice mesurable des patches 13/16 côté GPU —
   invisible dans les micro-benchmarks JS (d'où l'écart avec la table
   « Hot loops » ci-dessus).
-- Le wall de `updateFrame` suit (~×1,5–1,8 avec la métrique `wallTotal`
+- Le wall de `updateFrame` suit (~×1,6 avec la métrique `wallTotal`
   stabilisée) : la partie synchronisée du chemin d'upload domine la frame.
 - **Protocole stabilisé** (préchauffage GPU + runs croisés par seed + médiane
-  sur 3 passes, cf. Repro) : reproductible à ~±5–10 % d'un seed à l'autre
-  (3 seeds testés : upload 70,7 / 75,0 / 73,5 µs vs 41,0 / 39,3 / 39,8 µs ;
-  wallTotal 0,074 / 0,070 / 0,077 vs 0,049 / 0,045 / 0,048 ms ; draw 10,2 µs
-  identique partout). Les outliers « première passe » (upload perf10 ~10 µs
-  ponctuel — état driver) sont absorbés par la médiane.
+  sur 3 passes, cf. Repro) : re-mesure complète sur **6 seeds (même session)**
+  — upload perf10 80,5 / 80,8 / 82,5 / 85,8 / 88,5 / 93,0 µs vs v1.4.0
+  43,8 / 44,8 / 46,0 / 47,8 / 48,5 / 50,3 µs (médiane des médianes : 85,8 vs
+  47,8 µs, **×1,8**) ; wallTotal 0,073–0,085 vs 0,049–0,057 ms (**×1,6**) ;
+  draw 10,2 µs identique partout. Les outliers « première passe » (upload
+  perf10 ~10 µs ponctuel — état driver) sont absorbés par la médiane.
 
 > **⚠️ Bug (corrigé en v1.4.0) — builds v1.2.0 et v1.3.0 (et TS upstream)** :
 > `gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGB, …)` utilisait un **format
@@ -245,7 +246,18 @@ pièges) pour les adapter.
 - Mapping/ranges réalistes pour `controller_customization` ; le chemin
   « relâchement Home » exige `bxHomeStates[index]` pré-rempli +
   `inputSink.onGamepadInput` + `BX_STREAM_SETTINGS.controllerPollingRate`.
-- 200 000 itérations par scénario, warmup avant mesure.
+- **Stabilisation** (réduction de la variance run à run, même recette que le
+  GPU) : préchauffage explicite en 2 phases (5 000 + 10 000 itérations) puis
+  `global.gc()` avant le chrono (`node --expose-gc`, fait par `run-all.sh` —
+  sans ça la poubelle du warmup est purgée pendant la mesure) ; **runs
+  croisés** : l'ordre des mesures (version × scénario) est mélangé par seed
+  reproductible (`--seed=N`, PRNG mulberry32) ; **médiane / min / max sur
+  3 passes** (`--passes=N`).
+- 200 000 itérations par scénario. Le relâchement Home conserve son **ctx
+  neuf** (le fragment met `bxHomeStates[index]` à `null` au premier
+  relâchement — un ctx réutilisé retomberait sur le chemin rapide) mais
+  `buttons` est **hoisté hors de la closure** (le créer par itération ajouterait
+  20 allocations/poll et gonflerait la mesure).
 
 ### GPU — renderer WebGL2 (Edge réel, hors repo)
 

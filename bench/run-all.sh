@@ -31,7 +31,7 @@ node bench/parse.js "$TMP/perf10.js" "$TMP/build.js"
 
 echo
 echo "== 2/3 Hot loops ~60 Hz (Node) =="
-node bench/hotloops.js "$TMP/perf10.js" "$TMP/build.js"
+node --expose-gc bench/hotloops.js "$TMP/perf10.js" "$TMP/build.js"
 
 if [ "$SKIP_PAGE_EVAL" = "1" ]; then
   echo
