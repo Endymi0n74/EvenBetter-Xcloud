@@ -1,11 +1,11 @@
-# better-xcloud-perf — v1.4.0
+# better-xcloud-perf — v1.6.0
 
 [![Release](https://img.shields.io/github/v/release/Endymi0n74/better-xcloud-perf?style=for-the-badge&color=green)](https://github.com/Endymi0n74/better-xcloud-perf/releases/latest)
 [![Install](https://img.shields.io/badge/Install-userscript-blue?style=for-the-badge)](https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.user.js)
 
 Fork performance du userscript [Better xCloud](https://github.com/redphx/better-xcloud)
 (redphx), orienté **performance**. Dernière release :
-[better-xcloud-perf-v1.4.0](https://github.com/Endymi0n74/better-xcloud-perf/releases/tag/better-xcloud-perf-v1.4.0).
+[better-xcloud-perf-v1.6.0](https://github.com/Endymi0n74/better-xcloud-perf/releases/tag/better-xcloud-perf-v1.6.0).
 
 Ce dépôt contient le script **buildé** (`better-xcloud.user.js`) — c'est le
 fichier à installer tel quel dans un gestionnaire d'userscripts. Les
@@ -46,11 +46,11 @@ Chaque release contient **deux fichiers** :
 | Fichier | Rôle |
 |---|---|
 | `better-xcloud.meta.js` | En-tête du script seul (~0,7 Ko) — l'URL pointée par `@updateURL` |
-| `better-xcloud.user.js` | Script complet (479 Ko) — l'URL de `@downloadURL` |
+| `better-xcloud.user.js` | Script complet (470 Ko) — l'URL de `@downloadURL` |
 
 Au moment du check d'update, Tampermonkey télécharge **`better-xcloud.meta.js`**
 (léger), compare le `@version` servi avec celui installé, et ne télécharge le
-script complet que si une nouvelle version existe. Évite de télécharger 479 Ko
+script complet que si une nouvelle version existe. Évite de télécharger 470 Ko
 à chaque vérification.
 
 ```
@@ -83,6 +83,8 @@ script complet que si une nouvelle version existe. Évite de télécharger 479 K
 | 16 | `WebGL2Player` : `bindTexture` par frame supprimé | La texture reste liée entre les frames (une seule texture, contexte dédié) — 60 appels GL/s de moins |
 | 17 | `WebGL2Player` : flag expérimental `WebGL2NoColorConversion` | `gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE)` avant les uploads vidéo — skippe la conversion sRGB du navigateur (gain potentiel sur le chemin le plus cher) ; désactivé par défaut, à activer via `BX_FLAGS` avec validation visuelle |
 | 18 | `WebGL2Player` : fix `texStorage2D` | `gl.RGB` (format **non-sized** → `INVALID_ENUM`, renderer WebGL2 **écran noir**) → `gl.RGB8` — corrige le bug introduit par l'opti 13 (présent aussi dans le TS upstream) |
+| 19 | `WebGL2Player.updateCanvas` : cache des valeurs de uniforms | 7 `gl.uniform*` sautés par frame quand rien ne change (invalidation par comparaison de valeurs) — chemin stable ~296 → ~22 ns/frame (**×13,7**) |
+| 20 | `WebGL2Player.updateCanvas` : skip par flag dirty | Le recalcul des uniforms n'est relancé que si `updateOptions`/`refreshPlayer` a invalidé le flag (options/canvas inchangés = 1 lecture + branche) — chemin stable ~22 → ~12,7 ns/frame (**×19,4** vs perf10) |
 
 L'historique perf1–perf10 (Set O(1) du patcher, debounce localStorage, cache
 `getBattery()`, uniform locations pré-calculées, etc.) est conservé dans
@@ -96,13 +98,14 @@ absolue mais la comparaison relative entre les deux builds.
 
 ### Chargement (parse + éval de page)
 
-| Mesure | perf10 | v1.5.0 | Δ |
+| Mesure | perf10 | v1.6.0 | Δ |
 |---|---|---|---|
-| Parse/compile (Node `new Function`, ×300/passe, protocole stabilisé : médiane de 3 passes × 3 seeds) | ~0,11–0,12 ms | ~0,12–0,12 ms | non mesurable : ≈ ±10–20 % run à run (bruit sub-ms) |
-| Éval complète de page (Edge headless, injection `document-start`, 20 runs, médiane) | ~31 ms (min 28) | ~33 ms (min 27) | ~-3,5 % |
+| Parse/compile (Node `new Function`, ×300/passe, protocole stabilisé : médiane de 3 passes × 3 seeds) | ~0,11–0,11 ms | ~0,10–0,11 ms | non mesurable : ≈ ±10–20 % run à run (bruit sub-ms) |
+| Éval complète de page (Edge headless, injection `document-start`, 20 runs, médiane) | ~24 ms (min 21) | ~25 ms (min 22) | ~-4,7 % |
 
-La série perf11 (re-mesurée sur le build v1.5.0 officiel — entre v1.4.0 et
-v1.5.0, seul `updateCanvas` a changé : cache des valeurs de uniforms) visait le
+La série perf11 (re-mesurée sur le build v1.6.0 officiel — v1.5.0 a remplacé
+les 7 `gl.uniform*` par un cache de valeurs dans `updateCanvas`, v1.6.0 par un
+flag dirty) visait le
 **runtime** (hot loops, GPU, caches), pas le chargement — confirmé : le coût de
 démarrage est identique (le `p95` de perf10 présente des outliers
 environnementaux, la médiane est stable).
@@ -111,14 +114,14 @@ environnementaux, la médiane est stable).
 
 Protocole figé — seeds 42 / 2024 / 999 × 3 passes × 200 000 itérations ; chaque cellule = médiane des médianes, plage = min–max inter-seeds. Les absolus varient ~±10–30 % run à run, les ratios sont stables.
 
-| Hot loop | perf10 | v1.5.0 | Gain |
+| Hot loop | perf10 | v1.6.0 | Gain |
 |---|---|---|---|
-| Controller customization — **IDLE** (aucun input, sticks centrés) | ~384 ns/poll (372–399) | **~43,1 ns/poll (35–46)** | **-88,8 % (×8,9)** |
-| Controller customization — ACTIF (bouton + stick) | ~474 ns/poll (471–483) | ~494 ns/poll (481–537) | équivalent |
-| `poll_gamepad_default` — chemin commun (Home jamais pressé) | ~17,4 ns/poll (12–19) | ~16,5 ns/poll (13–17) | identique |
-| `poll_gamepad_default` — relâchement du bouton Home | ~1490 ns/poll (1430–1528) | **~195 ns/poll (175–206)** | **-86,9 % (×7,6)** |
-| `WebGL2Player.updateFrame` — chemin stable (coût JS seul) | ~207 ns/frame (196–217) | ~185 ns/frame (169–192) | équivalent (voir note) |
-| `WebGL2Player.updateCanvas` — valeurs inchangées (chemin 60 Hz, coût JS seul) | ~296 ns/frame (289–322) | **~21,7 ns/frame (17–22)** | **-92,7 % (×13,7)** |
+| Controller customization — **IDLE** (aucun input, sticks centrés) | ~333 ns/poll (303–335) | **~29,8 ns/poll (30–38)** | **-91,1 % (×11,2)** |
+| Controller customization — ACTIF (bouton + stick) | ~387 ns/poll (385–408) | ~397 ns/poll (382–456) | équivalent |
+| `poll_gamepad_default` — chemin commun (Home jamais pressé) | ~12,8 ns/poll (11–17) | ~11,8 ns/poll (11–13) | identique |
+| `poll_gamepad_default` — relâchement du bouton Home | ~1224 ns/poll (1189–1234) | **~152 ns/poll (150–159)** | **-87,6 % (×8,1)** |
+| `WebGL2Player.updateFrame` — chemin stable (coût JS seul) | ~173 ns/frame (169–174) | ~142 ns/frame (141–152) | équivalent (voir note) |
+| `WebGL2Player.updateCanvas` — valeurs inchangées (chemin 60 Hz, coût JS seul) | ~246 ns/frame (239–253) | **~12,7 ns/frame (13–13)** | **-94,8 % (×19,4)** |
 
 Notes :
 
@@ -132,11 +135,12 @@ Notes :
   est côté driver GPU — `texImage2D` → `texSubImage2D` (plus de réallocation de
   texture à chaque frame) et suppression du `bindTexture` par frame (60 appels
   GL/s en moins). Ces effets ne sont pas mesurables dans un micro-benchmark JS.
-- Le cache des **uniforms** (`updateCanvas`, patch 19) supprime les 7
-  `gl.uniform*` par frame quand rien ne change (options, taille du canvas) —
-  l'invalidation se fait par comparaison de valeurs, donc `refreshPlayer()`
-  re-upload automatiquement dès qu'une valeur bouge ; le coût du chemin stable
-  passe de ~296 ns à ~22 ns/frame (**×13,7**) dans le harnais JS.
+- Le cache des **uniforms** (`updateCanvas`, patch 19) supprimait les 7
+  `gl.uniform*` par frame quand rien ne change (options, taille du canvas),
+  par comparaison de valeurs (~22 ns/frame) ; depuis la **v1.6.0** (patch 20)
+  un **flag dirty** posé par `updateOptions`/`refreshPlayer` remplace la
+  comparaison : le chemin stable (60 Hz, rien ne change) coûte une lecture +
+  une branche — ~12,7 ns/frame (**×19,4** vs perf10, ~×1,7 vs v1.5.0).
 - En absolu, les économies sont de l'ordre de la microseconde par opération :
   l'intérêt est l'élimination des **allocations à 60 Hz** (pression GC) et du
   travail driver répété, pas le temps CPU brut.
@@ -156,7 +160,11 @@ WebGL2, méthodes GL instrumentées (compteurs) et rasterisation mesurée via
 > --label-new=v1.5.0`) : upload ×2,10, wallTotal ×1,49, draw 10,2 vs 9,2 µs
 > (ratio 1,11 — drift inter-session documenté), chemin GL `texSubImage2D`
 > intact. Entre v1.4.0 et v1.5.0 seul `updateCanvas` (cache des valeurs de
-> uniforms, côté CPU) a changé — couvert par la table « Hot loops ».
+> uniforms, côté CPU) a changé ; **v1.6.0** ne change que `updateCanvas`
+> (flag dirty, côté CPU) — `updateFrame` et le shader sont octet pour octet
+> identiques à v1.5.0 (vérifié sur la classe extraite
+> `gpu-v160-webgl2player.txt`) → **la table GPU reste valide**. Le coût CPU du
+> chemin stable 60 Hz est couvert par la table « Hot loops ».
 
 | Mesure | perf10 | v1.4.0 | Δ |
 |---|---|---|---|
@@ -220,14 +228,18 @@ pièges) pour les adapter.
 **CI** : le workflow `.github/workflows/bench.yml` lance
 `run-all.sh --skip-page-eval` à chaque push sur `ubuntu-latest`, puis
 `bench/check-ratios.js` échoue si un ratio de hot loop régresse au-delà de
-son seuil (plancher ×4 pour IDLE/relâchement, fourchette 0,5–2,0 pour les
-scénarios équivalents) — voir `bench/README.md`.
+son seuil (plancher ×4 pour IDLE/relâchement, ×12 pour updateCanvas avec le
+flag dirty v1.6.0, fourchette 0,5–2,0 pour les scénarios équivalents) — le
+scénario updateCanvas vérifie aussi **structurellement** les compteurs
+`gl.uniform*` (le build ne doit plus émettre ses 7 appels qu'au warmup) —
+voir `bench/README.md`.
 
 ### Protocole figé (tables « Hot loops » et « Chargement »)
 
 Les tables du chapitre Benchmarks sont produites par ces **commandes exactes**
-(build v1.4.0 de la racine — le code des hot loops est inchangé depuis
-v1.3.0, seul le renderer WebGL2 a reçu le fix RGB8) :
+(build v1.6.0 de la racine — le code des hot loops est inchangé depuis
+v1.3.0 ; le renderer WebGL2 a reçu le fix RGB8 en v1.4.0, le cache uniforms
+en v1.5.0 et le flag dirty en v1.6.0) :
 
 ```bash
 # 0. Préparer les builds
@@ -271,7 +283,7 @@ préservées ; `--with-page-eval` pour conserver la ligne « Éval »).
 - Windows, **Edge** (canal `msedge` via Playwright) pour les mesures navigateur,
   **Node V8** pour les micro-benchmarks CPU.
 - Les deux builds comparés : baseline **perf10** (`git show
-  055d3a0:better-xcloud.user.js`) et **v1.3.0** (`better-xcloud.user.js` du repo).
+  055d3a0:better-xcloud.user.js`) et **v1.6.0** (`better-xcloud.user.js` du repo).
 - Page de test servie par un **serveur HTTP local 127.0.0.1** : une origine
   réelle est obligatoire (pas de `localStorage` sur `about:blank`).
 
@@ -401,10 +413,7 @@ node bench/gpu/check-gpu.js 100 200 300 400 500 600
 `run-gpu-ci.sh` : canal auto-détecté (`msedge` Windows / `chromium` Linux),
 `--seeds=`, `--keep-video`/`--force-video`, `--label-new=` (propagé à
 `agg-seeds.js` — ex. `--cls-new=... --label-new=v1.5.0` pour mesurer un autre
-build), `--no-fix` par défaut, **`--resume`** (saute les seeds dont
-`run-s<seed>.json` est complet — reprise après un run timeout/partiel sans
-re-mesurer les seeds déjà faits ; un fichier corrompu ou au label incohérent
-est re-mesuré). Voir `bench/gpu/README.md` pour toutes les options.
+build), `--no-fix` par défaut. Voir `bench/gpu/README.md` pour toutes les options.
 
 Règles d'agrégation : chaque run imprime l'`agg` par version (médiane sur
 les 3 passes de l'upload, du wallTotal et du draw) ; `agg-seeds.js` agrège
@@ -431,6 +440,27 @@ Seule la table est régénérée : le bullet « Protocole figé » de la section
 ## Historique du dépôt
 
 ```
+089375e bench: extend updateCanvas scenario to the dirty-flag steady state and add a GL-count check
+b4821d8 build: prepare v1.6.0 with dirty-flag skip in WebGL2 updateCanvas
+17dfaad bench: add --resume mode to run-gpu-ci.sh to skip completed seeds
+e89cf2f bench: add one-command GPU protocol runner and confirm v1.5.0 GPU parity
+dd2a604 docs: v1.5.0 benchmark tables, patch 19 matrix and GPU version note
+24011f3 bench: add updateCanvas hot-loop scenario and CI threshold
+20773ae build: prepare v1.5.0 with WebGL2 uniform value cache in updateCanvas
+f43a372 ci: enrich the bench workflow with markdown summaries, artifacts and a GPU job
+3963c44 docs: regenerate benchmark tables and document bench tooling and CI
+90fb7ac bench: port GPU harness into bench/gpu so the Repro section is self-contained
+e1d6dbc bench: add --update-readme mode and CI hot-loop ratio checks
+579442f docs: freeze the GPU benchmark protocol and add one-shot freeze.sh re-measure
+0db349e bench: stabilize parse harness and freeze the reproducible measurement protocol
+178d886 bench: stabilize CPU hot-loop harness with warmup, seeded crossover and median
+c413f17 docs: stabilize GPU benchmark harness and update measured figures
+fc13e66 docs: re-measure GPU benchmarks on official v1.4.0 build
+faafb72 docs: document v1.4.0 RGB8 fix, 18-patch matrix and benchmark harnesses
+f6d0911 build: prepare v1.4.0 with texStorage2D RGB8 fix
+82b35ec docs: add real-GPU benchmarks and reproduction section
+82d0778 docs: add benchmarks chapter comparing perf10 vs v1.3.0
+ca0f7dd docs: document WebGL2NoColorConversion flag and extend patch matrix to 17
 561595d feat: add experimental WebGL2NoColorConversion flag (video upload)
 62abcd9 build: prepare v1.3.0 with hot-loop optimizations
 366fb41 docs: document meta.js auto-update flow and refresh history for v1.2.0
@@ -462,7 +492,7 @@ nécessaires pour reconstruire ou porter les optimisations.
 ### Reconstruire le build (round-trip vérifié octet-pour-octet)
 
 ```bash
-# Baseline perf10 (commit 055d3a0) + patch global → build v1.4.0 identique
+# Baseline perf10 (commit 055d3a0) + patch global → build v1.6.0 identique
 # au fichier better-xcloud.user.js du repo.
 git show 055d3a0:better-xcloud.user.js > better-xcloud.user.js
 # Important sous Windows : core.autocrlf=false, sinon le contexte du patch ne matche pas
@@ -478,7 +508,7 @@ node --check better-xcloud.user.js
 
 ### Portage sélectif
 
-- `patches/` : 18 patches individuels (un par optimisation), chacun applicable
+- `patches/` : 20 patches individuels (un par optimisation), chacun applicable
   seul sur la baseline perf10. Lisez `patches/README.md` pour la liste détaillée,
   la matrice de compatibilité par paires et les zones non empilables (le build
   minifié a des lignes géantes : plusieurs optimisations de la même zone

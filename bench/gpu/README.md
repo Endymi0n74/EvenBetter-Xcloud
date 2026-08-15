@@ -26,6 +26,7 @@ chapitre Benchmarks du README principal.
 | `gpu-perf10-webgl2player.txt` | Classe extraite de la baseline perf10 |
 | `gpu-v140-webgl2player.txt` | Classe extraite du build v1.4.0 (contient déjà `gl.RGB8`) |
 | `gpu-v150-webgl2player.txt` | Classe extraite du build v1.5.0 (idem v1.4.0 + cache uniforms `updateCanvas` — chemin GPU identique, re-mesure ×2,10/×1,49) |
+| `gpu-v160-webgl2player.txt` | Classe extraite du build v1.6.0 (idem v1.5.0 + flag dirty `updateCanvas` — `updateFrame` et shader octet pour octet identiques, table GPU v1.4.0/v1.5.0 valide) |
 | `gpu-v130-webgl2player.txt` | Classe v1.3.0 (historique, bug `gl.RGB` non corrigé) |
 | `gpu-runner.js` | Harnais : serveur local, injection, instrumentation GL, GPU timestamps, agrégation par seed |
 | `agg-seeds.js` | Agrège les runs (`run-s<seed>.json`) : min / max / médiane des médianes + ratios |

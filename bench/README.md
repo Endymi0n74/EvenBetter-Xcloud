@@ -113,8 +113,11 @@ Toujours vérifier `git diff` avant de commiter.
 historique complet pour la baseline `055d3a0`) puis `bench/check-ratios.js`
 compare les 6 ratios perf10/build (IDLE, ACTIF, commun, relâchement,
 updateFrame, updateCanvas) à des seuils — plancher ×4 pour les gains attendus
-(skip idle, structuredClone), ×2 pour le cache uniforms (`updateCanvas`),
-fourchette 0,5–2,0 pour les scénarios « équivalents ».
+(skip idle, structuredClone), ×12 pour updateCanvas (flag dirty v1.6.0),
+fourchette 0,5–2,0 pour les scénarios « équivalents » — le scénario
+updateCanvas vérifie aussi structurellement les compteurs `gl.uniform*`
+(le build v1.6.0 ne doit émettre ses 7 appels qu'au warmup : `uniform1f` ≤ 20,
+contre ≥ 1000 pour perf10).
 Un ratio hors seuil = échec du workflow (annotations `::error::`) :
 
 ```bash
