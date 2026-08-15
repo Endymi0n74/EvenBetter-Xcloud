@@ -113,8 +113,8 @@ jobs:
             echo "== seed $S =="
             node bench/gpu/gpu-runner.js \
               --cls-p10=bench/gpu/gpu-perf10-webgl2player.txt \
-              --cls-new=bench/gpu/gpu-v140-webgl2player.txt \
-              --label-new=v1.4.0 \
+              --cls-new=bench/gpu/gpu-v160-webgl2player.txt \
+              --label-new=v1.6.0 \
               --no-fix --frames=120 --passes=3 --seed=$S \
               --channel=chromium \
               > bench/gpu/run-s$S.json || exit 1
