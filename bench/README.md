@@ -14,7 +14,7 @@ avec `npm i -D playwright` ou pointer `NODE_PATH` vers un install existant.
 | Fichier | Mesure | Environnement |
 |---|---|---|
 | `parse.js` | Parse/compile (`new Function`, sans exécution, ×300/passe) | Node V8 |
-| `hotloops.js` | Hot loops injectés ~60 Hz (controller, poll_gamepad, updateFrame) | Node V8 |
+| `hotloops.js` | Hot loops injectés ~60 Hz (controller, poll_gamepad, updateFrame, updateCanvas) | Node V8 |
 | `page-eval.js` | Éval complète de page, injection au document-start, 20 runs | Edge headless + Playwright |
 | `freeze.sh` | Rejoue le protocole figé (3 seeds × 3 passes) et formate les tableaux markdown du README | Node V8 (+ Edge si `--with-page-eval`) |
 | `check-ratios.js` | CI : parse la sortie de `run-all.sh --skip-page-eval` et échoue si un ratio de hot loop régresse au-delà de son seuil | Node V8 (workflow `.github/workflows/bench.yml`) |
@@ -111,9 +111,10 @@ Toujours vérifier `git diff` avant de commiter.
 **CI (GitHub Actions, `.github/workflows/bench.yml`)** : à chaque push,
 `bench/run-all.sh --skip-page-eval` tourne sur `ubuntu-latest` (checkout
 historique complet pour la baseline `055d3a0`) puis `bench/check-ratios.js`
-compare les 5 ratios perf10/build (IDLE, ACTIF, commun, relâchement,
-updateFrame) à des seuils — plancher ×4 pour les gains attendus (skip idle,
-structuredClone), fourchette 0,5–2,0 pour les scénarios « équivalents ».
+compare les 6 ratios perf10/build (IDLE, ACTIF, commun, relâchement,
+updateFrame, updateCanvas) à des seuils — plancher ×4 pour les gains attendus
+(skip idle, structuredClone), ×2 pour le cache uniforms (`updateCanvas`),
+fourchette 0,5–2,0 pour les scénarios « équivalents ».
 Un ratio hors seuil = échec du workflow (annotations `::error::`) :
 
 ```bash

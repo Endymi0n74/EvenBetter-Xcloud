@@ -208,6 +208,14 @@ function buildUpdateFrameFn(src) {
   return new Function("ctx", `${body}`);
 }
 
+function buildUpdateCanvasFn(src) {
+  const cls = extractClass(src, "WebGL2Player");
+  if (!cls) return null;
+  const body = extractMethod(cls, "updateCanvas");
+  if (!body) return null;
+  return new Function("ctx", `${body}`);
+}
+
 // ---------- scénarios ----------
 // run(fn) -> { ns, counts? } ; le ctx est réutilisé (ou pré-conditionné sans
 // allocation par itération) — une allocation par poll dominerait la mesure.
@@ -277,6 +285,26 @@ const SCENARIOS = [
         _texWidth: 1920, _texHeight: 1080, texture: {},
         allocatedWidth: 1920, allocatedHeight: 1080,
       };
+      return { ns: bench(() => fn.call(ctx), ITERS), counts: calls };
+    },
+  },
+  {
+    id: "updateCanvas",
+    title: "WebGL2Player.updateCanvas (valeurs inchangées, chemin 60 Hz)",
+    build: (src) => buildUpdateCanvasFn(src),
+    run: (fn) => {
+      const { gl, calls } = makeGl();
+      const ctx = {
+        gl,
+        _uniforms: { iResolution: {}, filterId: {}, qualityMode: {}, sharpenFactor: {}, brightness: {}, contrast: {}, saturation: {} },
+        $canvas: { width: 1920, height: 1080 },
+        options: { processing: "usm", processingMode: "performance", sharpness: 0, brightness: 100, contrast: 100, saturation: 100 },
+        toFilterId: (p) => (p === "cas" ? 2 : 1),
+      };
+      // première exécution hors chrono : perf10 fait ses 7 uploads, le build
+      // remplit `_uniformsCache` — la mesure couvre ensuite l'état stable 60 Hz
+      // (valeurs inchangées → retour anticipé pour le build, 7 gl.uniform* pour perf10)
+      fn.call(ctx);
       return { ns: bench(() => fn.call(ctx), ITERS), counts: calls };
     },
   },
@@ -353,5 +381,14 @@ section(
   (sid, med, min, max, r) => {
     const c = r.counts || {};
     return `med ${med.toFixed(1)} ns/frame (min ${min.toFixed(1)}, max ${max.toFixed(1)}) | bindTexture=${c.bindTexture || 0} texImage2D=${c.texImage2D || 0} texSubImage2D=${c.texSubImage2D || 0} drawArrays=${c.drawArrays || 0}`;
+  }
+);
+
+section(
+  ["updateCanvas"],
+  `WebGL2Player.updateCanvas (valeurs inchangées, chemin 60 Hz, gl/uniforms factices)`,
+  (sid, med, min, max, r) => {
+    const c = r.counts || {};
+    return `med ${med.toFixed(1)} ns/frame (min ${min.toFixed(1)}, max ${max.toFixed(1)}) | uniform2f=${c.uniform2f || 0} uniform1i=${c.uniform1i || 0} uniform1f=${c.uniform1f || 0}`;
   }
 );

@@ -43,14 +43,16 @@ const THRESHOLDS = {
   commun: { min: 0.5, max: 2.0 },         // identique
   "relâchement": { min: 4.0, max: 20.0 }, // structuredClone supprimé : attendu ~7-9×
   updateFrame: { min: 0.5, max: 2.0 },    // équivalent (coût JS seul)
+  updateCanvas: { min: 2.0, max: 50.0 },  // cache uniforms : attendu ~3-10× (7 gl.uniform* sautés)
 };
-const ORDER = ["IDLE", "ACTIF", "commun", "relâchement", "updateFrame"];
+const ORDER = ["IDLE", "ACTIF", "commun", "relâchement", "updateFrame", "updateCanvas"];
 
 // ---------- parsing (mêmes regex que freeze-format.js) ----------
 const SECTIONS = {
   controller: ["IDLE", "ACTIF"],
   poll: ["commun", "relâchement"],
   updateFrame: ["updateFrame"],
+  updateCanvas: ["updateCanvas"],
 };
 const KNOWN = ["IDLE", "ACTIF", "commun", "relâchement"];
 const meds = {}; // scénario -> { perf10: ns, build: ns }
@@ -59,6 +61,7 @@ for (const line of text.split(/\r?\n/)) {
   if (line.startsWith("=== Hot loop 60 Hz : controller_customization_default")) { section = "controller"; continue; }
   if (line.startsWith("=== Hot loop : poll_gamepad_default")) { section = "poll"; continue; }
   if (line.startsWith("=== WebGL2Player.updateFrame")) { section = "updateFrame"; continue; }
+  if (line.startsWith("=== WebGL2Player.updateCanvas")) { section = "updateCanvas"; continue; }
   const m = line.match(/^(perf10|build)\s*:\s*(.*)$/);
   if (!m || !section) continue;
   m[2].split("|").map((s) => s.trim()).forEach((seg, i) => {
@@ -117,16 +120,16 @@ if (markdownFile) {
     const bld = r.build != null ? `${fmt(r.build)} ns` : "n/a";
     lines.push(`| ${r.sc} | ${med} | ${bld} | ${ratio} | ${fmtTh(r.th)} | ${statut} |`);
   }
-  const verdict = failures === 0 ? "✅ PASS (5/5)" : `❌ ÉCHEC (${failures} scénario(s) hors seuil)`;
+  const verdict = failures === 0 ? "✅ PASS (6/6)" : `❌ ÉCHEC (${failures} scénario(s) hors seuil)`;
   lines.push("", `**Résultat : ${verdict}**`);
-  lines.push("", "_Régression = ratio perf10/build hors seuil (plancher ×4 pour IDLE/relâchement, fourchette 0,5–2,0 pour les scénarios équivalents). Sortie complète du harnais dans l'artefact `bench-out.txt` du workflow._");
+  lines.push("", "_Régression = ratio perf10/build hors seuil (plancher ×4 pour IDLE/relâchement, ×2 pour updateCanvas, fourchette 0,5–2,0 pour les scénarios équivalents). Sortie complète du harnais dans l'artefact `bench-out.txt` du workflow._");
   fs.writeFileSync(markdownFile, lines.join("\n") + "\n");
   console.log(`Résumé markdown écrit : ${markdownFile}`);
 }
 
 console.log();
 if (failures === 0) {
-  console.log("Résultat : PASS (5/5)");
+  console.log("Résultat : PASS (6/6)");
   process.exit(0);
 } else {
   console.log(`Résultat : ÉCHEC (${failures} scénario(s) hors seuil)`);

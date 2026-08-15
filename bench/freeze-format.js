@@ -51,6 +51,7 @@ const HOTLOOP_SECTIONS = {
   controller: ["IDLE", "ACTIF"],
   poll: ["commun", "relâchement"],
   updateFrame: ["updateFrame"],
+  updateCanvas: ["updateCanvas"],
 };
 const KNOWN_SCENARIOS = ["IDLE", "ACTIF", "commun", "relâchement"];
 
@@ -62,6 +63,7 @@ function parseHotloops(text) {
     if (line.startsWith("=== Hot loop 60 Hz : controller_customization_default")) { section = "controller"; continue; }
     if (line.startsWith("=== Hot loop : poll_gamepad_default")) { section = "poll"; continue; }
     if (line.startsWith("=== WebGL2Player.updateFrame")) { section = "updateFrame"; continue; }
+    if (line.startsWith("=== WebGL2Player.updateCanvas")) { section = "updateCanvas"; continue; }
     const m = line.match(/^(perf10|build)\s*:\s*(.*)$/);
     if (!m || !section) continue;
     const version = m[1];
@@ -113,13 +115,14 @@ function parseMetricLines(text, re) {
 }
 
 // ---------- table Hot loops ----------
-const ROW_ORDER = ["IDLE", "ACTIF", "commun", "relâchement", "updateFrame"];
+const ROW_ORDER = ["IDLE", "ACTIF", "commun", "relâchement", "updateFrame", "updateCanvas"];
 const ROW_LABELS = {
   IDLE: "Controller customization — **IDLE** (aucun input, sticks centrés)",
   ACTIF: "Controller customization — ACTIF (bouton + stick)",
   commun: "`poll_gamepad_default` — chemin commun (Home jamais pressé)",
   "relâchement": "`poll_gamepad_default` — relâchement du bouton Home",
   updateFrame: "`WebGL2Player.updateFrame` — chemin stable (coût JS seul)",
+  updateCanvas: "`WebGL2Player.updateCanvas` — valeurs inchangées (chemin 60 Hz, coût JS seul)",
 };
 // « computed » = gain calculé à partir des mesures ; les autres labels sont
 // curés (mêmes jugements que le README)
@@ -129,8 +132,9 @@ const GAIN_CURATED = {
   commun: "identique",
   "relâchement": "computed",
   updateFrame: "équivalent (voir note)",
+  updateCanvas: "computed",
 };
-const UNIT = { updateFrame: "frame", commun: "poll", IDLE: "poll", ACTIF: "poll", "relâchement": "poll" };
+const UNIT = { updateFrame: "frame", updateCanvas: "frame", commun: "poll", IDLE: "poll", ACTIF: "poll", "relâchement": "poll" };
 
 function hotloopsTable(data) {
   const rows = ROW_ORDER.map((sc) => {
