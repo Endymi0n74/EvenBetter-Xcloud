@@ -152,28 +152,32 @@ WebGL2, méthodes GL instrumentées (compteurs) et rasterisation mesurée via
 | Mesure | perf10 | v1.4.0 | Δ |
 |---|---|---|---|
 | Appels GL par frame | `texImage2D` + `drawArrays` (0 allocation) | `texSubImage2D` + `drawArrays` (0 allocation) | même nombre d'appels |
-| Upload vidéo — boucle tight (µs/upload) | ~80–93 µs | ~44–50 µs | **×1,8** |
+| Upload vidéo — boucle tight (µs/upload) | ~98–151 µs | ~55–75 µs | **×2,1** |
 | Rasterisation `drawArrays` (µs/draw, médiane GPU) | 10,2 µs | 10,2 µs | identique (même shader) |
-| `updateFrame` — wall total (ms/frame, boucle complète / FRAMES) | ~0,073–0,085 ms | ~0,049–0,057 ms | **×1,6** |
+| `updateFrame` — wall total (ms/frame, boucle complète / FRAMES) | ~0,097–0,136 ms | ~0,059–0,085 ms | **×1,5** |
 
 Lecture des résultats :
 
 - Le **draw** (rasterisation) coûte pareil dans les deux versions — même
   shader, même résolution : attendu.
 - Le vrai levier est l'**upload vidéo** : `texImage2D` **réalloue le storage
-  GPU de la texture à chaque frame** (~×1,8 le coût d'un `texSubImage2D` dans un
-  storage immuable). C'est le bénéfice mesurable des patches 13/16 côté GPU —
-  invisible dans les micro-benchmarks JS (d'où l'écart avec la table
+  GPU de la texture à chaque frame** (~×2,1 le coût d'un `texSubImage2D` dans
+  un storage immuable). C'est le bénéfice mesurable des patches 13/16 côté GPU
+  — invisible dans les micro-benchmarks JS (d'où l'écart avec la table
   « Hot loops » ci-dessus).
-- Le wall de `updateFrame` suit (~×1,6 avec la métrique `wallTotal`
+- Le wall de `updateFrame` suit (~×1,5 avec la métrique `wallTotal`
   stabilisée) : la partie synchronisée du chemin d'upload domine la frame.
-- **Protocole stabilisé** (préchauffage GPU + runs croisés par seed + médiane
-  sur 3 passes, cf. Repro) : re-mesure complète sur **6 seeds (même session)**
-  — upload perf10 80,5 / 80,8 / 82,5 / 85,8 / 88,5 / 93,0 µs vs v1.4.0
-  43,8 / 44,8 / 46,0 / 47,8 / 48,5 / 50,3 µs (médiane des médianes : 85,8 vs
-  47,8 µs, **×1,8**) ; wallTotal 0,073–0,085 vs 0,049–0,057 ms (**×1,6**) ;
-  draw 10,2 µs identique partout. Les outliers « première passe » (upload
-  perf10 ~10 µs ponctuel — état driver) sont absorbés par la médiane.
+- **Protocole figé** (cf. Repro — seeds 100/200/300/400/500/600 × 3 passes,
+  commandes exactes) : re-mesure complète — upload perf10 98,5 / 113,5 /
+  119,0 / 136,5 / 139,0 / 150,7 µs vs v1.4.0 54,7 / 58,2 / 62,8 / 65,2 /
+  69,3 / 74,5 µs (médiane des médianes : 136,5 vs 65,2 µs, **×2,1**) ;
+  wallTotal 0,097–0,136 vs 0,059–0,085 ms (**×1,5**) ; draw 0,01024 ms
+  (**10,2 µs**) identique partout (un seed perf10 à 9,2 µs — état driver).
+  **Deuxième session indépendante** du même protocole (mêmes seeds, mêmes
+  commandes) : absolus décalés (session 1 : 80,5–93 / 43,8–50,3 µs) mais
+  **draw, compteurs GL et ratios identiques** — la rejouabilité porte sur le
+  draw, les compteurs et les ratios, pas sur les absolus (drift des clocks
+  GPU inter-sessions documenté).
 
 > **⚠️ Bug (corrigé en v1.4.0) — builds v1.2.0 et v1.3.0 (et TS upstream)** :
 > `gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGB, …)` utilisait un **format
@@ -238,6 +242,11 @@ node bench/page-eval.js "$TMP/perf10.js" "$TMP/build.js"
 chrono) ; `--passes=3` (médiane/min/max sur les passes) et `--seed=`
 (croisement version × scénario, mulberry32) rendent chaque run reproductible
 et empêchent qu'une version soit systématiquement mesurée en premier.
+
+**Rejouer les tables en une commande** : `./bench/freeze.sh` exécute ce bloc
+à l'identique et `bench/freeze-format.js` formate la sortie en tableaux
+markdown prêts à coller (médiane des médianes + plage inter-seeds, label de
+version lu dans `@version`) — voir `bench/README.md`.
 
 ### Environnement commun
 
@@ -345,6 +354,32 @@ extraites, `test.webm`. Points clés :
   outliers « première passe ») ; métrique **`wallTotal`** (temps de la boucle
   entière / FRAMES) — stable face à la résolution ~100 µs de `performance.now()`
   par frame (le wall par frame médian sature à 0,000).
+
+**Protocole figé (GPU)** — rejouer la table « GPU » telle quelle :
+
+```bash
+# Dans D:\Codex\gpubench\ — artefacts requis : gpu-perf10-webgl2player.txt,
+# gpu-v140-webgl2player.txt (classes WebGL2Player extraites des builds),
+# test.webm (vidéo VP9 générée en navigateur). Playwright : NODE_PATH vers
+# un install existant (ex. NODE_PATH=/d/Codex/koharu/node_modules).
+for S in 100 200 300 400 500 600; do
+  node gpu-runner.js \
+    --cls-p10=gpu-perf10-webgl2player.txt \
+    --cls-new=gpu-v140-webgl2player.txt \
+    --label-new=v1.4.0 \
+    --no-fix --frames=120 --passes=3 --seed=$S \
+    > run-s$S.json
+done
+node agg-seeds.js 100 200 300 400 500 600
+```
+
+Règles d'agrégation : chaque run imprime l'`agg` par version (médiane sur
+les 3 passes de l'upload, du wallTotal et du draw) ; `agg-seeds.js` agrège
+les 6 seeds (min / max / médiane des médianes par métrique) et les ratios.
+`--no-fix` mesure **strictement le build publié** (la classe v1.4.0 contient
+déjà `gl.RGB8` — le correctif ne s'applique qu'aux builds ≤ v1.3.0). Les
+compteurs GL (par frame : `texImage2D`/`texSubImage2D` + `drawArrays`, 0
+`bindTexture`) confirment le chemin fonctionnel à chaque rejeu.
 
 ## Historique du dépôt
 

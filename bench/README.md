@@ -16,6 +16,7 @@ avec `npm i -D playwright` ou pointer `NODE_PATH` vers un install existant.
 | `parse.js` | Parse/compile (`new Function`, sans exécution, ×300/passe) | Node V8 |
 | `hotloops.js` | Hot loops injectés ~60 Hz (controller, poll_gamepad, updateFrame) | Node V8 |
 | `page-eval.js` | Éval complète de page, injection au document-start, 20 runs | Edge headless + Playwright |
+| `freeze.sh` | Rejoue le protocole figé (3 seeds × 3 passes) et formate les tableaux markdown du README | Node V8 (+ Edge si `--with-page-eval`) |
 
 `hotloops.js` et `parse.js` sont stabilisés (même recette que le harnais GPU) :
 
@@ -82,6 +83,19 @@ Règles d'agrégation pour les tables :
 - `--expose-gc` est obligatoire (préchauffage + `global.gc()` avant le chrono) ;
   `--seed=` mélange l'ordre version × scénario/passe (mulberry32) — sans lui,
   aucune reproductibilité et une version toujours mesurée en premier.
+
+**Une seule commande pour tout rejouer et formater :**
+
+```bash
+./bench/freeze.sh                    # 3 seeds × 3 passes → tableaux markdown prêts à coller
+./bench/freeze.sh --with-page-eval   # + éval page Edge (Playwright requis)
+./bench/freeze.sh --seeds="42 999"   # jeu de seeds personnalisé
+```
+
+`freeze.sh` exécute exactement le bloc ci-dessus (mêmes commandes, mêmes
+builds), puis `freeze-format.js` agrège (médiane des médianes + plage
+inter-seeds) et imprime les sections « Hot loops » et « Chargement » du
+README au format markdown, avec le label de version lu dans `@version`.
 
 Détails des pièges de chaque harnais dans la section « Repro » du README principal.
 Le harnais **GPU** (renderer WebGL2, compteurs GL, GPU timestamps) vit hors repo dans
