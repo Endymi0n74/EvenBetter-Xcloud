@@ -255,6 +255,13 @@ bimodalité (état haut/bas) s'exprime donc dans la sync readback ET dans
 l'émission selon les sessions, pas comme un total stable — à affiner avec
 une session en état haut._
 
+_Rejouabilité inter-sessions (soir → re-mesure, mêmes seeds 100-600,
+même build) : ratios de médianes reproductibles à ~±15 % (upload ×4,86 →
+×5,47, wall ×3,00 → ×2,82, draw v1.6.0 10,2 → 9,2) ; absolus par seed
+±10-30 % (méd. |Δ| 11-23 %) ; ratios par seed ±20-37 % (les seeds
+individuels ne sont pas stables, seule l’agrégat compte) ; le draw perf10
+anomal (15,4 µs) n’est pas reproductible (artéfact ponctuel)._
+
 Lecture des résultats :
 
 - Le **draw** (rasterisation) coûte pareil dans les deux versions (10,2 vs
