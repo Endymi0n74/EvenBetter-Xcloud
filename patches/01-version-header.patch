@@ -1,5 +1,5 @@
-diff --git a/better-xcloud.user.js b/better-xcloud.user.js
-index 4926cd2..d0a7ac0 100644
+diff --git "a/C:\\Users\\endymion\\AppData\\Local\\Temp\\regen140-XWGHyx\\header-base.js" "b/C:\\Users\\endymion\\AppData\\Local\\Temp\\regen140-XWGHyx\\header-build.js"
+index 49150f9..27c97b1 100644
 --- a/better-xcloud.user.js
 +++ b/better-xcloud.user.js
 @@ -1,7 +1,7 @@
@@ -7,11 +7,11 @@ index 4926cd2..d0a7ac0 100644
  // @name         Better xCloud
  // @namespace    https://github.com/redphx
 -// @version      6.7.12-perf10
-+// @version      1.3.0
++// @version      1.4.0
  // @description  Improve Xbox Cloud Gaming (xCloud) experience
  // @author       redphx
  // @license      MIT
-@@ -10,10 +10,26 @@
+@@ -10,6 +10,6 @@
  // @exclude      https://www.xbox.com/*/xbox-game-pass/play-day-one
  // @run-at       document-start
  // @grant        none
@@ -20,43 +20,3 @@ index 4926cd2..d0a7ac0 100644
 +// @updateURL    https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.meta.js
 +// @downloadURL  https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.user.js
  // ==/UserScript==
--/* OPTIMISATIONS v6.7.12-perf10:
-+/* OPTIMISATIONS v1.3.0:
-+   - Controller customization: structuredClone -> reference directe au relachement Home (allocation supprimee)
-+   - WebGL2: bindTexture par frame supprime (texture deja liee, 60 appels GL/s en moins)
-+   - WebGL2: flag experimental WebGL2NoColorConversion (UNPACK_COLORSPACE_CONVERSION_WEBGL=NONE)
-+   - StreamStats: fix regression cache opacity/textSize (invalidation jamais faite)
-+   - StreamStats: throttle document.hidden 60s + setTimeout auto-rearme (plus de chevauchement)
-+   - StreamStatsCollector: collect() en un seul parcours du report
-+   - ALL_PREFS: Set O(1) pour isGlobalPref/isStreamPref
-+   - Settings: validateValue filter au lieu de splice (plus de saut d'index)
-+   - Settings: getGameSettings deleteSettings batch (une seule saveSettings)
-+   - CheckForUpdate: garde 2h avant le fetch (plus de requete a chaque chargement)
-+   - BxSelectElement: un seul MutationObserver delegue
-+   - Traductions: debugger dev retire de downloadTranslations
-+   - Controller customization: fix delete mapping.Share (binding conserve, plus de spam screenshot)
-+   - Controller customization: skip idle (zero allocation au repos)
-+   - WebGL2: texStorage2D + texSubImage2D (allocation GPU stable)
-+   - WebGL2: fix viewport drawingBufferHeight
-    - Patcher: Set O(1) au lieu de indexOf O(n)
-    - Patcher: suppression du splice() redondant
-    - Settings: debounce localStorage 100ms
-@@ -30,17 +46,7 @@
-    - StreamStats: cache stats.colors + invalidation par event
-    - StreamStatsCollector: cache video.maxFps pour toString()
-    - BaseCanvasPlayer: shouldDraw optimise (moins de branches)
--*/
--"use strict";
--class BxLogger {static info = (tag, ...args) => BX_FLAGS.Debug && BxLogger.log("#008746", tag, ...args);static warning = (tag, ...args) => BX_FLAGS.Debug && BxLogger.log("#c1a404", tag, ...args);static error = (tag, ...args) => BxLogger.log("#c10404", tag, ...args);static log(color, tag, ...args) {console.log("%c[BxC]", `color:${color};font-weight:bold;`, tag, "//", ...args);}}
--window.BxLogger = BxLogger;
--/* ADDITIONAL CODE */
--var DEFAULT_FLAGS = {Debug: !1,CheckForUpdate: !0,EnableXcloudLogging: !1,SafariWorkaround: !0,EnableWebGPURenderer: !1,ForceNativeMkbTitles: [],FeatureGates: null,DeviceInfo: {deviceType: "unknown"}}, BX_FLAGS = Object.assign(DEFAULT_FLAGS, window.BX_FLAGS || {});
--try {delete window.BX_FLAGS;} catch (e) {}
--if (!BX_FLAGS.DeviceInfo.userAgent) BX_FLAGS.DeviceInfo.userAgent = window.navigator.userAgent;
--BxLogger.info("BxFlags", BX_FLAGS);
--var NATIVE_FETCH = window.fetch;
--var ALL_PREFS = {global: ["audio.mic.onPlaying","audio.volume.booster.enabled","block.features","block.tracking","gameBar.position","game.fortnite.forceConsole","loadingScreen.gameArt.show","loadingScreen.rocket","loadingScreen.waitTime.show","mkb.enabled","mkb.cursor.hideIdle","nativeMkb.forcedGames","nativeMkb.mode","xhome.video.resolution","xhome.ipv6.prefer","screenshot.applyFilters","server.bypassRestriction","server.ipv6.prefer","server.region","stream.video.codecProfile","stream.video.combineAudio","stream.video.maxBitrate","stream.locale","stream.video.resolution","stream.video.preventResolutionDrops","touchController.autoOff","touchController.opacity.default","touchController.mode","touchController.style.custom","touchController.style.standard","ui.controllerFriendly","ui.controllerStatus.show","ui.feedbackDialog.disabled","ui.gameCard.waitTime.show","ui.hideSections","ui.systemMenu.hideHandle","ui.imageQuality","ui.layout","ui.reduceAnimations","ui.hideScrollbar","ui.streamMenu.simplify","ui.splashVideo.skip","ui.theme","version.current","version.lastCheck","version.latest","bx.locale","userAgent.profile"],stream: ["audio.volume","controller.pollingRate","controller.settings","deviceVibration.intensity","deviceVibration.mode","keyboardShortcuts.preset.inGameId","localCoOp.enabled","mkb.p1.preset.mappingId","mkb.p1.slot","mkb.p2.preset.mappingId","mkb.p2.slot","nativeMkb.scroll.sensitivityX","nativeMkb.scroll.sensitivityY","stats.colors","stats.items","stats.opacity.all","stats.opacity.background","stats.position","stats.quickGlance.enabled","stats.showWhenPlaying","stats.textSize","video.brightness","video.contrast","video.maxFps","video.player.type","video.position","video.player.powerPreference","video.processing","video.processing.mode","video.ratio","video.saturation","video.processing.sharpness"]};
-+*/Mkb.mode","xhome.video.resolution","xhome.ipv6.prefer","screenshot.applyFilters","server.bypassRestriction","server.ipv6.prefer","server.region","stream.video.codecProfile","stream.video.combineAudio","stream.video.maxBitrate","stream.locale","stream.video.resolution","stream.video.preventResolutionDrops","touchController.autoOff","touchController.opacity.default","touchController.mode","touchController.style.custom","touchController.style.standard","ui.controllerFriendly","ui.controllerStatus.show","ui.feedbackDialog.disabled","ui.gameCard.waitTime.show","ui.hideSections","ui.systemMenu.hideHandle","ui.imageQuality","ui.layout","ui.reduceAnimations","ui.hideScrollbar","ui.streamMenu.simplify","ui.splashVideo.skip","ui.theme","version.current","version.lastCheck","version.latest","bx.locale","userAgent.profile"],stream: ["audio.volume","controller.pollingRate","controller.settings","deviceVibration.intensity","deviceVibration.mode","keyboardShortcuts.preset.inGameId","localCoOp.enabled","mkb.p1.preset.mappingId","mkb.p1.slot","mkb.p2.preset.mappingId","mkb.p2.slot","nativeMkb.scroll.sensitivityX","nativeMkb.scroll.sensitivityY","stats.colors","stats.items","stats.opacity.all","stats.opacity.background","stats.position","stats.quickGlance.enabled","stats.showWhenPlaying","stats.textSize","video.brightness","video.contrast","video.maxFps","video.player.type","video.position","video.player.powerPreference","video.processing","video.processing.mode","video.ratio","video.saturation","video.processing.sharpness"]};
- var SMART_TV_UNIQUE_ID = "FC4A1DA2-711C-4E9C-BC7F-047AF8A672EA", CHROMIUM_VERSION = "140.0.3485.54";
- if (!!window.chrome || window.navigator.userAgent.includes("Chrome")) {let match = window.navigator.userAgent.match(/\s(?:Chrome|Edg)\/([\d\.]+)/);if (match) CHROMIUM_VERSION = match[1];}
- class UserAgent {static STORAGE_KEY = "BetterXcloud.UserAgent";static #config;static #isMobile = null;static #isSafari = null;static #isSafariMobile = null;static #USER_AGENTS = {"windows-edge": `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${CHROMIUM_VERSION} Safari/537.36 Edg/${CHROMIUM_VERSION}`,"macos-safari": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5.2 Safari/605.1.1","smarttv-generic": `${window.navigator.userAgent} Smart-TV`,"smarttv-tizen": `Mozilla/5.0 (SMART-TV; LINUX; Tizen 7.0) AppleWebKit/537.36 (KHTML, like Gecko) ${CHROMIUM_VERSION}/7.0 TV Safari/537.36 ${SMART_TV_UNIQUE_ID}`,"vr-oculus": window.navigator.userAgent + " OculusBrowser VR"};static init() {if (UserAgent.#config = JSON.parse(window.localStorage.getItem(UserAgent.STORAGE_KEY) || "{}"), !UserAgent.#config.profile) UserAgent.#config.profile = BX_FLAGS.DeviceInfo.deviceType === "android-tv" || BX_FLAGS.DeviceInfo.deviceType === "webos" ? "vr-oculus" : "default";if (!UserAgent.#config.custom) UserAgent.#config.custom = "";UserAgent.spoof();}static updateStorage(profile, custom) {let config = UserAgent.#config;if (config.profile = profile, profile === "custom" && typeof custom < "u") config.custom = custom;window.localStorage.setItem(UserAgent.STORAGE_KEY, JSON.stringify(config));}static getDefault() {return window.navigator.orgUserAgent || window.navigator.userAgent;}static get(profile) {let defaultUserAgent = window.navigator.userAgent;switch (profile) {case "default":return defaultUserAgent;case "custom":return UserAgent.#config.custom || defaultUserAgent;default:return UserAgent.#USER_AGENTS[profile] || defaultUserAgent;}}static isSafari() {if (this.#isSafari !== null) return this.#isSafari;let userAgent = UserAgent.getDefault().toLowerCase(), result = userAgent.includes("safari") && !userAgent.includes("chrom");return this.#isSafari = result, result;}static isSafariMobile() {if (this.#isSafariMobile !== null) return this.#isSafariMobile;let userAgent = UserAgent.getDefault().toLowerCase(), result = this.isSafari() && userAgent.includes("mobile");return this.#isSafariMobile = result, result;}static isMobile() {if (this.#isMobile !== null) return this.#isMobile;let userAgent = UserAgent.getDefault().toLowerCase(), result = /iphone|ipad|android/.test(userAgent);return this.#isMobile = result, result;}static spoof() {let profile = UserAgent.#config.profile;if (profile === "default") return;let newUserAgent = UserAgent.get(profile);if ("userAgentData" in window.navigator) window.navigator.orgUserAgentData = window.navigator.userAgentData, Object.defineProperty(window.navigator, "userAgentData", {});window.navigator.orgUserAgent = window.navigator.userAgent, Object.defineProperty(window.navigator, "userAgent", {value: newUserAgent});}}
