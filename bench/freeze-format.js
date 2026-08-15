@@ -236,18 +236,67 @@ for (const seed of SEEDS) {
   );
 }
 
-console.log("### Hot loops (~60 Hz)");
+function hotloopsSection() {
+  return [
+    "### Hot loops (~60 Hz)",
+    "",
+    `Protocole figé — seeds ${SEEDS.join(" / ")} × 3 passes × 200 000 itérations ; chaque cellule = médiane des médianes, plage = min–max inter-seeds. Les absolus varient ~±10–30 % run à run, les ratios sont stables.`,
+    "",
+    hotloopsTable(aggHotloops(perSeedHotloops)),
+  ].join("\n");
+}
+
+function chargementSection() {
+  const rows = [
+    "### Chargement (parse + éval de page)",
+    "",
+    "| Mesure | perf10 | v" + buildLabel + " | Δ |",
+    "|---|---|---|---|",
+    parseRow(perSeedParse, SEEDS.length) || "| Parse/compile | n/a | n/a | n/a |",
+  ];
+  const pageEval = pageEvalRow();
+  if (pageEval) rows.push(pageEval);
+  return rows.join("\n");
+}
+
+// ---------- mode --update-readme : régénère les sections du README en place ----------
+const updArg = process.argv.find((a) => a.startsWith("--update-readme"));
+if (updArg) {
+  const readmePath = updArg.includes("=") ? updArg.split("=").slice(1).join("=") : "README.md";
+  let content = fs.readFileSync(readmePath, "utf-8");
+
+  // ancres tolérantes LF/CRLF (le README de travail est CRLF sous Windows)
+  const blank = "\r?\n\r?\n";
+  const hl = hotloopsSection();
+  const hlRe = new RegExp(`### Hot loops \\(~60 Hz\\)[\\s\\S]*?${blank}Notes :`);
+  if (!hlRe.test(content)) {
+    console.error(`Ancre « Notes : » introuvable dans ${readmePath} — mise à jour annulée.`);
+    process.exit(1);
+  }
+  content = content.replace(hlRe, hl + "\n\nNotes :");
+
+  const cg = chargementSection();
+  const cgRe = new RegExp(`### Chargement \\(parse \\+ éval de page\\)[\\s\\S]*?${blank}La série perf11`);
+  if (!cgRe.test(content)) {
+    console.error(`Ancre « La série perf11 » introuvable dans ${readmePath} — mise à jour annulée.`);
+    process.exit(1);
+  }
+  content = content.replace(cgRe, cg + "\n\nLa série perf11");
+
+  // cohérence des fins de ligne (le fichier de travail est CRLF)
+  fs.writeFileSync(readmePath, content.replace(/\r?\n/g, "\r\n"));
+  console.log(`README mis à jour (${readmePath}) : sections « Hot loops » et « Chargement » régénérées (v${buildLabel}).`);
+  console.log("Sections générées :");
+  console.log();
+  console.log(hl);
+  console.log();
+  console.log(cg);
+  process.exit(0);
+}
+
+// ---------- mode console (sortie à coller) ----------
+console.log(hotloopsSection());
 console.log();
-console.log(`Protocole figé — seeds ${SEEDS.join(" / ")} × 3 passes × 200 000 itérations ; chaque cellule = médiane des médianes, plage = min–max inter-seeds. Les absolus varient ~±10–30 % run à run, les ratios sont stables.`);
-console.log();
-console.log(hotloopsTable(aggHotloops(perSeedHotloops)));
-console.log();
-console.log("### Chargement (parse + éval de page)");
-console.log();
-console.log("| Mesure | perf10 | v" + buildLabel + " | Δ |");
-console.log("|---|---|---|---|");
-console.log(parseRow(perSeedParse, SEEDS.length) || "| Parse/compile | n/a | n/a | n/a |");
-const pageEval = pageEvalRow();
-if (pageEval) console.log(pageEval);
+console.log(chargementSection());
 console.log();
 console.log("> Note : les labels de gain des lignes ACTIF/commun/updateFrame sont curés (mêmes jugements que le README — ex. updateFrame « équivalent » car le gain réel est côté driver GPU) ; les nombres viennent du protocole.");

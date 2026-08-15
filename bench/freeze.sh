@@ -11,17 +11,22 @@
 # bench/freeze-format.js.
 #
 # Usage : ./bench/freeze.sh [--seeds="42 2024 999"] [--passes=3] [--with-page-eval]
+#                                [--update-readme[=chemin]] (régénère le README en place)
 set -e
 cd "$(dirname "$0")/.."
 
 SEEDS="42 2024 999"
 PASSES=3
 WITH_PAGE_EVAL=0
+UPDATE_README=0
+README_PATH="README.md"
 for arg in "$@"; do
   case "$arg" in
     --seeds=*)        SEEDS="${arg#--seeds=}" ;;
     --passes=*)       PASSES="${arg#--passes=}" ;;
     --with-page-eval) WITH_PAGE_EVAL=1 ;;
+    --update-readme)  UPDATE_README=1 ;;
+    --update-readme=*) UPDATE_README=1; README_PATH="${arg#--update-readme=}" ;;
     *) echo "Option inconnue : $arg" >&2; exit 1 ;;
   esac
 done
@@ -64,7 +69,18 @@ fi
 
 BUILD_LABEL=$(grep -m1 '^// @version' better-xcloud.user.js | sed 's/.*@version[[:space:]]*//')
 
+if [ "$UPDATE_README" = "1" ] && [ "$WITH_PAGE_EVAL" != "1" ]; then
+  echo "⚠ La ligne « Éval complète de page » sera retirée de la table Chargement"
+  echo "  (elle n'est régénérée qu'avec --with-page-eval)."
+fi
+
 echo
-echo "========== Tableaux markdown (à coller dans le README, chapitre Benchmarks) =========="
+echo "========== Tableaux markdown (chapitre Benchmarks) =========="
 echo
-node bench/freeze-format.js "$TMP" "$PASSES" "$SEEDS" "$WITH_PAGE_EVAL" "$BUILD_LABEL"
+if [ "$UPDATE_README" = "1" ]; then
+  node bench/freeze-format.js "$TMP" "$PASSES" "$SEEDS" "$WITH_PAGE_EVAL" "$BUILD_LABEL" --update-readme="$README_PATH"
+  echo
+  echo "(README modifié en place — vérifiez le diff avant de commiter.)"
+else
+  node bench/freeze-format.js "$TMP" "$PASSES" "$SEEDS" "$WITH_PAGE_EVAL" "$BUILD_LABEL"
+fi

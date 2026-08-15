@@ -1,0 +1,38 @@
+name: bench
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  hotloops-ratios:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (historique complet — la baseline perf10 055d3a0 est requise)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Lance le bench CPU (parse + hot loops, sans page-eval)
+        run: |
+          bash bench/run-all.sh --skip-page-eval > "$RUNNER_TEMP/bench-out.txt" 2>&1 || true
+          echo "--- sortie (dernières lignes) ---"
+          tail -20 "$RUNNER_TEMP/bench-out.txt"
+
+      - name: Vérifie les ratios des hot loops (seuils CI)
+        run: node bench/check-ratios.js "$RUNNER_TEMP/bench-out.txt"
+
+      - name: Résumé en commentaire/notice
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "::notice::bench : hot loops OK (ratios dans les seuils)"
+          else
+            echo "::error::bench : un ratio de hot loop est hors seuil — voir la sortie du check"
+          fi

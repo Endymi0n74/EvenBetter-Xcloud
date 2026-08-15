@@ -1,3 +1,5 @@
-# Les scripts shell doivent rester en LF même sous Windows (core.autocrlf=true
-# les réécrirait en CRLF au checkout).
+# Les scripts shell et les workflows doivent rester en LF même sous Windows
+# (core.autocrlf=true les réécrirait en CRLF au checkout).
 *.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
