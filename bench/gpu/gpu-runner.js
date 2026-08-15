@@ -213,9 +213,29 @@ const HARNESS = ({ clsP10, clsNew, LABEL_P10, LABEL_NEW, FRAMES, WARMUP, PASSES,
       // l'etat du driver (reallocation/cache) et faussaient la 1re passe
       for (let i = 0; i < 50; i++) uploadOnce(g.gl);
       g.gl.flush();
-      const t0u = performance.now();
+      // ÉMISSION seule : boucle tight SANS flush — coût CPU de mise en file des
+      // appels. Si le driver bloque en cours de boucle (file pleine, attente
+      // pipeline vidéo/GPU = backpressure), c'est ICI que ça apparaît (état
+      // « haut » des sessions — mémo projet §7).
+      const t0e = performance.now();
       for (let i = 0; i < UPLOADS; i++) uploadOnce(g.gl);
-      const uploadNs = ((performance.now() - t0u) / UPLOADS) * 1e6;
+      const uploadEmitNs = ((performance.now() - t0e) / UPLOADS) * 1e6;
+      // SYNC via READBACK : gl.readPixels(1×1) force la complétion GPU de TOUTE
+      // la file émise (l'ordre GL garantit que les uploads précédents sont
+      // exécutés avant la lecture). /UPLOADS → sync par upload. C'est la mesure
+      // de « rattrapage » du pipeline (copies différées, synchro décodeur).
+      //   - gl.finish() : quasi no-op sous ANGLE/D3D11 (retourné ~0 µs).
+      //   - fenceSync + clientWaitSync : ne signale JAMAIS dans ce setup
+      //     (timeout 5 s, même après les 400 uploads — busyloop ou deadlock du
+      //     fence sur le chemin vidéo) → abandonné.
+      // Petit → le blocage est DANS l'appel d'upload (émission, backpressure
+      // décodeur/pipeline vidéo) ; grand → le GPU est en retard (à croiser avec
+      // le draw timé GPU, resté stable).
+      const rb = new Uint8Array(4);
+      const t0s = performance.now();
+      g.gl.readPixels(0, 0, 1, 1, g.gl.RGBA, g.gl.UNSIGNED_BYTE, rb);
+      const uploadSyncNs = ((performance.now() - t0s) / UPLOADS) * 1e6;
+      const uploadNs = uploadEmitNs; // sémantique historique : émission seule
       player.destroy();
 
       const stat = (arr, f) => {
@@ -235,6 +255,9 @@ const HARNESS = ({ clsP10, clsNew, LABEL_P10, LABEL_NEW, FRAMES, WARMUP, PASSES,
         wallTotalMs,
         gpu: stat(gpuMs, (x) => x),
         uploadNs,
+        uploadEmitNs,
+        uploadSyncNs,
+        uploadTotalNs: uploadEmitNs + uploadSyncNs,
         countsPerFrame: Object.fromEntries(Object.entries(countsTot).map(([k, v]) => [k, +(v / FRAMES).toFixed(2)])),
       };
     }
@@ -271,6 +294,9 @@ const HARNESS = ({ clsP10, clsNew, LABEL_P10, LABEL_NEW, FRAMES, WARMUP, PASSES,
           gpuMed: medOf("gpu", "med"),
           gpuAvg: medOf("gpu", "avg"),
           uploadNs: arr.map((p) => p.uploadNs).sort((a, b) => a - b)[Math.floor(arr.length / 2)],
+          uploadEmitNs: arr.map((p) => p.uploadEmitNs).sort((a, b) => a - b)[Math.floor(arr.length / 2)],
+          uploadSyncNs: arr.map((p) => p.uploadSyncNs).sort((a, b) => a - b)[Math.floor(arr.length / 2)],
+          uploadTotalNs: arr.map((p) => p.uploadTotalNs).sort((a, b) => a - b)[Math.floor(arr.length / 2)],
           countsPerFrame: arr[0].countsPerFrame,
         };
       }

@@ -17,9 +17,17 @@ for (const s of seeds) {
   orderLines.push(`  seed ${s}: ${res.passes.map((p) => p.name).join(" -> ")}`);
   for (const v of versions) {
     const a = res.agg[v];
+    // uploadEmitNs/uploadSyncNs/uploadTotalNs : ajoutés par gpu-runner.js —
+    // absents des runs antérieurs → émission = uploadNs (sémantique historique),
+    // sync/total = null (affichage « n/a »).
+    const emit = a.uploadEmitNs != null ? a.uploadEmitNs : a.uploadNs;
+    const sync = a.uploadSyncNs != null ? a.uploadSyncNs : null;
     perVersion[v].push({
       seed: s,
       uploadNs: a.uploadNs,
+      uploadEmitNs: emit,
+      uploadSyncNs: sync,
+      uploadTotalNs: sync != null ? emit + sync : null,
       wallTotalMs: a.wallTotalAvg,
       gpuMs: a.gpuMed,
     });
@@ -85,6 +93,22 @@ for (const v of versions) {
   const up = stats(perVersion[v], "uploadNs", "us");
   const wall = stats(perVersion[v], "wallTotalMs", "ms");
   const gpu = stats(perVersion[v], "gpuMs", "us");
+  // Décomposition émission/sync (runs récents uniquement) : l'état « haut »
+  // des uploads (backpressure pipeline vidéo/GPU, mémo projet §7) doit se
+  // voir dans l'émission (blocage CPU pendant la mise en file), pas dans la
+  // sync (sinon ce serait le GPU qui est en retard — croiser avec le draw).
+  const hasSplit = perVersion[v].some((x) => x.uploadSyncNs != null);
+  if (hasSplit) {
+    // uploadEmitNs/uploadSyncNs/uploadTotalNs sont en ns (comme uploadNs) → /1000
+    const med = (key) => {
+      const vals = perVersion[v].map((x) => x[key]).filter((x) => x != null).sort((a, b) => a - b);
+      return vals.length ? vals[Math.floor(vals.length / 2)] / 1000 : null; // ns → µs
+    };
+    const fmt2 = (x) => (x == null ? "n/a" : x.toFixed(1));
+    console.log(
+      `  upload split (médianes) : emit ${fmt2(med("uploadEmitNs"))} / sync ${fmt2(med("uploadSyncNs"))} / total ${fmt2(med("uploadTotalNs"))} us`
+    );
+  }
   console.log();
 }
 

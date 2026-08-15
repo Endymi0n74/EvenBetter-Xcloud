@@ -28,7 +28,7 @@ chapitre Benchmarks du README principal.
 | `gpu-v150-webgl2player.txt` | Classe extraite du build v1.5.0 (idem v1.4.0 + cache uniforms `updateCanvas` — chemin GPU identique, re-mesure ×2,10/×1,49) |
 | `gpu-v160-webgl2player.txt` | Classe extraite du build v1.6.0 (idem v1.5.0 + flag dirty `updateCanvas` — `updateFrame` et shader octet pour octet identiques, table GPU v1.4.0/v1.5.0 valide) |
 | `gpu-v130-webgl2player.txt` | Classe v1.3.0 (historique, bug `gl.RGB` non corrigé) |
-| `gpu-runner.js` | Harnais : serveur local, injection, instrumentation GL, GPU timestamps, agrégation par seed |
+| `gpu-runner.js` | Harnais : serveur local, injection, instrumentation GL, GPU timestamps, agrégation par seed — upload décomposé **émission** (boucle tight) vs **sync** (readback `readPixels`) |
 | `machine-state.js` | Capture l'état machine avant/après chaque seed (GPU nvidia-smi : temp/util/clocks/puissance/P-state ; CPU : charge %, % de la fréquence de base si compteurs perf OK, fréquence base via WMI ; top 5 processus) — JSON tolérant (outil absent → champ null) |
 | `agg-seeds.js` | Agrège les runs (`run-s<seed>.json`) : min / max / médiane des médianes + ratios, et affiche l'état machine par seed (corrélation état haut/bas des uploads) |
 | `gpu-update-readme.js` | Régénère la table « GPU » du README en place |
@@ -86,6 +86,23 @@ des uploads GPU (backpressure/sync du pipeline — mémo projet §7) avec l'éta
 réel de la machine au moment de la mesure. `agg-seeds.js` affiche la capture
 « avant » de chaque seed à côté des ordres de passes.
 
+**Décomposition upload : émission vs sync** (runs récents) : `uploadNs` garde
+sa sémantique historique (boucle tight d'émission seule) ; `uploadEmitNs` =
+même mesure (alias) ; `uploadSyncNs` = **readback** `gl.readPixels(1×1)`
+timé après la file émise (÷ `UPLOADS`) — l'ordre GL garantit que les uploads
+précédents sont exécutés avant la lecture ; `uploadTotalNs` = émission + sync
+(coût réel par upload). Pièges vécus sur ce stack : `gl.finish()` est un quasi
+no-op sous ANGLE/D3D11 (~0 µs) et `fenceSync` + `clientWaitSync` **ne signale
+jamais** (timeout 5 s même après les 400 uploads) → `readPixels` est la seule
+sonde de complétion fiable. Interprétation : une sync significative
+(15-110 µs/upload sur un seed de contrôle) montre que les uploads ont un vrai
+travail GPU différé — `uploadNs` (émission seule) **sous-estime le coût total**.
+Prédiction à vérifier sur une session avec état « haut » : la backpressure
+doit gonfler l'**émission** (blocage CPU dans l'appel d'upload) et dégonfler la
+sync (travail déjà fait) → **total stable** — à croiser avec l'état machine
+(capture ci-dessus). `agg-seeds.js` affiche le split par version
+(`upload split (médianes) : emit … / sync … / total … us`).
+
 Commandes équivalentes, à la main :
 
 ```bash
@@ -137,10 +154,10 @@ et les sessions, pas seulement des nombres).
   `EXT_disjoint_timer_query_webgl2` → utiliser l'API native `gl.createQuery()`
   + `gl.beginQuery(ext.TIME_ELAPSED_EXT, q)` + `gl.endQuery(...)`, résultats
   lus via `getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE / QUERY_RESULT)`.
-- **Unités** : `uploadNs` est en **ns** (→ ÷1000 pour µs) ; `gpuMed` est en
-  **ms** (→ ×1000 pour µs). `agg-seeds.js` applique ces conversions (SCALE
-  par métrique) — les versions antérieures affichaient les valeurs brutes
-  sous de mauvaises étiquettes.
+- **Unités** : `uploadNs`, `uploadEmitNs`, `uploadSyncNs`, `uploadTotalNs`
+  sont en **ns** (→ ÷1000 pour µs) ; `gpuMed` est en **ms** (→ ×1000 pour µs).
+  `agg-seeds.js` applique ces conversions (SCALE par métrique) — les versions
+  antérieures affichaient les valeurs brutes sous de mauvaises étiquettes.
 - **Rejouabilité** : la rejouabilité porte sur le **draw, les compteurs GL et
   les ratios** — les absolus (upload, wallTotal) varient ~±10–30 % entre
   sessions (drift des clocks GPU) et entre seeds d'une même session. Les
