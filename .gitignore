@@ -29,6 +29,10 @@ patchtest*/
 # Logs
 *.log
 
+# Harnais GPU (bench/gpu) : artefacts générés, non versionnés
+bench/gpu/test.webm
+bench/gpu/run-s*.json
+
 # Artefacts locaux (système)
 .DS_Store
 Thumbs.db
