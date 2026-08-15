@@ -133,6 +133,124 @@ Notes :
   l'intérêt est l'élimination des **allocations à 60 Hz** (pression GC) et du
   travail driver répété, pas le temps CPU brut.
 
+### GPU — renderer WebGL2 (mesures réelles)
+
+Harnais : Edge avec **GPU réel (NVIDIA RTX 3070 via ANGLE/D3D11)**, y compris
+en headless, vidéo de test 640×360 (VP9) générée en navigateur, classe
+`WebGL2Player` extraite de chaque build et exécutée dans un vrai contexte
+WebGL2, méthodes GL instrumentées (compteurs) et rasterisation mesurée via
+`EXT_disjoint_timer_query_webgl2` (`TIME_ELAPSED` autour de `drawArrays`),
+120 frames × 2 passes.
+
+| Mesure | perf10 | v1.3.0 | Δ |
+|---|---|---|---|
+| Appels GL par frame | `texImage2D` + `drawArrays` (0 allocation) | `texSubImage2D` + `drawArrays` (0 allocation) | même nombre d'appels |
+| Upload vidéo — boucle tight (µs/upload) | ~200–235 µs | ~64–66 µs | **-67 à -72 %** |
+| Rasterisation `drawArrays` (µs/draw, médiane GPU) | 10,2 µs | 10,2 µs | identique (même shader) |
+| `updateFrame` — wall moyen (ms/frame) | 0,22 ms | 0,07 ms | **-66 %** |
+
+Lecture des résultats :
+
+- Le **draw** (rasterisation) coûte pareil dans les deux versions — même
+  shader, même résolution : attendu.
+- Le vrai levier est l'**upload vidéo** : `texImage2D` **réalloue le storage
+  GPU de la texture à chaque frame** (~3× le coût d'un `texSubImage2D` dans un
+  storage immuable). C'est le bénéfice mesurable des patches 13/16 côté GPU —
+  invisible dans les micro-benchmarks JS (d'où l'écart avec la table
+  « Hot loops » ci-dessus).
+- Le wall de `updateFrame` suit (~3× plus lent en perf10) : la partie
+  synchronisée du chemin d'upload domine la frame.
+
+> **⚠️ Bug connu dans les builds v1.2.0 et v1.3.0 (et dans le TS upstream)** :
+> `gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGB, …)` utilise un **format
+> non-sized** (`gl.RGB`) → `INVALID_ENUM` à chaque changement de résolution →
+> l'allocation échoue, les uploads vidéo échouent (`CopySubTextureCHROMIUM`)
+> et le renderer WebGL2 rend un **écran noir**. Vérifié par `readPixels`
+> (pixels 100 % noirs avec `gl.RGB`, vidéo réelle avec `gl.RGB8`).
+> **Correctif : `gl.RGB` → `gl.RGB8`** (une ligne — prévu pour la v1.4.0).
+> Les mesures GPU ci-dessus ont été prises **avec ce correctif appliqué au
+> code extrait** pour mesurer le chemin fonctionnel (le renderer WebGL2 n'est
+> pas le défaut — `video.player.type` — donc l'impact se limite aux sessions
+> qui l'activent).
+
+## Repro — comment les mesures sont faites
+
+Les chiffres du chapitre Benchmarks viennent de harnais jetables décrits
+ci-dessous (paramètres + pièges) pour pouvoir les rejouer ou les adapter.
+
+### Environnement commun
+
+- Windows, **Edge** (canal `msedge` via Playwright) pour les mesures navigateur,
+  **Node V8** pour les micro-benchmarks CPU.
+- Les deux builds comparés : baseline **perf10** (`git show
+  055d3a0:better-xcloud.user.js`) et **v1.3.0** (`better-xcloud.user.js` du repo).
+- Page de test servie par un **serveur HTTP local 127.0.0.1** : une origine
+  réelle est obligatoire (pas de `localStorage` sur `about:blank`).
+
+### Parse / compile (Node)
+
+- `new Function(code)` **sans exécution** (l'exécution réelle est mesurée dans
+  Edge), ×300 itérations, médiane. Sub-ms → bruité : seule la comparaison
+  relative compte.
+
+### Éval complète de page (Edge, injection au document-start)
+
+- URL : `http://127.0.0.1:<port>/en-us/play` — le script exige
+  `pathname.match(/^\/[a-zA-Z]{2}-[a-zA-Z]{2}\/play/)` (garde « Not xCloud
+  page »).
+- `window.BX_FLAGS = { SafariWorkaround: false }` (désactive la garde de reload
+  qui jette si `readyState !== "loading"`).
+- Injection au **document-start** via `page.addInitScript`, évaluation dès que
+  `document.documentElement` existe — **poll 1 ms** (il est null ~18-25 ms au
+  début de la navigation ; `setTimeout(0)` tire trop tôt).
+- Temps mesuré = durée de l'`eval` du script complet (bootstrap `main()`
+  inclus), 20 runs, médiane/p95 (perf10 présente des outliers p95
+  environnementaux, la médiane est stable).
+
+### Hot loops ~60 Hz (Node)
+
+- Extraction des fragments injectés depuis le build : regex
+  `var <nom> = "((?:[^"\\]|\\.)*)";` puis décodage de la chaîne (JSON).
+- Substitutions des placeholders que le Patcher fait à l'exécution :
+  `$xCloudGamepadVar$` → variable du gamepad, `$gamepadVar$` → `currentGamepad`.
+- `var self=this` en tête de `poll_gamepad_default` : appeler `fn.call(ctx, ctx)`
+  (sinon `this` = global et le chemin « relâchement » ne se déclenche jamais).
+- Shadow de `window` et `setTimeout` dans le wrapper (sinon Node tire le vrai
+  timer/global).
+- **Réutiliser le même ctx entre les polls** : un ctx neuf par itération
+  (20+ objets) domine la mesure.
+- Mapping/ranges réalistes pour `controller_customization` ; le chemin
+  « relâchement Home » exige `bxHomeStates[index]` pré-rempli +
+  `inputSink.onGamepadInput` + `BX_STREAM_SETTINGS.controllerPollingRate`.
+- 200 000 itérations par scénario, warmup avant mesure.
+
+### GPU — renderer WebGL2 (Edge réel)
+
+Le harnais complet vit dans `D:\Codex\gpubench\` (hors repo) : `gen-video.js`
+(vidéo de test), `gpu-runner.js`, classes extraites, `test.webm`. Points clés :
+
+- **Vidéo de test** : le ffmpeg de Playwright n'a pas `lavfi` → générer la
+  vidéo en navigateur (`canvas.captureStream(30)` + MediaRecorder VP9), servir
+  en local.
+- **Classe extraite** : `class WebGL2Player` découpée du build (bornes de
+  classe) et évaluée dans la page avec un stub `BaseCanvasPlayer` minimal ;
+  `getContext` est intercepté pour instrumenter le contexte WebGL2.
+- **Compteurs GL** : wrapper des méthodes du contexte — **le wrapper doit
+  `return orig(...)`** (sinon `createTexture()` renvoie `undefined` →
+  « no texture bound » sur les appels suivants).
+- **Timing GPU** : Edge/ANGLE n'expose pas `createQueryEXT` sur
+  `EXT_disjoint_timer_query_webgl2` → utiliser l'API native `gl.createQuery()`
+  + `gl.beginQuery(ext.TIME_ELAPSED_EXT, q)` + `gl.endQuery(...)`, résultats
+  lus via `getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE / QUERY_RESULT)`
+  (résolution en parallèle).
+- `WEBGL_debug_renderer_info` pour identifier le renderer (headless garde le
+  GPU réel : « ANGLE (NVIDIA, … D3D11) »).
+- `readPixels` sur une texture ≥ dimensions de la vidéo (sinon
+  « Offset overflows texture dimensions »).
+- Le build v1.3.0 publié porte le bug `texStorage2D(gl.RGB)` (écran noir, cf.
+  plus haut) : le runner applique le correctif `gl.RGB → gl.RGB8` au code
+  extrait pour mesurer le chemin fonctionnel.
+
 ## Historique du dépôt
 
 ```
