@@ -141,26 +141,31 @@ en headless, vidéo de test 640×360 (VP9) générée en navigateur, classe
 `WebGL2Player` extraite de chaque build et exécutée dans un vrai contexte
 WebGL2, méthodes GL instrumentées (compteurs) et rasterisation mesurée via
 `EXT_disjoint_timer_query_webgl2` (`TIME_ELAPSED` autour de `drawArrays`),
-120 frames × 2 passes.
+120 frames × 2–3 passes.
 
-| Mesure | perf10 | v1.3.0 | Δ |
+| Mesure | perf10 | v1.4.0 | Δ |
 |---|---|---|---|
 | Appels GL par frame | `texImage2D` + `drawArrays` (0 allocation) | `texSubImage2D` + `drawArrays` (0 allocation) | même nombre d'appels |
-| Upload vidéo — boucle tight (µs/upload) | ~200–235 µs | ~64–66 µs | **-67 à -72 %** |
+| Upload vidéo — boucle tight (µs/upload) | ~75 µs (72–235 selon session) | ~44 µs (42–66) | **×1,7 à ×3** |
 | Rasterisation `drawArrays` (µs/draw, médiane GPU) | 10,2 µs | 10,2 µs | identique (même shader) |
-| `updateFrame` — wall moyen (ms/frame) | 0,22 ms | 0,07 ms | **-66 %** |
+| `updateFrame` — wall moyen (ms/frame) | ~0,07 ms (0,07–0,22) | ~0,04 ms (0,04–0,07) | **×1,7 à ×3** |
 
 Lecture des résultats :
 
 - Le **draw** (rasterisation) coûte pareil dans les deux versions — même
   shader, même résolution : attendu.
 - Le vrai levier est l'**upload vidéo** : `texImage2D` **réalloue le storage
-  GPU de la texture à chaque frame** (~3× le coût d'un `texSubImage2D` dans un
+  GPU de la texture à chaque frame** (~2–3× le coût d'un `texSubImage2D` dans un
   storage immuable). C'est le bénéfice mesurable des patches 13/16 côté GPU —
   invisible dans les micro-benchmarks JS (d'où l'écart avec la table
   « Hot loops » ci-dessus).
-- Le wall de `updateFrame` suit (~3× plus lent en perf10) : la partie
-  synchronisée du chemin d'upload domine la frame.
+- Le wall de `updateFrame` suit (~2–3× plus lent en perf10 selon la session) :
+  la partie synchronisée du chemin d'upload domine la frame.
+- **Variance inter-sessions** : les valeurs absolues (upload, wall) varient
+  ~×2 selon l'état des clocks GPU/driver. Re-mesure du build **v1.4.0 officiel**
+  (`--no-fix`) : upload ~44 µs / wall ~0,04 ms ; la session d'origine
+  (v1.3.0 + correctif harnais) donnait ~64–66 µs / ~0,07 ms. Les ratios
+  perf10/v1.4.0 et l'identité du draw restent stables.
 
 > **⚠️ Bug (corrigé en v1.4.0) — builds v1.2.0 et v1.3.0 (et TS upstream)** :
 > `gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGB, …)` utilisait un **format
@@ -169,7 +174,10 @@ Lecture des résultats :
 > et le renderer WebGL2 rendait un **écran noir** (vérifié par `readPixels` :
 > pixels 100 % noirs avec `gl.RGB`, vidéo réelle avec `gl.RGB8`).
 > **Corrigé dans la v1.4.0** (`gl.RGB` → `gl.RGB8`, patch 18). Les mesures
-> GPU ci-dessus ont été prises avec ce correctif — désormais intégré au build
+> GPU du tableau ont été **re-mesurées sur le build v1.4.0 officiel sans
+> aucune correction du harnais** (le fix est intégré au build ; la classe
+> WebGL2Player de v1.3.0 est octet pour octet identique à celle de v1.4.0
+> hormis ce fix — vérifié par `diff` des classes extraites)
 > (le renderer WebGL2 n'est pas le défaut — `video.player.type` — donc
 > l'impact de l'ancien bug se limitait aux sessions qui l'activaient).
 
@@ -258,9 +266,11 @@ extraites, `test.webm`. Points clés :
   GPU réel : « ANGLE (NVIDIA, … D3D11) »).
 - `readPixels` sur une texture ≥ dimensions de la vidéo (sinon
   « Offset overflows texture dimensions »).
-- Le build v1.3.0 publié porte le bug `texStorage2D(gl.RGB)` (écran noir, cf.
-  plus haut) : le runner applique le correctif `gl.RGB → gl.RGB8` au code
-  extrait pour mesurer le chemin fonctionnel.
+- `gpu-runner.js` est paramétrable : `--cls-p10=`/`--cls-new=` (classes
+  extraites), `--label-new=`, `--frames=`, `--passes=`, `--no-fix`. Le
+  correctif `gl.RGB → gl.RGB8` ne s'applique que si le code extrait contient
+  encore `gl.RGB` (builds ≤ v1.3.0) ; le build v1.4.0 contient déjà le fix →
+  mesuré avec `--no-fix`, strictement le build publié.
 
 ## Historique du dépôt
 
