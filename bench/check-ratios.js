@@ -56,6 +56,7 @@ const SECTIONS = {
 };
 const KNOWN = ["IDLE", "ACTIF", "commun", "relâchement"];
 const meds = {}; // scénario -> { perf10: ns, build: ns }
+const mm = {}; // scénario -> { perf10: {med,min,max}, build: {med,min,max} } (ligne de session)
 let section = null;
 for (const line of text.split(/\r?\n/)) {
   if (line.startsWith("=== Hot loop 60 Hz : controller_customization_default")) { section = "controller"; continue; }
@@ -70,6 +71,7 @@ for (const line of text.split(/\r?\n/)) {
     const name = sm[1].trim();
     const sc = KNOWN.includes(name) ? name : SECTIONS[section][i] || SECTIONS[section][0];
     (meds[sc] ||= {})[m[1]] = +sm[2];
+    (mm[sc] ||= {})[m[1]] = { med: +sm[2], min: +sm[3], max: +sm[4] };
   });
 }
 
@@ -134,6 +136,44 @@ if (counts.build != null && counts.perf10 != null) {
   structuralFail++;
 }
 
+// ---------- ligne de session (tableau « Sessions hot loops » du README) ----------
+// État dérivé du ratio IDLE perf10/build (mêmes seuils que le README) :
+// bas ≥ ~10 (machine calme), haut ≤ ~9,5 (coût fixe d’environnement qui
+// écrase l’avantage), transitionnel entre les deux. Date : capture d’état
+// machine du job (bench/state-cpu-ci.before.json, écrite par le workflow),
+// repli sur la date courante si absente.
+const idle = mm.IDLE || {};
+const rel = mm["relâchement"] || {};
+const p10Idle = idle.perf10, bIdle = idle.build;
+const p10Rel = rel.perf10, bRel = rel.build;
+const ratioIdle = p10Idle && bIdle ? p10Idle.med / bIdle.med : null;
+const etat = ratioIdle == null ? "n/a" : ratioIdle >= 10 ? "bas" : ratioIdle <= 9.5 ? "haut" : "transitionnel";
+const sessionLabelArg = (process.argv.find((a) => a.startsWith("--session-label=")) || "").split("=").slice(1).join("=").trim();
+const stCandidates = ["bench/state-cpu-ci.before.json", "state-cpu-ci.before.json", "bench/state-cpu-s42.before.json"];
+let sessionDate = "";
+let stateCtx = null;
+for (const sf of stCandidates) {
+  if (!fs.existsSync(sf)) continue;
+  try {
+    const st = JSON.parse(fs.readFileSync(sf, "utf8"));
+    if (st.iso && !sessionDate) sessionDate = st.iso.slice(0, 10);
+    if (!stateCtx) {
+      const parts = [];
+      if (st.gpu) parts.push("GPU " + st.gpu.tempC + " °C · util " + st.gpu.utilPct + " % · SM " + st.gpu.smClockMhz + " MHz");
+      if (st.cpu) parts.push("CPU load " + st.cpu.loadPct + " %");
+      if (parts.length) stateCtx = parts.join(" | ");
+    }
+  } catch (e) { /* état illisible → candidat suivant */ }
+}
+if (!sessionDate) sessionDate = new Date().toISOString().slice(0, 10);
+const sessionLabel = sessionLabelArg || ("CI " + sessionDate + " (hotloops)");
+const idleCell = (x) => (x ? (fmt(x.med) + " (" + fmt(x.min) + "–" + fmt(x.max) + ")") : "n/a");
+const relCell = (x) => (x ? fmt(x.med) : "n/a");
+const relPct = p10Rel && bRel && p10Rel.med > 0 ? (100 * (p10Rel.med - bRel.med) / p10Rel.med).toFixed(0) : null;
+const readmeSessionLine =
+  "| " + sessionLabel + " | " + idleCell(p10Idle) + " | " + idleCell(bIdle) + " | " + (ratioIdle != null ? "**×" + fmt(ratioIdle) + "**" : "n/a") + " | " + etat + " | " + relCell(p10Rel) + " → " + relCell(bRel) + (relPct != null ? " (−" + relPct + " %)" : "") + " |";
+console.log("Session " + sessionDate + " : ratio IDLE ×" + (ratioIdle != null ? fmt(ratioIdle) : "n/a") + ", état " + etat);
+
 // ---------- résumé markdown (commentaire PR) ----------
 if (markdownFile) {
   const lines = [
@@ -151,6 +191,11 @@ if (markdownFile) {
   }
   const totalFail = failures + structuralFail;
   const verdict = totalFail === 0 ? "✅ PASS (6/6)" : `❌ ÉCHEC (${totalFail} vérification(s) en échec)`;
+  lines.push("", "**Session — ligne prête à insérer dans le tableau « Sessions hot loops » du README :**");
+  lines.push("", "| Session | perf10 IDLE (ns/poll) | build IDLE (ns/poll) | Ratio IDLE | État | Relâchement Home (perf10 → build) |");
+  lines.push("|---|---|---|---|---|---|");
+  lines.push(readmeSessionLine);
+  if (stateCtx) lines.push("", `_État machine au début du bench : ${stateCtx}._`);
   lines.push("", `**Résultat : ${verdict}**`);
   if (structuralFail > 0) {
     lines.push("", "_Vérification structurelle updateCanvas (compteurs `gl.uniform1f` : build ≤ 20, perf10 ≥ 1000) en échec._");

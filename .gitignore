@@ -34,6 +34,7 @@ bench/gpu/test.webm
 bench/gpu/run-s*.json
 bench/gpu/state-s*.json
 bench/state-cpu-s*.json
+bench/state-cpu-ci.*.json
 
 # Artefacts locaux (système)
 .DS_Store

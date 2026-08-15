@@ -29,14 +29,29 @@ jobs:
 
       - name: Lance le bench CPU (parse + hot loops, sans page-eval)
         run: |
+          # État machine avant/après le bench (même outil que le harnais GPU,
+          # best-effort) — alimente la date/le contexte de la ligne de session
+          # de check-ratios.js (bench/state-cpu-ci.before.json)
+          node bench/gpu/machine-state.js before > bench/state-cpu-ci.before.json 2>/dev/null || true
           bash bench/run-all.sh --skip-page-eval > "$RUNNER_TEMP/bench-out.txt" 2>&1 || true
+          node bench/gpu/machine-state.js after > bench/state-cpu-ci.after.json 2>/dev/null || true
           echo "--- sortie (dernières lignes) ---"
           tail -20 "$RUNNER_TEMP/bench-out.txt"
 
       - name: Vérifie les ratios des hot loops (seuils CI)
         run: |
+          # le résumé markdown inclut la ligne de session (état haut/bas +
+          # date depuis la capture d'état) prête pour le tableau « Sessions
+          # hot loops » du README
           node bench/check-ratios.js "$RUNNER_TEMP/bench-out.txt" --markdown="$RUNNER_TEMP/bench-summary.md"
           echo "summary=$RUNNER_TEMP/bench-summary.md" >> "$GITHUB_ENV"
+
+      - name: Upload du résumé hot loops (tableau + ligne de session prête pour le README)
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-summary-${{ github.sha }}
+          path: ${{ runner.temp }}/bench-summary.md
+          if-no-files-found: error
 
       - name: Upload bench-out.txt (en cas d'échec uniquement)
         if: failure()
