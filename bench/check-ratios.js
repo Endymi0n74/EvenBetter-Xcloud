@@ -43,7 +43,7 @@ const THRESHOLDS = {
   commun: { min: 0.5, max: 2.0 },         // identique
   "relâchement": { min: 4.0, max: 20.0 }, // structuredClone supprimé : attendu ~7-9×
   updateFrame: { min: 0.5, max: 2.0 },    // équivalent (coût JS seul)
-  updateCanvas: { min: 2.0, max: 50.0 },  // cache uniforms : attendu ~3-10× (7 gl.uniform* sautés)
+  updateCanvas: { min: 12.0, max: 100.0 }, // v1.6.0 flag dirty : attendu ~15-25× (le plancher ~13 ns du harnais domine ; 1 lecture + branche vs 7 gl.uniform*)
 };
 const ORDER = ["IDLE", "ACTIF", "commun", "relâchement", "updateFrame", "updateCanvas"];
 
@@ -105,6 +105,35 @@ for (const sc of ORDER) {
   rows.push({ sc, p10: data.perf10, build: data.build, ratio, th, ok });
 }
 
+// ---------- vérification structurelle : compteurs gl.uniform* (scénario updateCanvas) ----------
+// Le flag dirty (v1.6.0) fait que le build n'émet ses 7 gl.uniform* qu'au warmup
+// hors chrono (compteurs ~1/2/4 sur toute la passe) ; perf10 en émet 7 par
+// itération (~860k uniform1f). Un retour au cache-comparaison v1.5.0 (22 ns) ou
+// à perf10 ferait exploser les compteurs du build — détecté même si le ratio
+// temporel reste dans le bruit (équivalent du check « chemin GL » du harnais GPU).
+const counts = {}; // version -> nombre d'appels gl.uniform1f de la dernière passe
+for (const line of text.split(/\r?\n/)) {
+  const m = line.match(/^(perf10|build)\s*:.*uniform1f=(\d+)/);
+  if (m) counts[m[1]] = +m[2];
+}
+let structuralFail = 0;
+if (counts.build != null && counts.perf10 != null) {
+  if (counts.build > 20) {
+    ann("error", `updateCanvas : le build émet encore ${counts.build} gl.uniform1f (attendu ≤ 20 — flag dirty inactif ?)`);
+    structuralFail++;
+  }
+  if (counts.perf10 < 1000) {
+    ann("error", `updateCanvas : perf10 n'émet que ${counts.perf10} gl.uniform1f (attendu ≥ 1000 — harnais cassé ?)`);
+    structuralFail++;
+  }
+  if (structuralFail === 0) {
+    console.log(`  ✓ updateCanvas  structure : build ${counts.build} / perf10 ${counts.perf10} gl.uniform1f (flag dirty actif)`);
+  }
+} else {
+  ann("error", "updateCanvas : compteurs gl.uniform1f introuvables dans la sortie du harnais");
+  structuralFail++;
+}
+
 // ---------- résumé markdown (commentaire PR) ----------
 if (markdownFile) {
   const lines = [
@@ -120,18 +149,23 @@ if (markdownFile) {
     const bld = r.build != null ? `${fmt(r.build)} ns` : "n/a";
     lines.push(`| ${r.sc} | ${med} | ${bld} | ${ratio} | ${fmtTh(r.th)} | ${statut} |`);
   }
-  const verdict = failures === 0 ? "✅ PASS (6/6)" : `❌ ÉCHEC (${failures} scénario(s) hors seuil)`;
+  const totalFail = failures + structuralFail;
+  const verdict = totalFail === 0 ? "✅ PASS (6/6)" : `❌ ÉCHEC (${totalFail} vérification(s) en échec)`;
   lines.push("", `**Résultat : ${verdict}**`);
-  lines.push("", "_Régression = ratio perf10/build hors seuil (plancher ×4 pour IDLE/relâchement, ×2 pour updateCanvas, fourchette 0,5–2,0 pour les scénarios équivalents). Sortie complète du harnais dans l'artefact `bench-out.txt` du workflow._");
+  if (structuralFail > 0) {
+    lines.push("", "_Vérification structurelle updateCanvas (compteurs `gl.uniform1f` : build ≤ 20, perf10 ≥ 1000) en échec._");
+  }
+  lines.push("", "_Régression = ratio perf10/build hors seuil (plancher ×4 pour IDLE/relâchement, ×12 pour updateCanvas avec le flag dirty v1.6.0, fourchette 0,5–2,0 pour les scénarios équivalents) ou compteurs GL anormaux. Sortie complète du harnais dans l'artefact `bench-out.txt` du workflow._");
   fs.writeFileSync(markdownFile, lines.join("\n") + "\n");
   console.log(`Résumé markdown écrit : ${markdownFile}`);
 }
 
 console.log();
-if (failures === 0) {
+const totalFail = failures + structuralFail;
+if (totalFail === 0) {
   console.log("Résultat : PASS (6/6)");
   process.exit(0);
 } else {
-  console.log(`Résultat : ÉCHEC (${failures} scénario(s) hors seuil)`);
+  console.log(`Résultat : ÉCHEC (${totalFail} vérification(s) en échec)`);
   process.exit(1);
 }

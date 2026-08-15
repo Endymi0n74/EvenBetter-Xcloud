@@ -300,10 +300,13 @@ const SCENARIOS = [
         $canvas: { width: 1920, height: 1080 },
         options: { processing: "usm", processingMode: "performance", sharpness: 0, brightness: 100, contrast: 100, saturation: 100 },
         toFilterId: (p) => (p === "cas" ? 2 : 1),
+        // v1.6.0 : le build porte un flag `_uniformsDirty` (1er appel = recalcul
+        // complet, ensuite 1 lecture + branche) ; perf10 l'ignore (toujours 7
+        // gl.uniform* par appel). La 1re exécution hors chrono simule un
+        // recalcul (dirty → false) — la mesure couvre l'état stable 60 Hz
+        // (valeurs inchangées → retour anticipé pour le build).
+        _uniformsDirty: true,
       };
-      // première exécution hors chrono : perf10 fait ses 7 uploads, le build
-      // remplit `_uniformsCache` — la mesure couvre ensuite l'état stable 60 Hz
-      // (valeurs inchangées → retour anticipé pour le build, 7 gl.uniform* pour perf10)
       fn.call(ctx);
       return { ns: bench(() => fn.call(ctx), ITERS), counts: calls };
     },
