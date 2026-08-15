@@ -107,6 +107,9 @@ jobs:
         run: node bench/gpu/gen-video.js bench/gpu/test.webm --channel=msedge
 
       - name: Protocole figé — 6 seeds × 3 passes (upload, wallTotal, draw)
+        # Windows : les run: multi-lignes bash nécessitent shell: bash (le
+        # défaut PowerShell ne comprend ni les continuations « \ » ni $S)
+        shell: bash
         run: |
           for S in 100 200 300 400 500 600; do
             echo "== seed $S =="
