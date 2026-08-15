@@ -123,7 +123,9 @@ jobs:
               > bench/gpu/run-s$S.json || exit 1
             node bench/gpu/machine-state.js after > bench/gpu/state-s$S.after.json 2>/dev/null || true
           done
-          node bench/gpu/agg-seeds.js 100 200 300 400 500 600
+          # label-new doit correspondre à --label-new de gpu-runner.js (sinon
+          # agg-seeds cherche res.agg[« v1.4.0 »] et crash sur des runs v1.6.0)
+          node bench/gpu/agg-seeds.js --label-new=v1.6.0 100 200 300 400 500 600
 
       - name: Vérifie upload / wallTotal / draw + chemin GL (résumé markdown avec ligne de session)
         run: node bench/gpu/check-gpu.js 100 200 300 400 500 600 --markdown="$RUNNER_TEMP/gpu-summary.md"
