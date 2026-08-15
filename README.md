@@ -176,12 +176,12 @@ WebGL2, méthodes GL instrumentées (compteurs) et rasterisation mesurée via
 > identiques sur le chemin GPU (updateFrame byte-identique), seuls les
 > ratios intra-session (perf10 vs build) comptent.
 
-| Mesure | perf10 | v1.4.0 | Δ |
+| Mesure | perf10 | v1.6.0 | Δ |
 |---|---|---|---|
 | Appels GL par frame | `texImage2D` + `drawArrays` (0 allocation) | `texSubImage2D` + `drawArrays` (0 allocation) | même nombre d'appels |
-| Upload vidéo — boucle tight (µs/upload) | ~98–151 µs | ~55–75 µs | **×2,1** |
+| Upload vidéo — boucle tight (µs/upload) | ~48–61 µs | ~8–11 µs | **×4,9** |
 | Rasterisation `drawArrays` (µs/draw, médiane GPU) | 10,2 µs | 10,2 µs | identique (même shader) |
-| `updateFrame` — wall total (ms/frame, boucle complète / FRAMES) | ~0,097–0,136 ms | ~0,059–0,085 ms | **×1,5** |
+| `updateFrame` — wall total (ms/frame, boucle complète / FRAMES) | ~0,049–0,061 ms | ~0,011–0,022 ms | **×3,0** |
 
 Lecture des résultats :
 
@@ -192,8 +192,8 @@ Lecture des résultats :
   un storage immuable). C'est le bénéfice mesurable des patches 13/16 côté GPU
   — invisible dans les micro-benchmarks JS (d'où l'écart avec la table
   « Hot loops » ci-dessus).
-- Le wall de `updateFrame` suit (~×1,5 avec la métrique `wallTotal`
-  stabilisée) : la partie synchronisée du chemin d'upload domine la frame.
+- Le wall de `updateFrame` suit (~×3,0 avec la métrique `wallTotal`
+  stabilisée sur v1.6.0) : la partie synchronisée du chemin d'upload domine la frame.
 - **Protocole figé** (cf. Repro — seeds 100/200/300/400/500/600 × 3 passes,
   commandes exactes) : re-mesure complète — upload perf10 98,5 / 113,5 /
   119,0 / 136,5 / 139,0 / 150,7 µs vs v1.4.0 54,7 / 58,2 / 62,8 / 65,2 /
@@ -204,7 +204,10 @@ Lecture des résultats :
   commandes) : absolus décalés (session 1 : 80,5–93 / 43,8–50,3 µs) mais
   **draw, compteurs GL et ratios identiques** — la rejouabilité porte sur le
   draw, les compteurs et les ratios, pas sur les absolus (drift des clocks
-  GPU inter-sessions documenté).
+  GPU inter-sessions documenté). **Re-mesure v1.6.0** du même protocole
+  (mêmes seeds 100–600, même jour que la release) : upload 48–61 vs 8–11 µs
+  (**×4,86**), wallTotal 0,052 vs 0,017 ms (**×3,00**), draw 10,2 µs
+  identique partout — cf. la note au-dessus du tableau.
 
 > **⚠️ Bug (corrigé en v1.4.0) — builds v1.2.0 et v1.3.0 (et TS upstream)** :
 > `gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGB, …)` utilisait un **format
