@@ -96,31 +96,35 @@ absolue mais la comparaison relative entre les deux builds.
 
 ### Chargement (parse + éval de page)
 
-| Mesure | perf10 | v1.3.0 | Δ |
+| Mesure | perf10 | v1.4.0 | Δ |
 |---|---|---|---|
-| Parse/compile (Node `new Function`, ×300, médiane) | 0,135 ms | 0,127 ms | ~-6 % (bruit sub-ms) |
-| Éval complète de page (Edge headless, injection `document-start`, 20 runs, médiane) | 24,8 ms | 24,8 ms | ~0 % |
+| Parse/compile (Node `new Function`, ×300, médiane) | ~0,13 ms | ~0,11 ms | ~-6 à -14 % (bruit sub-ms) |
+| Éval complète de page (Edge headless, injection `document-start`, 20 runs, médiane) | ~23–25 ms | ~23–25 ms | ~0 % |
 
-La série perf11/v1.3.0 visait le **runtime** (hot loops, GPU, caches), pas le
-chargement — confirmé : le coût de démarrage est identique (le `p95` de perf10
-présente des outliers environnementaux, la médiane est stable).
+La série perf11/v1.3.0 (re-mesurée sur le build v1.4.0 officiel — le code des
+hot loops est inchangé entre v1.3.0 et v1.4.0, seul le renderer WebGL2 a reçu
+le fix RGB8) visait le **runtime** (hot loops, GPU, caches), pas le chargement —
+confirmé : le coût de démarrage est identique (le `p95` de perf10 présente des
+outliers environnementaux, la médiane est stable).
 
 ### Hot loops (~60 Hz)
 
 Micro-benchmarks Node (V8), fragments injectés extraits des builds, 200 000
-itérations par scénario.
+itérations par scénario. Valeurs re-mesurées sur le build v1.4.0 officiel
+(`bench/run-all.sh`, session 2) — les absolus varient ~±30 % run à run, les
+ratios sont stables.
 
-| Hot loop | perf10 | v1.3.0 | Gain |
+| Hot loop | perf10 | v1.4.0 | Gain |
 |---|---|---|---|
-| Controller customization — **IDLE** (aucun input, sticks centrés) | 331 ns/poll | **35 ns/poll** | **-89 % (×9)** |
-| Controller customization — ACTIF (bouton + stick) | ~400 ns/poll | ~400 ns/poll | équivalent (±10 % run à run) |
-| `poll_gamepad_default` — chemin commun (Home jamais pressé) | 10,4 ns/poll | 10,4 ns/poll | identique |
-| `poll_gamepad_default` — relâchement du bouton Home | 1059 ns | **111 ns** | **-89 %** |
+| Controller customization — **IDLE** (aucun input, sticks centrés) | ~305 ns/poll | **~46 ns/poll** | **-85 % (×6,5)** |
+| Controller customization — ACTIF (bouton + stick) | ~360 ns/poll | ~370 ns/poll | équivalent (±10 % run à run) |
+| `poll_gamepad_default` — chemin commun (Home jamais pressé) | ~11 ns/poll | ~11 ns/poll | identique |
+| `poll_gamepad_default` — relâchement du bouton Home | ~1120 ns | **~140 ns** | **-88 %** |
 | `WebGL2Player.updateFrame` — chemin stable (coût JS seul) | ~150 ns/frame | ~140 ns/frame | équivalent (voir note) |
 
 Notes :
 
-- Le **skip idle** (patch 12) divise par ~9 le coût du poll au repos — le cas
+- Le **skip idle** (patch 12) divise par ~×6,5 à ×9 le coût du poll au repos — le cas
   commun en jeu (pauses entre inputs) : plus d'allocations
   `pressedButtons`/`releasedButtons`, plus d'itération du mapping à chaque poll.
 - Le relâchement du bouton Home passait par un `structuredClone` inutile
@@ -141,14 +145,14 @@ en headless, vidéo de test 640×360 (VP9) générée en navigateur, classe
 `WebGL2Player` extraite de chaque build et exécutée dans un vrai contexte
 WebGL2, méthodes GL instrumentées (compteurs) et rasterisation mesurée via
 `EXT_disjoint_timer_query_webgl2` (`TIME_ELAPSED` autour de `drawArrays`),
-120 frames × 2–3 passes.
+120 frames × 3 passes (ordre mélangé par seed), protocole stabilisé (cf. Repro).
 
 | Mesure | perf10 | v1.4.0 | Δ |
 |---|---|---|---|
 | Appels GL par frame | `texImage2D` + `drawArrays` (0 allocation) | `texSubImage2D` + `drawArrays` (0 allocation) | même nombre d'appels |
-| Upload vidéo — boucle tight (µs/upload) | ~75 µs (72–235 selon session) | ~44 µs (42–66) | **×1,7 à ×3** |
+| Upload vidéo — boucle tight (µs/upload) | ~70–75 µs | ~40 µs | **×1,8** |
 | Rasterisation `drawArrays` (µs/draw, médiane GPU) | 10,2 µs | 10,2 µs | identique (même shader) |
-| `updateFrame` — wall moyen (ms/frame) | ~0,07 ms (0,07–0,22) | ~0,04 ms (0,04–0,07) | **×1,7 à ×3** |
+| `updateFrame` — wall total (ms/frame, boucle complète / FRAMES) | ~0,07–0,08 ms | ~0,05 ms | **×1,5–1,8** |
 
 Lecture des résultats :
 
@@ -159,13 +163,14 @@ Lecture des résultats :
   storage immuable). C'est le bénéfice mesurable des patches 13/16 côté GPU —
   invisible dans les micro-benchmarks JS (d'où l'écart avec la table
   « Hot loops » ci-dessus).
-- Le wall de `updateFrame` suit (~2–3× plus lent en perf10 selon la session) :
-  la partie synchronisée du chemin d'upload domine la frame.
-- **Variance inter-sessions** : les valeurs absolues (upload, wall) varient
-  ~×2 selon l'état des clocks GPU/driver. Re-mesure du build **v1.4.0 officiel**
-  (`--no-fix`) : upload ~44 µs / wall ~0,04 ms ; la session d'origine
-  (v1.3.0 + correctif harnais) donnait ~64–66 µs / ~0,07 ms. Les ratios
-  perf10/v1.4.0 et l'identité du draw restent stables.
+- Le wall de `updateFrame` suit (~×1,5–1,8 avec la métrique `wallTotal`
+  stabilisée) : la partie synchronisée du chemin d'upload domine la frame.
+- **Protocole stabilisé** (préchauffage GPU + runs croisés par seed + médiane
+  sur 3 passes, cf. Repro) : reproductible à ~±5–10 % d'un seed à l'autre
+  (3 seeds testés : upload 70,7 / 75,0 / 73,5 µs vs 41,0 / 39,3 / 39,8 µs ;
+  wallTotal 0,074 / 0,070 / 0,077 vs 0,049 / 0,045 / 0,048 ms ; draw 10,2 µs
+  identique partout). Les outliers « première passe » (upload perf10 ~10 µs
+  ponctuel — état driver) sont absorbés par la médiane.
 
 > **⚠️ Bug (corrigé en v1.4.0) — builds v1.2.0 et v1.3.0 (et TS upstream)** :
 > `gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGB, …)` utilisait un **format
@@ -267,10 +272,19 @@ extraites, `test.webm`. Points clés :
 - `readPixels` sur une texture ≥ dimensions de la vidéo (sinon
   « Offset overflows texture dimensions »).
 - `gpu-runner.js` est paramétrable : `--cls-p10=`/`--cls-new=` (classes
-  extraites), `--label-new=`, `--frames=`, `--passes=`, `--no-fix`. Le
-  correctif `gl.RGB → gl.RGB8` ne s'applique que si le code extrait contient
+  extraites), `--label-new=`, `--frames=`, `--passes=`, `--seed=N`, `--no-fix`.
+  Le correctif `gl.RGB → gl.RGB8` ne s'applique que si le code extrait contient
   encore `gl.RGB` (builds ≤ v1.3.0) ; le build v1.4.0 contient déjà le fix →
   mesuré avec `--no-fix`, strictement le build publié.
+- **Stabilisation** (réduction de la variance inter-sessions) : préchauffage
+  GPU explicite — 3 bursts × 200 frames séparés par `flush()` + 50 ms, puis
+  30 frames, puis préchauffage de la boucle d'upload (50 uploads non
+  chronométrés) ; **runs croisés mélangés** par seed reproductible
+  (`--seed=N`, PRNG mulberry32) pour qu'aucune version ne soit
+  systématiquement mesurée en premier ; **médiane sur 3 passes** (absorbe les
+  outliers « première passe ») ; métrique **`wallTotal`** (temps de la boucle
+  entière / FRAMES) — stable face à la résolution ~100 µs de `performance.now()`
+  par frame (le wall par frame médian sature à 0,000).
 
 ## Historique du dépôt
 
