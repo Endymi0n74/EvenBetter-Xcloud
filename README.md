@@ -165,6 +165,16 @@ WebGL2, méthodes GL instrumentées (compteurs) et rasterisation mesurée via
 > identiques à v1.5.0 (vérifié sur la classe extraite
 > `gpu-v160-webgl2player.txt`) → **la table GPU reste valide**. Le coût CPU du
 > chemin stable 60 Hz est couvert par la table « Hot loops ».
+> **Re-confirmée sur v1.6.0** (protocole 6 seeds local, même jour que la
+> release) : **PASS** — upload perf10 52,25 (48–61) vs v1.6.0 10,75
+> (8,5–11,3) µs (**×4,86**), wallTotal 0,052 vs 0,017 ms (**×3,00**),
+> draw **10,2 µs identique partout**, chemin GL `texSubImage2D` fonctionnel
+> (0 `texImage2D`, 0 `bindTexture`). Les absolus sont nettement inférieurs à
+> la session v1.5.0 (~61 µs pour le même code) — **dérive d'état GPU
+> inter-sessions** (clocks/power state) : un contrôle même-session avec la
+> classe v1.5.0 mesure les mêmes bas absolus → v1.5.0 et v1.6.0 sont
+> identiques sur le chemin GPU (updateFrame byte-identique), seuls les
+> ratios intra-session (perf10 vs build) comptent.
 
 | Mesure | perf10 | v1.4.0 | Δ |
 |---|---|---|---|
