@@ -31,6 +31,11 @@
 #   --force-video  régénère test.webm même s'il existe
 #   --keep-video   réutilise test.webm existant
 #   --markdown=PATH  résumé markdown de check-gpu.js (défaut : console seule)
+#   --update-readme[=label]  insère la ligne de session dans le tableau
+#                            « Sessions GPU » du README (check-gpu.js,
+#                            idempotent) ; le label personnalise la colonne
+#                            Session (défaut : <date> (N seeds))
+#   --session-label=LABEL  label de la colonne Session (avec --update-readme)
 #   --resume       saute les seeds dont run-s<seed>.json est déjà COMPLET (JSON
 #                  valide, les 2 versions aggées, toutes les passes terminées) —
 #                  après un run timeout/partiel, seuls les seeds manquants ou
@@ -59,10 +64,12 @@ PASSES=3
 CLS_P10="bench/gpu/gpu-perf10-webgl2player.txt"
 CLS_NEW="bench/gpu/gpu-v140-webgl2player.txt"
 LABEL_NEW="v1.4.0"
+SESSION_LABEL=""
 NO_FIX=1
 FORCE_VIDEO=0
 KEEP_VIDEO=0
 MARKDOWN=""
+UPDATE_README=""
 RESUME=0
 STATE=1
 for arg in "$@"; do
@@ -78,6 +85,9 @@ for arg in "$@"; do
     --force-video) FORCE_VIDEO=1 ;;
     --keep-video)  KEEP_VIDEO=1 ;;
     --markdown=*)  MARKDOWN="${arg#--markdown=}" ;;
+    --update-readme) UPDATE_README=1 ;;
+    --update-readme=*) UPDATE_README="${arg#--update-readme=}" ;;
+    --session-label=*) SESSION_LABEL="${arg#--session-label=}" ;;
     --resume)      RESUME=1 ;;
     --no-state)    STATE=0 ;;
     *) echo "Option inconnue : $arg" >&2; exit 1 ;;
@@ -162,7 +172,15 @@ node bench/gpu/agg-seeds.js $SEEDS --label-new="$LABEL_NEW"
 
 echo
 echo "== Vérification (seuils CI : upload ≥ 1,3 / wallTotal ≥ 1,2 / draw 0,5–2,0 + chemin GL) =="
-node bench/gpu/check-gpu.js $SEEDS ${MARKDOWN:+--markdown="$MARKDOWN"}
+UPD_RM=""
+if [ -n "$UPDATE_README" ]; then
+  if [ "$UPDATE_README" = "1" ]; then
+    UPD_RM="--update-readme"
+  else
+    UPD_RM="--update-readme=$UPDATE_README"
+  fi
+fi
+node bench/gpu/check-gpu.js $SEEDS ${MARKDOWN:+--markdown="$MARKDOWN"} $UPD_RM ${SESSION_LABEL:+--session-label="$SESSION_LABEL"}
 
 echo
 echo "Terminé. Les run-s*.json sont conservés (gitignorés) — relance possible de"

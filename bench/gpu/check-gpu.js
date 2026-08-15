@@ -61,6 +61,9 @@ for (const s of seeds) {
       wallTotalMs: a.wallTotalAvg,
       gpuMs: a.gpuMed,
       counts: a.countsPerFrame,
+      // split émission/sync (runs récents uniquement, sinon null → « — »)
+      uploadSyncNs: a.uploadSyncNs != null ? a.uploadSyncNs : null,
+      uploadTotalNs: a.uploadTotalNs != null ? a.uploadTotalNs : null,
     });
   }
 }
@@ -79,6 +82,12 @@ const drawP10 = agg(perVersion[P10].map((r) => r.gpuMs * 1000));  // ms → µs
 const drawNew = agg(perVersion[NEW].map((r) => r.gpuMs * 1000));
 const cNew = perVersion[NEW][0].counts || {};
 const cP10 = perVersion[P10][0].counts || {};
+// ---------- split émission/sync (runs récents) : médiane des médianes par
+// seed + plage inter-seeds, en µs — alimente les colonnes Sync/Total de la
+// ligne de session README (« — » si les runs n'ont pas le split).
+const hasSplit = perVersion[NEW].some((r) => r.uploadSyncNs != null);
+const syncAgg = hasSplit ? agg(perVersion[NEW].map((r) => r.uploadSyncNs / 1000)) : null;
+const totalAgg = hasSplit ? agg(perVersion[NEW].map((r) => r.uploadTotalNs / 1000)) : null;
 
 // ---------- vérification ----------
 const fmt = (n) => n.toFixed(2).replace(".", ",");
@@ -117,6 +126,21 @@ if (fs.existsSync(stFile)) {
 if (!sessionDate) sessionDate = new Date().toISOString().slice(0, 10);
 console.log(`Session ${sessionDate} : ${seeds.length} seeds, ratio upload ×${fmt(upRatio)}, état ${etat}`);
 
+// Label de la session : --session-label pour personnaliser, défaut
+// « <date> (N seeds) » (préfixé « CI » sous GitHub Actions).
+const sessionLabelArg = (argv.find((a) => a.startsWith("--session-label=")) || "").split("=").slice(1).join("=").trim();
+const sessionLabel = sessionLabelArg || `${process.env.GITHUB_ACTIONS ? "CI " : ""}${sessionDate} (${seeds.length} seeds)`;
+
+// Ligne de session au format du tableau « Sessions GPU » du README (8
+// colonnes, y compris Sync/Total quand le split est dispo) — utilisée par
+// le résumé markdown ET par l'insertion automatique (--update-readme).
+const syncCell = syncAgg ? `${fmt(syncAgg.med)} (${fmt(syncAgg.range[0])}–${fmt(syncAgg.range[1])})` : "—";
+const totalCell = totalAgg ? `**${fmt(totalAgg.med)}** (${fmt(totalAgg.range[0])}–${fmt(totalAgg.range[1])})` : "—";
+const readmeSessionLine =
+  `| ${sessionLabel} | ${NEW} | ${fmt(upP10.med)} (${fmt(upP10.range[0])}–${fmt(upP10.range[1])}) | ` +
+  `${fmt(upNew.med)} (${fmt(upNew.range[0])}–${fmt(upNew.range[1])}) | **×${fmt(upRatio)}** | ${etat} | ` +
+  `${syncCell} | ${totalCell} | ${fmt(drawP10.med)} vs ${fmt(drawNew.med)} |`;
+
 console.log(`=== Bench GPU — vérification des ratios (${P10} vs ${NEW}, ${seeds.length} seeds) ===`);
 add("Upload vidéo (µs)", `${fmt(upP10.med)} (${fmt(upP10.range[0])}–${fmt(upP10.range[1])})`, `${fmt(upNew.med)} (${fmt(upNew.range[0])}–${fmt(upNew.range[1])})`, upRatio, `≥ ${fmt(UPLOAD_MIN)}`, upRatio >= UPLOAD_MIN);
 add("wallTotal (ms)", `${fmt(wallP10.med)} (${fmt(wallP10.range[0])}–${fmt(wallP10.range[1])})`, `${fmt(wallNew.med)} (${fmt(wallNew.range[0])}–${fmt(wallNew.range[1])})`, wallRatio, `≥ ${fmt(WALL_MIN)}`, wallRatio >= WALL_MIN);
@@ -149,18 +173,54 @@ if (markdownFile) {
   }
   // Ligne de session prête à coller dans le tableau « Sessions GPU » du README
   // (même en-tête, même format : plages, ratio, état, draw).
-  lines.push("", "**Session — ligne à ajouter au tableau « Sessions GPU » du README :**");
-  lines.push("", "| Session | Version | Upload perf10 (µs) | Upload build (µs) | Ratio upload | État | Draw (µs) |");
-  lines.push("|---|---|---|---|---|---|---|");
-  lines.push(
-    `| CI ${sessionDate} (${seeds.length} seeds) | ${NEW} | ${fmt(upP10.med)} (${fmt(upP10.range[0])}–${fmt(upP10.range[1])}) | ` +
-      `${fmt(upNew.med)} (${fmt(upNew.range[0])}–${fmt(upNew.range[1])}) | **×${fmt(upRatio)}** | ${etat} | ${fmt(drawP10.med)} vs ${fmt(drawNew.med)} |`
-  );
+  lines.push("", "**Session — ligne prête à insérer dans le tableau « Sessions GPU » du README** (`--update-readme` l'insère automatiquement) :");
+  lines.push("", "| Session | Version | Upload perf10 (µs) | Upload build — émission (µs) | Ratio upload | État | Sync build (µs) | Total build (µs) | Draw (µs) |");
+  lines.push("|---|---|---|---|---|---|---|---|---|");
+  lines.push(readmeSessionLine);
   const verdict = failures === 0 ? "✅ PASS" : `❌ ÉCHEC (${failures} check(s) hors seuil)`;
   lines.push("", `**Résultat : ${verdict}**`);
   lines.push("", "_Upload = `texImage2D` (réalloue le storage GPU) vs `texSubImage2D` (storage immuable) — le ratio doit rester ≥ 1,3. Les absolus varient selon la machine/le driver ; les compteurs GL vérifient le chemin fonctionnel indépendamment des timings._");
   fs.writeFileSync(markdownFile, lines.join("\n") + "\n");
   console.log(`Résumé markdown écrit : ${markdownFile}`);
+}
+
+// ---------- insertion automatique dans le tableau « Sessions GPU » du README ----------
+// --update-readme[=chemin] : ajoute la ligne de session au tableau du README
+// (défaut : README.md à la racine du repo). Idempotent : si une ligne porte
+// déjà le même label de session, l'insertion est sautée. EOL préservée (CRLF
+// pour le README du repo).
+const updateReadmeArg = argv.find((a) => a.startsWith("--update-readme"));
+if (updateReadmeArg !== undefined) {
+  const readmePath = (updateReadmeArg.split("=").slice(1).join("=").trim() ||
+    path.join(__dirname, "..", "..", "README.md")).replace(/\\/g, "/");
+  if (!fs.existsSync(readmePath)) {
+    console.error(`README introuvable : ${readmePath}`);
+    process.exit(1);
+  }
+  const rd = fs.readFileSync(readmePath, "utf8");
+  const eol = rd.includes("\r\n") ? "\r\n" : "\n";
+  const endsWithEol = /\r\n|\n$/.test(rd);
+  const lines = rd.split(/\r\n|\n/);
+  if (lines[lines.length - 1] === "") lines.pop(); // élément vide de fin (le EOL final sera ré-ajouté)
+  const hdrIdx = lines.findIndex((l) => l.startsWith("| Session | Version |"));
+  if (hdrIdx < 0) {
+    console.error(`Tableau « Sessions GPU » introuvable dans ${readmePath}`);
+    process.exit(1);
+  }
+  let lastData = -1;
+  for (let i = hdrIdx + 1; i < lines.length; i++) {
+    if (lines[i].startsWith("| ")) lastData = i;
+    else if (lastData >= 0) break;
+  }
+  const dup = lines.slice(hdrIdx + 1, lastData + 1).find((l) => l.startsWith(`| ${sessionLabel} |`));
+  if (dup) {
+    console.log(`Session « ${sessionLabel} » déjà présente dans le tableau — insertion sautée (idempotent)`);
+  } else {
+    lines.splice(lastData + 1, 0, readmeSessionLine);
+    fs.writeFileSync(readmePath, lines.join(eol) + (endsWithEol ? eol : ""));
+    console.log(`Ligne de session insérée dans le tableau « Sessions GPU » (${readmePath}) :`);
+    console.log(`  ${readmeSessionLine}`);
+  }
 }
 
 console.log();
