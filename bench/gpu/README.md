@@ -111,17 +111,33 @@ v1.6.0 en µs, par ordre d'apparition) :
 
 | | Avant (re-mesure) | Après (avec préchauffage) |
 |---|---|---|
-| 1re sync de chaque seed | 65 – 239 (méd. 77) | 40 – 68 (méd. 48) |
-| Syncs suivantes | 13 – 75 (souvent « mixte ») | 14 – 46 |
-| Médiane des médianes par seed | 23,3 | 18,0 |
+| 1re sync de chaque seed | 65 – 239 (méd. 77) | 37 – 68, avec un outlier à 190,7 (méd. ~49) |
+| Syncs suivantes | 13 – 75 (souvent « mixte ») | 12,5 – 26,3 (méd. 15-16) |
+| Médiane des médianes par seed | 23,3 | 16,8 – 18,0 |
 
-Le fix **divise par ~2 le spike de 1re passe et élimine les extrêmes** (239 → 49,
-170 → 68 sur les seeds concernés), mais **ne stabilise pas entièrement la 1re
-mesure** : un résidu ~40-50 µs (vs ~15-20 en régime) persiste, et un spike
-tardif isolé peut encore arriver (s300 passe 3 à 46). L'état stable (passes
-suivantes) est inchangé. Conséquence pratique : les médianes de seeds sont
-plus resserrées (le cas « 2 passes hautes sur 3 » de la bimodalité ne produit
-plus de valeurs > 50 µs).
+Le fix **divise par ~2 la médiane du spike de 1re passe** (méd. 77 → ~49) mais
+**n'élimine pas les extrêmes** : sur le 2e run du protocole, s300 a mesuré
+190,7 µs en 1re passe malgré le préchauffage — le spike est réduit en médiane,
+pas en queue. L'état stable (passes suivantes) est inchangé (12,5-26,3 µs).
+Conséquence pratique : les médianes de seeds sont resserrées (16,8-18,0 vs
+23,3 à la re-mesure), mais un seed isolé peut encore sortir haut si sa 1re
+passe tombe sur le spike (s300 : 2 passes hautes sur 3 → médiane 47,7-190,7).
+
+**Capture de la phase du pipeline vidéo** (depuis le test de l’hypothèse
+temporelle) : chaque passe enregistre 4 snapshots du décodeur — `videoPhase`
+{ frames, emit0, emit1, sync1 } — avec `currentTime`, `readyState`,
+`droppedFrames`/`totalFrames` (getVideoPlaybackQuality) et le compteur/mediaTime
+de la dernière frame présentée (requestVideoFrameCallback).
+**Résultat (6 seeds, 36 passes) : l’hypothèse « phase du pipeline vidéo » est
+RÉFUTÉE au niveau de la présentation de frames** — (a) la fraîcheur de la
+dernière frame à l’entrée de chaque mesure est uniforme (0,0-0,3 ms) ; (b) le
+décodeur est **figé pendant la fenêtre de mesure** : 0 frame présentée et
+currentTime constant sur 36/36 fenêtres de 10-82 ms (la boucle synchrone
+émission+readPixels bloque la présentation — le harnais mesure donc toujours
+dans le même état vidéo) ; (c) aucune corrélation sync ↔ phase (r ≤ 0,09 pour
+la fraîcheur, -0,44 pour mediaTime = proxy de la position de passe). La
+variance dominante reste la 1re mesure de chaque seed (effet contexte
+GPU/driver, pas vidéo).
 
 Commandes équivalentes, à la main :
 

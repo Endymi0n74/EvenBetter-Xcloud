@@ -148,6 +148,45 @@ const HARNESS = ({ clsP10, clsNew, LABEL_P10, LABEL_NEW, FRAMES, WARMUP, PASSES,
       return;
     }
 
+    // PHASE DU PIPELINE VIDÉO : requestVideoFrameCallback enregistre le
+    // compteur/mediaTime de la DERNIÈRE frame présentée (signal de phase du
+    // décodeur). Objectif : tester l'hypothèse temporelle de la variance de la
+    // sync readback (mémo projet §7) — une sync haute devrait corréler avec une
+    // frame fraîchement présentée pendant la fenêtre de mesure (le upload
+    // texImage2D(..., video) copie la frame courante ; si elle vient de changer,
+    // le readback attend le travail différé).
+    window.__bxLastFrame = null;
+    if (typeof video.requestVideoFrameCallback === "function") {
+      const onFrame = (now, meta) => {
+        window.__bxLastFrame = {
+          mediaTime: meta.mediaTime,
+          presentationTime: meta.presentationTime,
+          presentedFrames: meta.presentedFrames,
+        };
+        video.requestVideoFrameCallback(onFrame);
+      };
+      video.requestVideoFrameCallback(onFrame);
+    }
+    // Snapshot de l'état du décodeur à un instant donné (appelé avant/après
+    // chaque mesure timée). currentTime a une granularité ~1/fps ; le compteur
+    // rVFC (presentedFrames) est le signal précis de « frame arrivée ».
+    const snapVideo = () => {
+      const q = video.getVideoPlaybackQuality ? video.getVideoPlaybackQuality() : null;
+      const f = window.__bxLastFrame;
+      return {
+        t: performance.now(),
+        currentTime: video.currentTime,
+        readyState: video.readyState,
+        paused: video.paused,
+        seeking: video.seeking,
+        droppedFrames: q ? q.droppedVideoFrames : null,
+        totalFrames: q ? q.totalVideoFrames : null,
+        lastFrameCount: f ? f.presentedFrames : null,
+        lastFrameMediaTime: f ? f.mediaTime : null,
+        lastFramePresentedAt: f ? f.presentationTime : null,
+      };
+    };
+
     async function resolveGpuMs(inst, queries) {
       const gl = inst.gl;
       // resolution en parallele (chaque query attend independamment)
@@ -183,6 +222,8 @@ const HARNESS = ({ clsP10, clsNew, LABEL_P10, LABEL_NEW, FRAMES, WARMUP, PASSES,
       g.gl.flush();
       for (const k in g.counts) g.counts[k] = 0;
       const gpuStart = g.gpuQueries.length;
+
+      const vFrames = snapVideo(); // phase au début de la boucle frames
 
       const frames = [];
       const tLoop0 = performance.now();
@@ -231,9 +272,11 @@ const HARNESS = ({ clsP10, clsNew, LABEL_P10, LABEL_NEW, FRAMES, WARMUP, PASSES,
       // appels. Si le driver bloque en cours de boucle (file pleine, attente
       // pipeline vidéo/GPU = backpressure), c'est ICI que ça apparaît (état
       // « haut » des sessions — mémo projet §7).
+      const vEmit0 = snapVideo(); // phase juste avant l'émission timée
       const t0e = performance.now();
       for (let i = 0; i < UPLOADS; i++) uploadOnce(g.gl);
       const uploadEmitNs = ((performance.now() - t0e) / UPLOADS) * 1e6;
+      const vEmit1 = snapVideo(); // phase juste après l'émission (avant la sync)
       // SYNC via READBACK : gl.readPixels(1×1) force la complétion GPU de TOUTE
       // la file émise (l'ordre GL garantit que les uploads précédents sont
       // exécutés avant la lecture). /UPLOADS → sync par upload. C'est la mesure
@@ -248,6 +291,7 @@ const HARNESS = ({ clsP10, clsNew, LABEL_P10, LABEL_NEW, FRAMES, WARMUP, PASSES,
       const t0s = performance.now();
       g.gl.readPixels(0, 0, 1, 1, g.gl.RGBA, g.gl.UNSIGNED_BYTE, rb);
       const uploadSyncNs = ((performance.now() - t0s) / UPLOADS) * 1e6;
+      const vSync1 = snapVideo(); // phase juste après la sync (fin de fenêtre)
       const uploadNs = uploadEmitNs; // sémantique historique : émission seule
       player.destroy();
 
@@ -272,6 +316,12 @@ const HARNESS = ({ clsP10, clsNew, LABEL_P10, LABEL_NEW, FRAMES, WARMUP, PASSES,
         uploadSyncNs,
         uploadTotalNs: uploadEmitNs + uploadSyncNs,
         countsPerFrame: Object.fromEntries(Object.entries(countsTot).map(([k, v]) => [k, +(v / FRAMES).toFixed(2)])),
+        // Phase du pipeline vidéo autour des mesures (hypothèse temporelle) :
+        // snapshots du décodeur au début de la boucle frames, avant l'émission
+        // timée, après l'émission et après la sync. La fenêtre émission+sync
+        // s'étend de vEmit0 à vSync1 — le delta de compteur rVFC y indique si
+        // une frame a été présentée PENDANT la mesure.
+        videoPhase: { frames: vFrames, emit0: vEmit0, emit1: vEmit1, sync1: vSync1 },
       };
     }
 
