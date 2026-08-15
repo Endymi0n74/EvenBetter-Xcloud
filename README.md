@@ -170,9 +170,11 @@ WebGL2, méthodes GL instrumentées (compteurs) et rasterisation mesurée via
 > (8,5–11,3) µs (**×4,86**), wallTotal 0,052 vs 0,017 ms (**×3,00**),
 > draw **10,2 µs identique partout**, chemin GL `texSubImage2D` fonctionnel
 > (0 `texImage2D`, 0 `bindTexture`). Les absolus sont nettement inférieurs à
-> la session v1.5.0 (~61 µs pour le même code) — **dérive d'état GPU
-> inter-sessions** (clocks/power state) : un contrôle même-session avec la
-> classe v1.5.0 mesure les mêmes bas absolus → v1.5.0 et v1.6.0 sont
+> la session v1.5.0 (~61 µs pour le même code) — **dérive d'état machine
+> inter-sessions** (backpressure/sync du pipeline vidéo/GPU, cf. tableau
+> « Sessions GPU » ci-dessous et mémo projet §7) : un contrôle même-
+> session avec la classe v1.5.0 mesure les mêmes bas absolus → v1.5.0 et
+> v1.6.0 sont
 > identiques sur le chemin GPU (updateFrame byte-identique), seuls les
 > ratios intra-session (perf10 vs build) comptent.
 
@@ -182,6 +184,26 @@ WebGL2, méthodes GL instrumentées (compteurs) et rasterisation mesurée via
 | Upload vidéo — boucle tight (µs/upload) | ~48–61 µs | ~8–11 µs | **×4,9** |
 | Rasterisation `drawArrays` (µs/draw, médiane GPU) | 10,2 µs | 10,2 µs | identique (même shader) |
 | `updateFrame` — wall total (ms/frame, boucle complète / FRAMES) | ~0,049–0,061 ms | ~0,011–0,022 ms | **×3,0** |
+
+_Table v1.6.0 mesurée en **état bas** (ratio upload ×4,86) — cf. tableau
+« Sessions GPU » ci-dessous pour la comparabilité inter-sessions._
+
+**Sessions GPU — état haut/bas** (état dérivé du **ratio upload** perf10/build :
+`bas` = ratio ≥ ~4 — émission pure, l'avantage `texSubImage2D` ressort à plein ;
+`haut` = ratio ≤ ~2,5 — un coût fixe de sync/backpressure (~50-70 µs/upload,
+cf. mémo projet §7) masque l'avantage ; `transitionnel`/`mixte` entre les deux
+ou quand la session contient les deux états). **L'état est un attribut de la
+session, pas du build** : le même code mesure ×1,8-2,1 en état haut et
+×4,3-6,3 en état bas — comparer deux sessions = comparer les ratios et le
+draw, jamais les absolus.
+
+| Session | Version | Upload perf10 (µs) | Upload build (µs) | Ratio upload | État | Draw (µs) |
+|---|---|---|---|---|---|---|
+| Origine (sans stabilisation) | v1.3.0 | 200–235 | 64–66 | ×3,3 | transitionnel | — |
+| Session 1 (6 seeds stabilisés) | v1.4.0 | 80,5–93 | 43,8–50,3 | **×1,8** | haut | 10,2 |
+| Session 2 (protocole figé) | v1.4.0 | 98,5–150,7 | 54,7–74,5 | **×2,1** | haut | 10,2 |
+| Matin 15 août (6 seeds) | v1.5.0 | 61,8–137 | 10,3–76,8 | **×1,7** (s300 : ×6,0) | mixte | 10,2 |
+| Soir 15 août (6 seeds) | v1.6.0 | 48,2–61,3 | 8,5–11,3 | **×4,86** | bas | 10,2 |
 
 Lecture des résultats :
 
@@ -203,11 +225,12 @@ Lecture des résultats :
   **Deuxième session indépendante** du même protocole (mêmes seeds, mêmes
   commandes) : absolus décalés (session 1 : 80,5–93 / 43,8–50,3 µs) mais
   **draw, compteurs GL et ratios identiques** — la rejouabilité porte sur le
-  draw, les compteurs et les ratios, pas sur les absolus (drift des clocks
-  GPU inter-sessions documenté). **Re-mesure v1.6.0** du même protocole
-  (mêmes seeds 100–600, même jour que la release) : upload 48–61 vs 8–11 µs
-  (**×4,86**), wallTotal 0,052 vs 0,017 ms (**×3,00**), draw 10,2 µs
-  identique partout — cf. la note au-dessus du tableau.
+  draw, les compteurs et les ratios, pas sur les absolus (drift d'état
+  machine inter-sessions documenté, cf. tableau « Sessions GPU »).
+  **Re-mesure v1.6.0** du même protocole (mêmes seeds 100–600, même jour
+  que la release) : upload 48–61 vs 8–11 µs (**×4,86**, état **bas**),
+  wallTotal 0,052 vs 0,017 ms (**×3,00**), draw 10,2 µs identique partout —
+  cf. le tableau « Sessions GPU » ci-dessus.
 
 > **⚠️ Bug (corrigé en v1.4.0) — builds v1.2.0 et v1.3.0 (et TS upstream)** :
 > `gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGB, …)` utilisait un **format

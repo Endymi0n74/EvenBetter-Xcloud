@@ -160,7 +160,8 @@ et les sessions, pas seulement des nombres).
   antérieures affichaient les valeurs brutes sous de mauvaises étiquettes.
 - **Rejouabilité** : la rejouabilité porte sur le **draw, les compteurs GL et
   les ratios** — les absolus (upload, wallTotal) varient ~±10–30 % entre
-  sessions (drift des clocks GPU) et entre seeds d'une même session. Les
+  sessions (drift d’état machine — backpressure/sync du pipeline vidéo/GPU,
+  mémo projet §7) et entre seeds d'une même session. Les
   outliers « première passe » (ex. draw perf10 à 15,4 µs ou upload ~10 µs
   ponctuels, état driver) sont absorbés par la médiane sur 6 seeds — d'où
   l'exigence de **6 seeds** pour la table publiée, pas 1-2.
