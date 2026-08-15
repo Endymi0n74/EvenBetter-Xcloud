@@ -98,7 +98,7 @@ absolue mais la comparaison relative entre les deux builds.
 
 | Mesure | perf10 | v1.4.0 | Δ |
 |---|---|---|---|
-| Parse/compile (Node `new Function`, ×300, médiane) | ~0,13 ms | ~0,11 ms | ~-6 à -14 % (bruit sub-ms) |
+| Parse/compile (Node `new Function`, ×300/passe, protocole stabilisé : médiane de 3 passes × 3 seeds) | ~0,11–0,13 ms | ~0,12–0,15 ms | non mesurable : ≈ ±10–20 % run à run (bruit sub-ms) |
 | Éval complète de page (Edge headless, injection `document-start`, 20 runs, médiane) | ~23–25 ms | ~23–25 ms | ~0 % |
 
 La série perf11/v1.3.0 (re-mesurée sur le build v1.4.0 officiel — le code des
@@ -111,16 +111,18 @@ outliers environnementaux, la médiane est stable).
 
 Micro-benchmarks Node (V8), fragments injectés extraits des builds, 200 000
 itérations par scénario. Valeurs re-mesurées sur le build v1.4.0 officiel
-avec le **protocole stabilisé** (`bench/run-all.sh`, médiane de 3 passes ×
-3 seeds) — les absolus varient ~±10–30 % run à run, les ratios sont stables.
+avec le **protocole figé** (seeds 42 / 2024 / 999 × 3 passes — commandes
+exactes dans la Repro) : chaque cellule = **médiane des médianes** (3 seeds),
+entre parenthèses la **plage min–max inter-seeds**. Les absolus varient
+~±10–30 % run à run, les ratios sont stables.
 
 | Hot loop | perf10 | v1.4.0 | Gain |
 |---|---|---|---|
-| Controller customization — **IDLE** (aucun input, sticks centrés) | ~330 ns/poll | **~35 ns/poll** | **-89 % (×9)** |
-| Controller customization — ACTIF (bouton + stick) | ~390–410 ns/poll | ~400–415 ns/poll | équivalent (±10 % run à run) |
-| `poll_gamepad_default` — chemin commun (Home jamais pressé) | ~15 ns/poll | ~13 ns/poll | identique |
-| `poll_gamepad_default` — relâchement du bouton Home | ~1210 ns | **~160 ns** | **-87 %** |
-| `WebGL2Player.updateFrame` — chemin stable (coût JS seul) | ~165 ns/frame | ~150 ns/frame | équivalent (voir note) |
+| Controller customization — **IDLE** (aucun input, sticks centrés) | ~368 ns/poll (352–398) | **~39 ns/poll (36–41)** | **-89 % (×9,5)** |
+| Controller customization — ACTIF (bouton + stick) | ~461 ns/poll (413–547) | ~458 ns/poll (438–504) | équivalent (±10 % run à run) |
+| `poll_gamepad_default` — chemin commun (Home jamais pressé) | ~13,5 ns/poll (11–18) | ~13,9 ns/poll (13–18) | identique |
+| `poll_gamepad_default` — relâchement du bouton Home | ~1427 ns (1346–1457) | **~163 ns (157–166)** | **-89 %** |
+| `WebGL2Player.updateFrame` — chemin stable (coût JS seul) | ~209 ns/frame (203–220) | ~162 ns/frame (154–181) | équivalent (voir note) |
 
 Notes :
 
@@ -202,6 +204,41 @@ Chaque harnais prend deux builds en argument (`<perf10.js> <build.js>`) ;
 et utilise `better-xcloud.user.js` à la racine. Détails ci-dessous (paramètres +
 pièges) pour les adapter.
 
+### Protocole figé (tables « Hot loops » et « Chargement »)
+
+Les tables du chapitre Benchmarks sont produites par ces **commandes exactes**
+(build v1.4.0 de la racine — le code des hot loops est inchangé depuis
+v1.3.0, seul le renderer WebGL2 a reçu le fix RGB8) :
+
+```bash
+# 0. Préparer les builds
+TMP=$(mktemp -d)
+git show 055d3a0:better-xcloud.user.js > "$TMP/perf10.js"
+cp better-xcloud.user.js "$TMP/build.js"
+
+# 1. Hot loops : 3 seeds × 3 passes × 200 000 itérations — chaque run imprime
+#    médiane/min/max sur les passes ; les tables prennent la médiane des
+#    médianes et la plage min–max entre les 3 seeds
+for S in 42 2024 999; do
+  node --expose-gc bench/hotloops.js "$TMP/perf10.js" "$TMP/build.js" \
+    --passes=3 --seed=$S --iters=200000
+done
+
+# 2. Parse/compile (ligne « Chargement ») : mêmes seeds, ×300 itérations/passe
+for S in 42 2024 999; do
+  node --expose-gc bench/parse.js "$TMP/perf10.js" "$TMP/build.js" \
+    --passes=3 --seed=$S --iters=300
+done
+
+# 3. Éval page (ligne « Chargement ») : 20 runs, médiane/p95
+node bench/page-eval.js "$TMP/perf10.js" "$TMP/build.js"
+```
+
+`--expose-gc` est obligatoire (préchauffage + `global.gc()` avant chaque
+chrono) ; `--passes=3` (médiane/min/max sur les passes) et `--seed=`
+(croisement version × scénario, mulberry32) rendent chaque run reproductible
+et empêchent qu'une version soit systématiquement mesurée en premier.
+
 ### Environnement commun
 
 - Windows, **Edge** (canal `msedge` via Playwright) pour les mesures navigateur,
@@ -214,8 +251,19 @@ pièges) pour les adapter.
 ### Parse / compile (`bench/parse.js`)
 
 - `new Function(code)` **sans exécution** (l'exécution réelle est mesurée dans
-  Edge), ×300 itérations, médiane. Sub-ms → bruité : seule la comparaison
-  relative compte.
+  Edge), ×300 itérations par passe.
+- **Stabilisation** (même protocole que hotloops/GPU) : préchauffage explicite
+  en 2 phases (10 + 20 compiles) puis `global.gc()` avant le chrono
+  (`node --expose-gc`, fait par `run-all.sh`) ; **runs croisés** : l'ordre des
+  mesures (version × passe) est mélangé par seed reproductible (`--seed=N`,
+  mulberry32) ; **médiane / min / max sur 3 passes** (`--passes=N`).
+- Chrono par itération en `process.hrtime.bigint()` (résolution ns) : une
+  compile ~110-150 µs est trop proche de la résolution de `performance.now()`
+  pour une mesure par itération fiable. Le `p95` capture les outliers GC
+  (absorbés par la médiane).
+- Sub-ms → bruité : l'écart perf10/build est **dans le bruit inter-seed
+  (≈ ±10-20 % run à run)** — le protocole le rend visible au lieu de figer un
+  chiffre tiré d'une session chanceuse ; seule la comparaison relative compte.
 
 ### Éval complète de page (`bench/page-eval.js`, Edge, document-start)
 

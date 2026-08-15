@@ -27,7 +27,7 @@ echo "  perf10 : $(wc -c < "$TMP/perf10.js") o | build : $(wc -c < "$TMP/build.j
 
 echo
 echo "== 1/3 Parse/compile (Node) =="
-node bench/parse.js "$TMP/perf10.js" "$TMP/build.js"
+node --expose-gc bench/parse.js "$TMP/perf10.js" "$TMP/build.js"
 
 echo
 echo "== 2/3 Hot loops ~60 Hz (Node) =="
