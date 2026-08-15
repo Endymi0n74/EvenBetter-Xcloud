@@ -81,12 +81,14 @@ jobs:
 
   # Optionnel (workflow_dispatch + input « gpu ») : protocole GPU 6 seeds sur
   # un runner SELF-HOSTED avec GPU (les runners GitHub hébergés n'en ont pas).
-  # Le harnais utilise --channel=chromium (Linux) ; les seuils de check-gpu.js
-  # sont volontairement bas (machine/driver inconnus) — le vrai signal est le
-  # ratio upload perf10/build (≥ 1,3) et les compteurs GL (chemin fonctionnel).
+  # Machine de référence : Windows (RTX 3070) — canal msedge (GPU via
+  # ANGLE/D3D11), le même stack que les tables GPU du README. Les seuils de
+  # check-gpu.js sont volontairement bas (machine/driver) — le vrai signal est
+  # le ratio upload perf10/build (≥ 1,3) et les compteurs GL (chemin
+  # fonctionnel). Runner : labels self-hosted, Windows, X64, gpu.
   gpu-upload:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.gpu == 'true'
-    runs-on: [self-hosted, linux, gpu]
+    runs-on: [self-hosted, windows, gpu]
     steps:
       - name: Checkout (historique complet — la baseline perf10 055d3a0 est requise)
         uses: actions/checkout@v4
@@ -98,14 +100,11 @@ jobs:
         with:
           node-version: 20
 
-      - name: Installe Playwright (Chromium + dépendances système)
-        run: |
-          npm install playwright
-          sudo npx playwright install-deps chromium || echo "::warning::install-deps a échoué — prévoir les dépendances système sur le runner"
-          npx playwright install chromium
+      - name: Installe Playwright (module npm — canal msedge, natif Windows)
+        run: npm install playwright
 
       - name: Génère la vidéo de test (test.webm, gitignoré)
-        run: node bench/gpu/gen-video.js bench/gpu/test.webm --channel=chromium
+        run: node bench/gpu/gen-video.js bench/gpu/test.webm --channel=msedge
 
       - name: Protocole figé — 6 seeds × 3 passes (upload, wallTotal, draw)
         run: |
@@ -117,7 +116,7 @@ jobs:
               --cls-new=bench/gpu/gpu-v160-webgl2player.txt \
               --label-new=v1.6.0 \
               --no-fix --frames=120 --passes=3 --seed=$S \
-              --channel=chromium \
+              --channel=msedge \
               > bench/gpu/run-s$S.json || exit 1
             node bench/gpu/machine-state.js after > bench/gpu/state-s$S.after.json 2>/dev/null || true
           done
