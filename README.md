@@ -98,8 +98,8 @@ absolue mais la comparaison relative entre les deux builds.
 
 | Mesure | perf10 | v1.4.0 | Δ |
 |---|---|---|---|
-| Parse/compile (Node `new Function`, ×300/passe, protocole stabilisé : médiane de 3 passes × 3 seeds) | ~0,11–0,13 ms | ~0,12–0,15 ms | non mesurable : ≈ ±10–20 % run à run (bruit sub-ms) |
-| Éval complète de page (Edge headless, injection `document-start`, 20 runs, médiane) | ~23–25 ms | ~23–25 ms | ~0 % |
+| Parse/compile (Node `new Function`, ×300/passe, protocole stabilisé : médiane de 3 passes × 3 seeds) | ~0,12–0,13 ms | ~0,12–0,13 ms | non mesurable : ≈ ±10–20 % run à run (bruit sub-ms) |
+| Éval complète de page (Edge headless, injection `document-start`, 20 runs, médiane) | ~40 ms (min 29) | ~37 ms (min 28) | ~8,2 % |
 
 La série perf11/v1.3.0 (re-mesurée sur le build v1.4.0 officiel — le code des
 hot loops est inchangé entre v1.3.0 et v1.4.0, seul le renderer WebGL2 a reçu
@@ -109,20 +109,15 @@ outliers environnementaux, la médiane est stable).
 
 ### Hot loops (~60 Hz)
 
-Micro-benchmarks Node (V8), fragments injectés extraits des builds, 200 000
-itérations par scénario. Valeurs re-mesurées sur le build v1.4.0 officiel
-avec le **protocole figé** (seeds 42 / 2024 / 999 × 3 passes — commandes
-exactes dans la Repro) : chaque cellule = **médiane des médianes** (3 seeds),
-entre parenthèses la **plage min–max inter-seeds**. Les absolus varient
-~±10–30 % run à run, les ratios sont stables.
+Protocole figé — seeds 42 / 2024 / 999 × 3 passes × 200 000 itérations ; chaque cellule = médiane des médianes, plage = min–max inter-seeds. Les absolus varient ~±10–30 % run à run, les ratios sont stables.
 
 | Hot loop | perf10 | v1.4.0 | Gain |
 |---|---|---|---|
-| Controller customization — **IDLE** (aucun input, sticks centrés) | ~368 ns/poll (352–398) | **~39 ns/poll (36–41)** | **-89 % (×9,5)** |
-| Controller customization — ACTIF (bouton + stick) | ~461 ns/poll (413–547) | ~458 ns/poll (438–504) | équivalent (±10 % run à run) |
-| `poll_gamepad_default` — chemin commun (Home jamais pressé) | ~13,5 ns/poll (11–18) | ~13,9 ns/poll (13–18) | identique |
-| `poll_gamepad_default` — relâchement du bouton Home | ~1427 ns (1346–1457) | **~163 ns (157–166)** | **-89 %** |
-| `WebGL2Player.updateFrame` — chemin stable (coût JS seul) | ~209 ns/frame (203–220) | ~162 ns/frame (154–181) | équivalent (voir note) |
+| Controller customization — **IDLE** (aucun input, sticks centrés) | ~452 ns/poll (449–493) | **~49,6 ns/poll (46–73)** | **-89,0 % (×9,1)** |
+| Controller customization — ACTIF (bouton + stick) | ~730 ns/poll (526–1060) | ~628 ns/poll (569–681) | équivalent |
+| `poll_gamepad_default` — chemin commun (Home jamais pressé) | ~21,3 ns/poll (17–22) | ~16,0 ns/poll (15–17) | identique |
+| `poll_gamepad_default` — relâchement du bouton Home | ~2069 ns/poll (1702–2786) | **~276 ns/poll (211–285)** | **-86,6 % (×7,5)** |
+| `WebGL2Player.updateFrame` — chemin stable (coût JS seul) | ~228 ns/frame (222–342) | ~244 ns/frame (198–353) | équivalent (voir note) |
 
 Notes :
 
@@ -208,6 +203,12 @@ Chaque harnais prend deux builds en argument (`<perf10.js> <build.js>`) ;
 et utilise `better-xcloud.user.js` à la racine. Détails ci-dessous (paramètres +
 pièges) pour les adapter.
 
+**CI** : le workflow `.github/workflows/bench.yml` lance
+`run-all.sh --skip-page-eval` à chaque push sur `ubuntu-latest`, puis
+`bench/check-ratios.js` échoue si un ratio de hot loop régresse au-delà de
+son seuil (plancher ×4 pour IDLE/relâchement, fourchette 0,5–2,0 pour les
+scénarios équivalents) — voir `bench/README.md`.
+
 ### Protocole figé (tables « Hot loops » et « Chargement »)
 
 Les tables du chapitre Benchmarks sont produites par ces **commandes exactes**
@@ -246,7 +247,10 @@ et empêchent qu'une version soit systématiquement mesurée en premier.
 **Rejouer les tables en une commande** : `./bench/freeze.sh` exécute ce bloc
 à l'identique et `bench/freeze-format.js` formate la sortie en tableaux
 markdown prêts à coller (médiane des médianes + plage inter-seeds, label de
-version lu dans `@version`) — voir `bench/README.md`.
+version lu dans `@version`) — voir `bench/README.md`. Avec
+`--update-readme`, les sections « Hot loops » et « Chargement » sont
+**régénérées en place** dans le README (ancres `Notes :` / `La série perf11`
+préservées ; `--with-page-eval` pour conserver la ligne « Éval »).
 
 ### Environnement commun
 
@@ -316,11 +320,14 @@ version lu dans `@version`) — voir `bench/README.md`.
   `buttons` est **hoisté hors de la closure** (le créer par itération ajouterait
   20 allocations/poll et gonflerait la mesure).
 
-### GPU — renderer WebGL2 (Edge réel, hors repo)
+### GPU — renderer WebGL2 (Edge réel, `bench/gpu/`)
 
-Le harnais complet vit dans `D:\Codex\gpubench\` (hors repo — dépend de
-Playwright + GPU) : `gen-video.js` (vidéo de test), `gpu-runner.js`, classes
-extraites, `test.webm`. Points clés :
+Le harnais complet vit dans **`bench/gpu/` de ce repo** (autonome, cf.
+`bench/gpu/README.md`) : `gen-video.js` (vidéo de test), `extract-class.js`
+(extraction des classes), `gpu-runner.js`, classes extraites, `agg-seeds.js`,
+`gpu-update-readme.js`. `test.webm` et les `run-s*.json` sont **gitignorés**
+(artefacts générés) — les classes extraites, elles, sont versionnées.
+Prérequis : Node + Playwright (canal `msedge`) + GPU réel. Points clés :
 
 - **Vidéo de test** : le ffmpeg de Playwright n'a pas `lavfi` → générer la
   vidéo en navigateur (`canvas.captureStream(30)` + MediaRecorder VP9), servir
@@ -355,22 +362,21 @@ extraites, `test.webm`. Points clés :
   entière / FRAMES) — stable face à la résolution ~100 µs de `performance.now()`
   par frame (le wall par frame médian sature à 0,000).
 
-**Protocole figé (GPU)** — rejouer la table « GPU » telle quelle :
+**Protocole figé (GPU)** — rejouer la table « GPU » telle quelle (depuis la
+racine du repo) :
 
 ```bash
-# Dans D:\Codex\gpubench\ — artefacts requis : gpu-perf10-webgl2player.txt,
-# gpu-v140-webgl2player.txt (classes WebGL2Player extraites des builds),
-# test.webm (vidéo VP9 générée en navigateur). Playwright : NODE_PATH vers
-# un install existant (ex. NODE_PATH=/d/Codex/koharu/node_modules).
+# Prérequis : test.webm généré (node bench/gpu/gen-video.js bench/gpu/test.webm),
+# Playwright via NODE_PATH (ex. NODE_PATH=/d/Codex/koharu/node_modules).
 for S in 100 200 300 400 500 600; do
-  node gpu-runner.js \
-    --cls-p10=gpu-perf10-webgl2player.txt \
-    --cls-new=gpu-v140-webgl2player.txt \
+  node bench/gpu/gpu-runner.js \
+    --cls-p10=bench/gpu/gpu-perf10-webgl2player.txt \
+    --cls-new=bench/gpu/gpu-v140-webgl2player.txt \
     --label-new=v1.4.0 \
     --no-fix --frames=120 --passes=3 --seed=$S \
-    > run-s$S.json
+    > bench/gpu/run-s$S.json
 done
-node agg-seeds.js 100 200 300 400 500 600
+node bench/gpu/agg-seeds.js 100 200 300 400 500 600
 ```
 
 Règles d'agrégation : chaque run imprime l'`agg` par version (médiane sur
@@ -380,6 +386,20 @@ les 6 seeds (min / max / médiane des médianes par métrique) et les ratios.
 déjà `gl.RGB8` — le correctif ne s'applique qu'aux builds ≤ v1.3.0). Les
 compteurs GL (par frame : `texImage2D`/`texSubImage2D` + `drawArrays`, 0
 `bindTexture`) confirment le chemin fonctionnel à chaque rejeu.
+
+**Régénérer la table GPU en place** : `bench/gpu/gpu-update-readme.js` agrège
+les `bench/gpu/run-s<seed>.json` et remplace la table « GPU » du README
+directement — équivalent de `--update-readme` côté GPU :
+
+```bash
+node bench/gpu/gpu-update-readme.js 100 200 300 400 500 600   # patche README.md (racine)
+node bench/gpu/gpu-update-readme.js 100 200 300 400 500 600 --print-only
+```
+
+(ancré sur la ligne unique `| Appels GL par frame |` — la ligne `| Mesure |
+perf10 | v… | Δ |` existe deux fois dans le README, table Chargement incluse.
+Seule la table est régénérée : le bullet « Protocole figé » de la section
+« Lecture des résultats » reste curé car il documente protocole et sessions.)
 
 ## Historique du dépôt
 

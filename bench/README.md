@@ -17,6 +17,7 @@ avec `npm i -D playwright` ou pointer `NODE_PATH` vers un install existant.
 | `hotloops.js` | Hot loops injectés ~60 Hz (controller, poll_gamepad, updateFrame) | Node V8 |
 | `page-eval.js` | Éval complète de page, injection au document-start, 20 runs | Edge headless + Playwright |
 | `freeze.sh` | Rejoue le protocole figé (3 seeds × 3 passes) et formate les tableaux markdown du README | Node V8 (+ Edge si `--with-page-eval`) |
+| `check-ratios.js` | CI : parse la sortie de `run-all.sh --skip-page-eval` et échoue si un ratio de hot loop régresse au-delà de son seuil | Node V8 (workflow `.github/workflows/bench.yml`) |
 
 `hotloops.js` et `parse.js` sont stabilisés (même recette que le harnais GPU) :
 
@@ -90,6 +91,8 @@ Règles d'agrégation pour les tables :
 ./bench/freeze.sh                    # 3 seeds × 3 passes → tableaux markdown prêts à coller
 ./bench/freeze.sh --with-page-eval   # + éval page Edge (Playwright requis)
 ./bench/freeze.sh --seeds="42 999"   # jeu de seeds personnalisé
+./bench/freeze.sh --update-readme    # régénère les sections du README EN PLACE
+./bench/freeze.sh --update-readme=chemin.md --with-page-eval  # + éval page, autre cible
 ```
 
 `freeze.sh` exécute exactement le bloc ci-dessus (mêmes commandes, mêmes
@@ -97,6 +100,30 @@ builds), puis `freeze-format.js` agrège (médiane des médianes + plage
 inter-seeds) et imprime les sections « Hot loops » et « Chargement » du
 README au format markdown, avec le label de version lu dans `@version`.
 
+**`--update-readme`** : au lieu d'imprimer, `freeze-format.js` remplace les
+sections « Hot loops » et « Chargement » **dans le fichier** (ancres :
+`### Hot loops (~60 Hz)` … `Notes :` et `### Chargement (parse + éval de
+page)` … `La série perf11` — tolérantes LF/CRLF), en préservant le reste
+(commentaires « Notes : » / « La série perf11 »). La ligne « Éval complète de
+page » n'est régénérée qu'avec `--with-page-eval` (sinon avertissement).
+Toujours vérifier `git diff` avant de commiter.
+
+**CI (GitHub Actions, `.github/workflows/bench.yml`)** : à chaque push,
+`bench/run-all.sh --skip-page-eval` tourne sur `ubuntu-latest` (checkout
+historique complet pour la baseline `055d3a0`) puis `bench/check-ratios.js`
+compare les 5 ratios perf10/build (IDLE, ACTIF, commun, relâchement,
+updateFrame) à des seuils — plancher ×4 pour les gains attendus (skip idle,
+structuredClone), fourchette 0,5–2,0 pour les scénarios « équivalents ».
+Un ratio hors seuil = échec du workflow (annotations `::error::`) :
+
+```bash
+bash bench/run-all.sh --skip-page-eval > bench-out.txt
+node bench/check-ratios.js bench-out.txt   # exit 0 = PASS, exit 1 = régression
+```
+
 Détails des pièges de chaque harnais dans la section « Repro » du README principal.
-Le harnais **GPU** (renderer WebGL2, compteurs GL, GPU timestamps) vit hors repo dans
-`D:\Codex\gpubench\` — voir la section Repro du README.
+Le harnais **GPU** (renderer WebGL2, compteurs GL, GPU timestamps) vit dans
+**`bench/gpu/`** de ce repo (autonome : `gen-video.js`, `extract-class.js`,
+`gpu-runner.js`, `agg-seeds.js`, `gpu-update-readme.js`, classes extraites ;
+`test.webm` et `run-s*.json` gitignorés) — voir `bench/gpu/README.md` et la
+section Repro du README.
