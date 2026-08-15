@@ -12,6 +12,12 @@
 #
 # Usage : ./bench/freeze.sh [--seeds="42 2024 999"] [--passes=3] [--with-page-eval]
 #                                [--update-readme[=chemin]] (régénère le README en place)
+#
+# État machine : avant et après CHAQUE seed hotloops, machine-state.js
+# (bench/gpu/, partagé avec le harnais GPU) capture l'état GPU/CPU dans
+# bench/state-cpu-s<seed>.{before,after}.json (gitignorés) — pour corréler
+# l'état « haut » / « bas » CPU (classification par ratio IDLE, cf. README)
+# avec la charge/clocks/temp réels. --no-state pour désactiver.
 set -e
 cd "$(dirname "$0")/.."
 
@@ -20,11 +26,13 @@ PASSES=3
 WITH_PAGE_EVAL=0
 UPDATE_README=0
 README_PATH="README.md"
+STATE=1
 for arg in "$@"; do
   case "$arg" in
     --seeds=*)        SEEDS="${arg#--seeds=}" ;;
     --passes=*)       PASSES="${arg#--passes=}" ;;
     --with-page-eval) WITH_PAGE_EVAL=1 ;;
+    --no-state)       STATE=0 ;;
     --update-readme)  UPDATE_README=1 ;;
     --update-readme=*) UPDATE_README=1; README_PATH="${arg#--update-readme=}" ;;
     *) echo "Option inconnue : $arg" >&2; exit 1 ;;
@@ -40,11 +48,19 @@ cp better-xcloud.user.js "$TMP/build.js"
 echo "  perf10 : $(wc -c < "$TMP/perf10.js") o | build : $(wc -c < "$TMP/build.js") o"
 
 echo
-echo "== Hot loops : $(echo $SEEDS | wc -w) seed(s) × $PASSES passes × 200 000 itérations =="
+echo "== Hot loops : $(echo $SEEDS | wc -w) seed(s) × $PASSES passes × 200 000 itérations$([ "$STATE" = "1" ] && echo " + état machine") =="
 for S in $SEEDS; do
+  if [ "$STATE" = "1" ]; then
+    node bench/gpu/machine-state.js before > "bench/state-cpu-s$S.before.json" 2>/dev/null || true
+  fi
   node --expose-gc bench/hotloops.js "$TMP/perf10.js" "$TMP/build.js" \
     --passes=$PASSES --seed=$S --iters=200000 > "$TMP/hotloops-$S.txt"
-  echo "  seed $S : OK"
+  if [ "$STATE" = "1" ]; then
+    node bench/gpu/machine-state.js after > "bench/state-cpu-s$S.after.json" 2>/dev/null || true
+    echo "  seed $S : OK (état machine → bench/state-cpu-s$S.{before,after}.json)"
+  else
+    echo "  seed $S : OK"
+  fi
 done
 
 echo

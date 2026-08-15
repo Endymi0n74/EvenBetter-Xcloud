@@ -16,7 +16,7 @@ avec `npm i -D playwright` ou pointer `NODE_PATH` vers un install existant.
 | `parse.js` | Parse/compile (`new Function`, sans exécution, ×300/passe) | Node V8 |
 | `hotloops.js` | Hot loops injectés ~60 Hz (controller, poll_gamepad, updateFrame, updateCanvas) | Node V8 |
 | `page-eval.js` | Éval complète de page, injection au document-start, 20 runs | Edge headless + Playwright |
-| `freeze.sh` | Rejoue le protocole figé (3 seeds × 3 passes) et formate les tableaux markdown du README | Node V8 (+ Edge si `--with-page-eval`) |
+| `freeze.sh` | Rejoue le protocole figé (3 seeds × 3 passes), capture l'état machine par seed hotloops et formate les tableaux markdown du README | Node V8 (+ Edge si `--with-page-eval`) |
 | `check-ratios.js` | CI : parse la sortie de `run-all.sh --skip-page-eval` et échoue si un ratio de hot loop régresse au-delà de son seuil | Node V8 (workflow `.github/workflows/bench.yml`) |
 
 `hotloops.js` et `parse.js` sont stabilisés (même recette que le harnais GPU) :
@@ -99,6 +99,16 @@ Règles d'agrégation pour les tables :
 builds), puis `freeze-format.js` agrège (médiane des médianes + plage
 inter-seeds) et imprime les sections « Hot loops » et « Chargement » du
 README au format markdown, avec le label de version lu dans `@version`.
+
+**État machine** (depuis la v1.6.0) : `freeze.sh` capture l'état GPU/CPU via
+`bench/gpu/machine-state.js` (partagé avec le harnais GPU) avant et après
+CHAQUE seed hotloops, dans `bench/state-cpu-s<seed>.{before,after}.json`
+(gitignorés) — `--no-state` pour désactiver. Objectif : corréler la
+**classification d'état haut/bas CPU** (ratio IDLE perf10/build : `bas` ≥ ~10,
+`haut` ≤ ~9,5 — cf. tableau « Sessions hot loops » du README principal) avec
+la charge/clocks/temp réels. Données initiales : re-mesure v1.4.0 = état
+haut (×9,5, perf10 IDLE 368 ns), v1.6.0 = état bas (×11,2, perf10 IDLE
+~333 ns) — alignés sur les états GPU des mêmes sessions.
 
 **`--update-readme`** : au lieu d'imprimer, `freeze-format.js` remplace les
 sections « Hot loops » et « Chargement » **dans le fichier** (ancres :

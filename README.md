@@ -123,6 +123,26 @@ Protocole figé — seeds 42 / 2024 / 999 × 3 passes × 200 000 itérations ; c
 | `WebGL2Player.updateFrame` — chemin stable (coût JS seul) | ~173 ns/frame (169–174) | ~142 ns/frame (141–152) | équivalent (voir note) |
 | `WebGL2Player.updateCanvas` — valeurs inchangées (chemin 60 Hz, coût JS seul) | ~246 ns/frame (239–253) | **~12,7 ns/frame (13–13)** | **-94,8 % (×19,4)** |
 
+_Table v1.6.0 mesurée en **état bas CPU** (ratio IDLE perf10/build ×11,2) — cf.
+tableau « Sessions hot loops » ci-dessous pour la comparabilité inter-sessions.
+Depuis la v1.6.0, `freeze.sh` capture l'état machine avant/après chaque seed
+(`bench/state-cpu-s<seed>.*.json`, `--no-state` pour désactiver)._ 
+
+**Sessions hot loops — état haut/bas** (état dérivé du **ratio IDLE**
+perf10/build : `bas` = ratio ≥ ~10 — machine calme (perf10 IDLE ≤ ~340 ns) ;
+`haut` = ratio ≤ ~9,5 — machine chargée (perf10 IDLE ≥ ~360 ns). Comme côté
+GPU, un coût fixe d'environnement (charge CPU, clocks, contention) gonfle les
+deux versions et écrase l'avantage du build — le ratio IDLE est le plus
+sensible, le relâchement Home l'est moins (voir colonne). **Attribut de
+session, pas du build** : le même code mesure ×9,5 en état haut et ×11,2 en
+état bas. Données encore minces (2 sessions) — la capture d'état machine
+alimentera la classification.
+
+| Session | perf10 IDLE (ns/poll) | build IDLE (ns/poll) | Ratio IDLE | État | Relâchement Home (perf10 → build) |
+|---|---|---|---|---|---|
+| Re-mesure v1.4.0 (3 seeds) | 368 (352–398) | 39 (36–41) | **×9,5** | haut | 1427 → 163 (−89 %) |
+| v1.6.0 (3 seeds, release) | ~333 (303–335) | ~29,8 (30–38) | **×11,2** | bas | ~1224 → ~152 (−87,6 %) |
+
 Notes :
 
 - Le **skip idle** (patch 12) divise par ~×6,5 à ×9 le coût du poll au repos — le cas
