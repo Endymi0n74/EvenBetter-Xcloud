@@ -1,11 +1,11 @@
-# better-xcloud-perf — v1.2.0
+# better-xcloud-perf — v1.3.0
 
 [![Release](https://img.shields.io/github/v/release/Endymi0n74/better-xcloud-perf?style=for-the-badge&color=green)](https://github.com/Endymi0n74/better-xcloud-perf/releases/latest)
 [![Install](https://img.shields.io/badge/Install-userscript-blue?style=for-the-badge)](https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.user.js)
 
 Fork performance du userscript [Better xCloud](https://github.com/redphx/better-xcloud)
 (redphx), orienté **performance**. Dernière release :
-[better-xcloud-perf-v1.2.0](https://github.com/Endymi0n74/better-xcloud-perf/releases/tag/better-xcloud-perf-v1.2.0).
+[better-xcloud-perf-v1.3.0](https://github.com/Endymi0n74/better-xcloud-perf/releases/tag/better-xcloud-perf-v1.3.0).
 
 Ce dépôt contient le script **buildé** (`better-xcloud.user.js`) — c'est le
 fichier à installer tel quel dans un gestionnaire d'userscripts. Les
@@ -61,7 +61,7 @@ script complet que si une nouvelle version existe. Évite de télécharger 479 K
 > L'`@updateURL` pointe vers le fork depuis la v1.1.0 — les installations
 > antérieures gardent l'URL upstream (voir la note « Upgrade » ci-dessus).
 
-## Optimisations perf11
+## Optimisations perf11 + perf13
 
 | # | Optimisation | Effet |
 |---|---|---|
@@ -79,6 +79,8 @@ script complet que si une nouvelle version existe. Évite de télécharger 479 K
 | 12 | Controller customization : skip idle | Zéro allocation et zéro itération du mapping quand aucun bouton pressé et sticks centrés |
 | 13 | `WebGL2Player` : `texStorage2D` + `texSubImage2D` | Allocation GPU stable (la texture n'est plus réallouée à chaque `texImage2D`) ; recréation sur changement de résolution |
 | 14 | `WebGL2Player` : fix viewport | `drawingBufferHeight` à la place de `drawingBufferWidth` |
+| 15 | `poll_gamepad_default` : `structuredClone` → référence directe | Le `structuredClone` de l'état Home au relâchement était inutile (objet non muté entre lecture et `=null`) — zéro allocation, chemin mesuré 1236 ns → 280 ns (-77 %) |
+| 16 | `WebGL2Player` : `bindTexture` par frame supprimé | La texture reste liée entre les frames (une seule texture, contexte dédié) — 60 appels GL/s de moins |
 
 L'historique perf1–perf10 (Set O(1) du patcher, debounce localStorage, cache
 `getBattery()`, uniform locations pré-calculées, etc.) est conservé dans
@@ -87,6 +89,8 @@ l'en-tête du script.
 ## Historique du dépôt
 
 ```
+62abcd9 build: prepare v1.3.0 with hot-loop optimizations
+366fb41 docs: document meta.js auto-update flow and refresh history for v1.2.0
 95e41a9 build: bump userscript to 1.2.0
 912e3d4 docs: update patch 01 description to reflect meta.js updateURL header
 a411727 build: point @updateURL to a lighter meta.js for update checks
@@ -115,7 +119,7 @@ nécessaires pour reconstruire ou porter les optimisations.
 ### Reconstruire le build (round-trip vérifié octet-pour-octet)
 
 ```bash
-# Baseline perf10 (commit 055d3a0) + patch global → build v1.2.0 identique
+# Baseline perf10 (commit 055d3a0) + patch global → build v1.3.0 identique
 # au fichier better-xcloud.user.js du repo.
 git show 055d3a0:better-xcloud.user.js > better-xcloud.user.js
 # Important sous Windows : core.autocrlf=false, sinon le contexte du patch ne matche pas
@@ -131,7 +135,7 @@ node --check better-xcloud.user.js
 
 ### Portage sélectif
 
-- `patches/` : 14 patches individuels (un par optimisation), chacun applicable
+- `patches/` : 16 patches individuels (un par optimisation), chacun applicable
   seul sur la baseline perf10. Lisez `patches/README.md` pour la liste détaillée,
   la matrice de compatibilité par paires et les zones non empilables (le build
   minifié a des lignes géantes : plusieurs optimisations de la même zone

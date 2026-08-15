@@ -1,9 +1,9 @@
 # Patches perf11 — portage sélectif
 
-Les patches produisent le build `better-xcloud-perf-v1.0.0` (`@version 1.0.0`,
-série d'optimisations perf11).
+Les patches produisent le build `better-xcloud-perf-v1.3.0` (`@version 1.3.0`,
+série d'optimisations perf11 + perf13).
 
-14 patches individuels, chacun **vérifié applicable seul** sur la baseline
+16 patches individuels, chacun **vérifié applicable seul** sur la baseline
 `Better xCloud-6.7.12-perf10.js` (round-trip : `node --check` OK après application).
 
 ## Application d'un patch seul
@@ -20,7 +20,7 @@ l'application — conversion LF→CRLF du contexte).
 
 | Patch | Optimisation | Zone |
 |---|---|---|
-| `01-version-header.patch` | Bump `6.7.12-perf10` → `1.2.0` + header (version, optis, `@updateURL` → `better-xcloud.meta.js`) | global |
+| `01-version-header.patch` | Bump `6.7.12-perf10` → `1.3.0` + header (version, optis, `@updateURL` → `better-xcloud.meta.js`) | global |
 | `02-allprefs-set.patch` | `ALL_PREFS` → `Set`, lookups O(1) | settings |
 | `03-settings-validatevalue-filter.patch` | `validateValue` : `filter` + `Set` (fin du saut d'index splice) | settings |
 | `04-settings-deletesettings-batch.patch` | `deleteSettings` batch + `getGameSettings` mono-`saveSettings` | settings |
@@ -34,27 +34,31 @@ l'application — conversion LF→CRLF du contexte).
 | `12-controller-custom-skip-idle.patch` | Skip idle (zéro allocation au repos) | controller |
 | `13-webgl2-stable-texture.patch` | `texStorage2D` + `texSubImage2D` (allocation GPU stable) | webgl2 |
 | `14-webgl2-viewport-fix.patch` | Viewport `drawingBufferHeight` | webgl2 |
+| `15-poll-structuredclone.patch` | `structuredClone` → référence directe au relâchement Home (zéro allocation) | controller |
+| `16-webgl2-bindtexture.patch` | `bindTexture` par frame supprimé (état final `updateFrame`) | webgl2 |
 
 ## Matrice de compatibilité (empilement par paires)
 
 Ligne i, colonne j : ✓ = j s'applique proprement après i, ✗ = conflit.
 
 ```
-    01 02 03 04 05 06 07 08 09 10 11 12 13 14
-  01 .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
-  02 ✓  .  ✓  ✓  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
-  03 ✓  ✓  .  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
-  04 ✓  ✓  ✗  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
-  05 ✓  ✗  ✓  ✓  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
-  06 ✓  ✓  ✓  ✓  ✓  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
-  07 ✓  ✓  ✓  ✓  ✓  ✓  .  ✗  ✗  ✓  ✓  ✓  ✓  ✓
-  08 ✓  ✓  ✓  ✓  ✓  ✓  ✗  .  ✗  ✓  ✓  ✓  ✓  ✓
-  09 ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  .  ✓  ✓  ✓  ✓  ✓
-  10 ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✓  ✓  ✓  ✓
-  11 ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✗  ✓  ✓
-  12 ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  .  ✓  ✓
-  13 ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✗
-  14 ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  .
+    01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16
+  01 .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
+  02 ✓  .  ✓  ✓  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
+  03 ✓  ✓  .  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
+  04 ✓  ✓  ✗  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
+  05 ✓  ✗  ✓  ✓  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
+  06 ✓  ✓  ✓  ✓  ✓  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
+  07 ✓  ✓  ✓  ✓  ✓  ✓  .  ✗  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓
+  08 ✓  ✓  ✓  ✓  ✓  ✓  ✗  .  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓
+  09 ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓
+  10 ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✓  ✓  ✓  ✓  ✓  ✓
+  11 ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✗  ✓  ✓  ✗  ✓
+  12 ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  .  ✓  ✓  ✗  ✓
+  13 ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✗  ✓  ✗
+  14 ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  .  ✓  ✗
+  15 ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  ✓  .  ✓
+  16 ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  .
 ```
 
 ### Zones incompatibles (mêmes lignes physiques du fichier minifié)
@@ -68,8 +72,8 @@ d'une même zone sur une branche :
   avec `03`/`02` (lignes partagées). Prendre soit `02+03`, soit `04+05`, soit
   appliquer le patch global.
 - **streamstats (07→09)** : `07`, `08`, `09` sont mutuellement exclusifs entre eux.
-- **controller (11+12)** : mutuellement exclusifs.
-- **webgl2 (13+14)** : mutuellement exclusifs.
+- **controller (11+12+15)** : mutuellement exclusifs (ligne `controller_customization_default`).
+- **webgl2 (13+14+16)** : mutuellement exclusifs (ligne `WebGL2Player`).
 - **ui (06+10)** : s'empilent sans problème.
 
 ### Pour tout porter d'un coup
