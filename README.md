@@ -1,11 +1,11 @@
-# better-xcloud-perf — v1.3.0
+# better-xcloud-perf — v1.4.0
 
 [![Release](https://img.shields.io/github/v/release/Endymi0n74/better-xcloud-perf?style=for-the-badge&color=green)](https://github.com/Endymi0n74/better-xcloud-perf/releases/latest)
 [![Install](https://img.shields.io/badge/Install-userscript-blue?style=for-the-badge)](https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.user.js)
 
 Fork performance du userscript [Better xCloud](https://github.com/redphx/better-xcloud)
 (redphx), orienté **performance**. Dernière release :
-[better-xcloud-perf-v1.3.0](https://github.com/Endymi0n74/better-xcloud-perf/releases/tag/better-xcloud-perf-v1.3.0).
+[better-xcloud-perf-v1.4.0](https://github.com/Endymi0n74/better-xcloud-perf/releases/tag/better-xcloud-perf-v1.4.0).
 
 Ce dépôt contient le script **buildé** (`better-xcloud.user.js`) — c'est le
 fichier à installer tel quel dans un gestionnaire d'userscripts. Les
@@ -82,6 +82,7 @@ script complet que si une nouvelle version existe. Évite de télécharger 479 K
 | 15 | `poll_gamepad_default` : `structuredClone` → référence directe | Le `structuredClone` de l'état Home au relâchement était inutile (objet non muté entre lecture et `=null`) — zéro allocation, chemin mesuré 1236 ns → 280 ns (-77 %) |
 | 16 | `WebGL2Player` : `bindTexture` par frame supprimé | La texture reste liée entre les frames (une seule texture, contexte dédié) — 60 appels GL/s de moins |
 | 17 | `WebGL2Player` : flag expérimental `WebGL2NoColorConversion` | `gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE)` avant les uploads vidéo — skippe la conversion sRGB du navigateur (gain potentiel sur le chemin le plus cher) ; désactivé par défaut, à activer via `BX_FLAGS` avec validation visuelle |
+| 18 | `WebGL2Player` : fix `texStorage2D` | `gl.RGB` (format **non-sized** → `INVALID_ENUM`, renderer WebGL2 **écran noir**) → `gl.RGB8` — corrige le bug introduit par l'opti 13 (présent aussi dans le TS upstream) |
 
 L'historique perf1–perf10 (Set O(1) du patcher, debounce localStorage, cache
 `getBattery()`, uniform locations pré-calculées, etc.) est conservé dans
@@ -161,22 +162,31 @@ Lecture des résultats :
 - Le wall de `updateFrame` suit (~3× plus lent en perf10) : la partie
   synchronisée du chemin d'upload domine la frame.
 
-> **⚠️ Bug connu dans les builds v1.2.0 et v1.3.0 (et dans le TS upstream)** :
-> `gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGB, …)` utilise un **format
+> **⚠️ Bug (corrigé en v1.4.0) — builds v1.2.0 et v1.3.0 (et TS upstream)** :
+> `gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGB, …)` utilisait un **format
 > non-sized** (`gl.RGB`) → `INVALID_ENUM` à chaque changement de résolution →
-> l'allocation échoue, les uploads vidéo échouent (`CopySubTextureCHROMIUM`)
-> et le renderer WebGL2 rend un **écran noir**. Vérifié par `readPixels`
-> (pixels 100 % noirs avec `gl.RGB`, vidéo réelle avec `gl.RGB8`).
-> **Correctif : `gl.RGB` → `gl.RGB8`** (une ligne — prévu pour la v1.4.0).
-> Les mesures GPU ci-dessus ont été prises **avec ce correctif appliqué au
-> code extrait** pour mesurer le chemin fonctionnel (le renderer WebGL2 n'est
-> pas le défaut — `video.player.type` — donc l'impact se limite aux sessions
-> qui l'activent).
+> l'allocation échouait, les uploads vidéo échouaient (`CopySubTextureCHROMIUM`)
+> et le renderer WebGL2 rendait un **écran noir** (vérifié par `readPixels` :
+> pixels 100 % noirs avec `gl.RGB`, vidéo réelle avec `gl.RGB8`).
+> **Corrigé dans la v1.4.0** (`gl.RGB` → `gl.RGB8`, patch 18). Les mesures
+> GPU ci-dessus ont été prises avec ce correctif — désormais intégré au build
+> (le renderer WebGL2 n'est pas le défaut — `video.player.type` — donc
+> l'impact de l'ancien bug se limitait aux sessions qui l'activaient).
 
 ## Repro — comment les mesures sont faites
 
-Les chiffres du chapitre Benchmarks viennent de harnais jetables décrits
-ci-dessous (paramètres + pièges) pour pouvoir les rejouer ou les adapter.
+Les chiffres du chapitre Benchmarks viennent des harnais du dossier
+**`bench/`** de ce repo (autonomes, cf. `bench/README.md`) :
+
+```bash
+./bench/run-all.sh                   # parse + hot loops + éval page (Edge)
+./bench/run-all.sh --skip-page-eval  # sans Playwright
+```
+
+Chaque harnais prend deux builds en argument (`<perf10.js> <build.js>`) ;
+`run-all.sh` extrait la baseline depuis git (`git show 055d3a0:better-xcloud.user.js`)
+et utilise `better-xcloud.user.js` à la racine. Détails ci-dessous (paramètres +
+pièges) pour les adapter.
 
 ### Environnement commun
 
@@ -187,13 +197,13 @@ ci-dessous (paramètres + pièges) pour pouvoir les rejouer ou les adapter.
 - Page de test servie par un **serveur HTTP local 127.0.0.1** : une origine
   réelle est obligatoire (pas de `localStorage` sur `about:blank`).
 
-### Parse / compile (Node)
+### Parse / compile (`bench/parse.js`)
 
 - `new Function(code)` **sans exécution** (l'exécution réelle est mesurée dans
   Edge), ×300 itérations, médiane. Sub-ms → bruité : seule la comparaison
   relative compte.
 
-### Éval complète de page (Edge, injection au document-start)
+### Éval complète de page (`bench/page-eval.js`, Edge, document-start)
 
 - URL : `http://127.0.0.1:<port>/en-us/play` — le script exige
   `pathname.match(/^\/[a-zA-Z]{2}-[a-zA-Z]{2}\/play/)` (garde « Not xCloud
@@ -207,7 +217,7 @@ ci-dessous (paramètres + pièges) pour pouvoir les rejouer ou les adapter.
   inclus), 20 runs, médiane/p95 (perf10 présente des outliers p95
   environnementaux, la médiane est stable).
 
-### Hot loops ~60 Hz (Node)
+### Hot loops ~60 Hz (`bench/hotloops.js`, Node)
 
 - Extraction des fragments injectés depuis le build : regex
   `var <nom> = "((?:[^"\\]|\\.)*)";` puis décodage de la chaîne (JSON).
@@ -224,10 +234,11 @@ ci-dessous (paramètres + pièges) pour pouvoir les rejouer ou les adapter.
   `inputSink.onGamepadInput` + `BX_STREAM_SETTINGS.controllerPollingRate`.
 - 200 000 itérations par scénario, warmup avant mesure.
 
-### GPU — renderer WebGL2 (Edge réel)
+### GPU — renderer WebGL2 (Edge réel, hors repo)
 
-Le harnais complet vit dans `D:\Codex\gpubench\` (hors repo) : `gen-video.js`
-(vidéo de test), `gpu-runner.js`, classes extraites, `test.webm`. Points clés :
+Le harnais complet vit dans `D:\Codex\gpubench\` (hors repo — dépend de
+Playwright + GPU) : `gen-video.js` (vidéo de test), `gpu-runner.js`, classes
+extraites, `test.webm`. Points clés :
 
 - **Vidéo de test** : le ffmpeg de Playwright n'a pas `lavfi` → générer la
   vidéo en navigateur (`canvas.captureStream(30)` + MediaRecorder VP9), servir
@@ -285,7 +296,7 @@ nécessaires pour reconstruire ou porter les optimisations.
 ### Reconstruire le build (round-trip vérifié octet-pour-octet)
 
 ```bash
-# Baseline perf10 (commit 055d3a0) + patch global → build v1.3.0 identique
+# Baseline perf10 (commit 055d3a0) + patch global → build v1.4.0 identique
 # au fichier better-xcloud.user.js du repo.
 git show 055d3a0:better-xcloud.user.js > better-xcloud.user.js
 # Important sous Windows : core.autocrlf=false, sinon le contexte du patch ne matche pas
@@ -301,7 +312,7 @@ node --check better-xcloud.user.js
 
 ### Portage sélectif
 
-- `patches/` : 17 patches individuels (un par optimisation), chacun applicable
+- `patches/` : 18 patches individuels (un par optimisation), chacun applicable
   seul sur la baseline perf10. Lisez `patches/README.md` pour la liste détaillée,
   la matrice de compatibilité par paires et les zones non empilables (le build
   minifié a des lignes géantes : plusieurs optimisations de la même zone

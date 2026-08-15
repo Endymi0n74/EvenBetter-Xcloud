@@ -1,9 +1,9 @@
 # Patches perf11 — portage sélectif
 
-Les patches produisent le build `better-xcloud-perf-v1.3.0` (`@version 1.3.0`,
-série d'optimisations perf11 + perf13).
+Les patches produisent le build `better-xcloud-perf-v1.4.0` (`@version 1.4.0`,
+série d'optimisations perf11 + perf13 + fix RGB8).
 
-17 patches individuels, chacun **vérifié applicable seul** sur la baseline
+18 patches individuels, chacun **vérifié applicable seul** sur la baseline
 `Better xCloud-6.7.12-perf10.js` (round-trip : `node --check` OK après application).
 
 ## Application d'un patch seul
@@ -20,7 +20,7 @@ l'application — conversion LF→CRLF du contexte).
 
 | Patch | Optimisation | Zone |
 |---|---|---|
-| `01-version-header.patch` | Bump `6.7.12-perf10` → `1.3.0` + header (version, optis, `@updateURL` → `better-xcloud.meta.js`) | global |
+| `01-version-header.patch` | Bump `6.7.12-perf10` → `1.4.0` + header (version, optis, `@updateURL` → `better-xcloud.meta.js`) | global |
 | `02-allprefs-set.patch` | `ALL_PREFS` → `Set`, lookups O(1) | settings |
 | `03-settings-validatevalue-filter.patch` | `validateValue` : `filter` + `Set` (fin du saut d'index splice) | settings |
 | `04-settings-deletesettings-batch.patch` | `deleteSettings` batch + `getGameSettings` mono-`saveSettings` | settings |
@@ -36,31 +36,33 @@ l'application — conversion LF→CRLF du contexte).
 | `14-webgl2-viewport-fix.patch` | Viewport `drawingBufferHeight` | webgl2 |
 | `15-poll-structuredclone.patch` | `structuredClone` → référence directe au relâchement Home (zéro allocation) | controller |
 | `16-webgl2-bindtexture.patch` | `bindTexture` par frame supprimé (état final `updateFrame`) | webgl2 |
-| `17-webgl2-nocolorconvert.patch` | Flag expérimental `WebGL2NoColorConversion` (`UNPACK_COLORSPACE_CONVERSION_WEBGL=NONE`) | webgl2 |
+| `17-webgl2-nocolorconvert.patch` | Flag expérimental `WebGL2NoColorConversion` — partie `DEFAULT_FLAGS` (la partie `setupShaders` est dans les patches « état final » 16/18) | webgl2 |
+| `18-webgl2-texstorage-rgb8.patch` | Fix `texStorage2D` : `gl.RGB` (non-sized → INVALID_ENUM, renderer WebGL2 noir) → `gl.RGB8` (état final `updateFrame`) | webgl2 |
 
 ## Matrice de compatibilité (empilement par paires)
 
 Ligne i, colonne j : ✓ = j s'applique proprement après i, ✗ = conflit.
 
 ```
-    01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17
-  01 .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
-  02 ✓  .  ✓  ✓  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
-  03 ✓  ✓  .  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
-  04 ✓  ✓  ✗  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
-  05 ✓  ✗  ✓  ✓  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
-  06 ✓  ✓  ✓  ✓  ✓  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
-  07 ✓  ✓  ✓  ✓  ✓  ✓  .  ✗  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
-  08 ✓  ✓  ✓  ✓  ✓  ✓  ✗  .  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
-  09 ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
-  10 ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓
-  11 ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✗  ✓  ✓  ✗  ✓  ✓
-  12 ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  .  ✓  ✓  ✗  ✓  ✓
-  13 ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✗  ✓  ✗  ✗
-  14 ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  .  ✓  ✗  ✗
-  15 ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  ✓  .  ✓  ✓
-  16 ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  .  ✗
-  17 ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  ✗  .
+    01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18
+  01  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
+  02  ✓  .  ✓  ✓  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
+  03  ✓  ✓  .  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
+  04  ✓  ✓  ✗  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
+  05  ✓  ✗  ✓  ✓  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
+  06  ✓  ✓  ✓  ✓  ✓  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
+  07  ✓  ✓  ✓  ✓  ✓  ✓  .  ✗  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
+  08  ✓  ✓  ✓  ✓  ✓  ✓  ✗  .  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
+  09  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
+  10  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
+  11  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✗  ✓  ✓  ✗  ✓  ✓  ✓
+  12  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  .  ✓  ✓  ✗  ✓  ✓  ✓
+  13  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✗  ✓  ✗  ✓  ✗
+  14  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  .  ✓  ✗  ✓  ✗
+  15  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  ✓  .  ✓  ✓  ✓
+  16  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  .  ✓  ✗
+  17  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✓
+  18  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  ✗  ✓  .
 ```
 
 ### Zones incompatibles (mêmes lignes physiques du fichier minifié)
@@ -75,7 +77,7 @@ d'une même zone sur une branche :
   appliquer le patch global.
 - **streamstats (07→09)** : `07`, `08`, `09` sont mutuellement exclusifs entre eux.
 - **controller (11+12+15)** : mutuellement exclusifs (ligne `controller_customization_default`).
-- **webgl2 (13+14+16+17)** : mutuellement exclusifs (ligne `WebGL2Player`).
+- **webgl2 (13+14+16+17+18)** : mutuellement exclusifs (ligne `WebGL2Player`) — sauf 17 (hunk `DEFAULT_FLAGS` seul) qui s'empile avec 13/16/18. 18 (fix RGB8) est l'état final `updateFrame` : préférer 18 à 16.
 - **ui (06+10)** : s'empilent sans problème.
 
 ### Pour tout porter d'un coup
