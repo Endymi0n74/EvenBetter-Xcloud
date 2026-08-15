@@ -177,16 +177,26 @@ WebGL2, méthodes GL instrumentées (compteurs) et rasterisation mesurée via
 > v1.6.0 sont
 > identiques sur le chemin GPU (updateFrame byte-identique), seuls les
 > ratios intra-session (perf10 vs build) comptent.
+> **Re-mesure v1.6.0 du soir (6 seeds, état machine capturé)** : upload perf10
+> 42,2–77,7 (méd. 54,7) vs v1.6.0 7,7–11,8 (méd. 10,0) µs (**×5,47**) ;
+> wallTotal **×2,82** ; draw 10,2 vs 9,2 µs — **état bas** (ratio ≥ 4),
+> machine froide et peu chargée (GPU 50-53 °C, SM 1725 MHz / P0 constants,
+> CPU load 22-69 %) — cohérent avec la session du soir. Split émission/sync
+> (nouveau) : v1.6.0 emit 10,0 / sync 24,5 / total 33,3 µs ; perf10 emit
+> 54,7 / sync 84,7 / total 162,5 µs — le total v1.6.0 (émission + sync readback)
+> est stable vs le contrôle seed 42 (~31 µs), la sync perf10 reste la plus
+> variable.
 
 | Mesure | perf10 | v1.6.0 | Δ |
 |---|---|---|---|
 | Appels GL par frame | `texImage2D` + `drawArrays` (0 allocation) | `texSubImage2D` + `drawArrays` (0 allocation) | même nombre d'appels |
-| Upload vidéo — boucle tight (µs/upload) | ~48–61 µs | ~8–11 µs | **×4,9** |
-| Rasterisation `drawArrays` (µs/draw, médiane GPU) | 10,2 µs | 10,2 µs | identique (même shader) |
-| `updateFrame` — wall total (ms/frame, boucle complète / FRAMES) | ~0,049–0,061 ms | ~0,011–0,022 ms | **×3,0** |
+| Upload vidéo — boucle tight (µs/upload) | ~42–78 µs | ~8–12 µs | **×5,5** |
+| Rasterisation `drawArrays` (µs/draw, médiane GPU) | 10,2 µs | 9,2 µs | ×1,1 |
+| `updateFrame` — wall total (ms/frame, boucle complète / FRAMES) | ~0,043–0,074 ms | ~0,011–0,020 ms | **×2,8** |
 
-_Table v1.6.0 mesurée en **état bas** (ratio upload ×4,86) — cf. tableau
-« Sessions GPU » ci-dessous pour la comparabilité inter-sessions._
+_Table v1.6.0 — re-mesure du soir (15 août), **état bas** (ratio upload
+×5,47) — cf. tableau « Sessions GPU » ci-dessous pour la comparabilité
+inter-sessions._
 
 **Sessions GPU — état haut/bas** (état dérivé du **ratio upload** perf10/build :
 `bas` = ratio ≥ ~4 — émission pure, l'avantage `texSubImage2D` ressort à plein ;
@@ -194,7 +204,7 @@ _Table v1.6.0 mesurée en **état bas** (ratio upload ×4,86) — cf. tableau
 cf. mémo projet §7) masque l'avantage ; `transitionnel`/`mixte` entre les deux
 ou quand la session contient les deux états). **L'état est un attribut de la
 session, pas du build** : le même code mesure ×1,8-2,1 en état haut et
-×4,3-6,3 en état bas — comparer deux sessions = comparer les ratios et le
+×4,3-6,6 en état bas — comparer deux sessions = comparer les ratios et le
 draw, jamais les absolus.
 
 | Session | Version | Upload perf10 (µs) | Upload build (µs) | Ratio upload | État | Draw (µs) |
@@ -204,18 +214,20 @@ draw, jamais les absolus.
 | Session 2 (protocole figé) | v1.4.0 | 98,5–150,7 | 54,7–74,5 | **×2,1** | haut | 10,2 |
 | Matin 15 août (6 seeds) | v1.5.0 | 61,8–137 | 10,3–76,8 | **×1,7** (s300 : ×6,0) | mixte | 10,2 |
 | Soir 15 août (6 seeds) | v1.6.0 | 48,2–61,3 | 8,5–11,3 | **×4,86** | bas | 10,2 |
+| Soir 15 août — re-mesure (6 seeds + état machine) | v1.6.0 | 42,2–77,7 | 7,7–11,8 | **×5,47** | bas | 10,2 vs 9,2 |
 
 Lecture des résultats :
 
-- Le **draw** (rasterisation) coûte pareil dans les deux versions — même
-  shader, même résolution : attendu.
+- Le **draw** (rasterisation) coûte pareil dans les deux versions (10,2 vs
+  9,2 µs, ratio 1,1) — même shader, même résolution : attendu.
 - Le vrai levier est l'**upload vidéo** : `texImage2D` **réalloue le storage
   GPU de la texture à chaque frame** (~×2,1 le coût d'un `texSubImage2D` dans
   un storage immuable). C'est le bénéfice mesurable des patches 13/16 côté GPU
   — invisible dans les micro-benchmarks JS (d'où l'écart avec la table
   « Hot loops » ci-dessus).
-- Le wall de `updateFrame` suit (~×3,0 avec la métrique `wallTotal`
-  stabilisée sur v1.6.0) : la partie synchronisée du chemin d'upload domine la frame.
+- Le wall de `updateFrame` suit (~×2,8 sur la re-mesure avec la métrique
+  `wallTotal` stabilisée sur v1.6.0) : la partie synchronisée du chemin
+  d'upload domine la frame.
 - **Protocole figé** (cf. Repro — seeds 100/200/300/400/500/600 × 3 passes,
   commandes exactes) : re-mesure complète — upload perf10 98,5 / 113,5 /
   119,0 / 136,5 / 139,0 / 150,7 µs vs v1.4.0 54,7 / 58,2 / 62,8 / 65,2 /
@@ -230,7 +242,10 @@ Lecture des résultats :
   **Re-mesure v1.6.0** du même protocole (mêmes seeds 100–600, même jour
   que la release) : upload 48–61 vs 8–11 µs (**×4,86**, état **bas**),
   wallTotal 0,052 vs 0,017 ms (**×3,00**), draw 10,2 µs identique partout —
-  cf. le tableau « Sessions GPU » ci-dessus.
+  cf. le tableau « Sessions GPU » ci-dessus. **Re-mesure (soir, mêmes
+  seeds)** : upload 42,2–77,7 vs 7,7–11,8 µs (**×5,47**, état **bas**),
+  wallTotal **×2,82**, draw 10,2 vs 9,2 µs — même état que la session du
+  soir (machine froide, cf. note ci-dessus).
 
 > **⚠️ Bug (corrigé en v1.4.0) — builds v1.2.0 et v1.3.0 (et TS upstream)** :
 > `gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGB, …)` utilisait un **format
