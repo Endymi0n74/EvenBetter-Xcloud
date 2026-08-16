@@ -222,11 +222,36 @@ device-info), désormais mesurables par la capture.
 > `window.fetch` n'ont rien vu ? Le play part au tout début du lancement — si
 > le harnais est collé APRÈS le démarrage, il ne reste que state/keepalive
 > (espacés, parfois au-delà de la fenêtre) et d'éventuels transports non
-> couverts (sendBeacon/keepalive fetch). À trancher par une capture avec
-> harnais collé **avant** le lancement + ligne workers v3. Conséquence pour
-> P2/P3 : si la page porte le protocole, le hook fetch devient de nouveau
-> possible (comme le stable) et l'interception CDP reste la voie robuste
-> (page ET worker).
+> couverts (sendBeacon/keepalive fetch, couverts depuis la v4). À trancher
+> par une capture avec harnais collé **avant** le lancement + ligne workers.
+> Conséquence pour P2/P3 : si la page porte le protocole, le hook fetch
+> devient de nouveau possible (comme le stable) et l'interception CDP reste
+> la voie robuste (page ET worker).
+
+> **Chronologie du play (analyse statique 16 août)** — la chaîne complète du
+> play request, dans l'ordre du lancement :
+>
+> ```
+> mutation requestConnection (accs.system, entry.client 845296)
+>   → fetch connectionEligibility
+>   → si eligible : syncConnectionState (846616)
+>     → connectionManager.connect(streamUser) (847002, « Eligible, connecting to ACCS... »)
+>       → performConnect (830243) : getToken() → createSession(token)
+>         → Ude.createSession (831367) : getHttpConfiguration → t.createSession({httpConfiguration, gsTokenProvider})
+>           → StreamSessionRequest.createSession (76006) : validité navigateur → startProcessingRequest()
+>             → triggerPlayRequest (82607/83548, « Creating new cloud session »)
+>               → sendPlayRequest → playService.sendPlayCloud → POST /v5/sessions/cloud/play
+> ```
+>
+> **Conclusion timing** : le play est déclenché par la mutation
+> `requestConnection`, APRÈS un fetch d'éligibilité — c'est-à-dire dès que la
+> page stream décide de lancer (auto-start ou clic), et tout de suite après
+> le chargement du module `StreamSessionRequest` (lazy, chargé à l'ouverture
+> de la page). La fenêtre entre le chargement du module et le play est
+> **courte** (éligibilité + token) : un harnais collé après ce moment rate
+> forcément le play — cohérent avec les captures à 0 requête. Seule une
+> capture collée **avant l'ouverture de la page stream** (sur la home) peut
+> espérer voir le play passer par le fetch de la page.
 
 > **Réponse `/configuration` capturée (16 août, session réelle)** :
 >
