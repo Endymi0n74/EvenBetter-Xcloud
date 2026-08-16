@@ -27,6 +27,7 @@ chapitre Benchmarks du README principal.
 | `gpu-v140-webgl2player.txt` | Classe extraite du build v1.4.0 (contient déjà `gl.RGB8`) |
 | `gpu-v150-webgl2player.txt` | Classe extraite du build v1.5.0 (idem v1.4.0 + cache uniforms `updateCanvas` — chemin GPU identique, re-mesure ×2,10/×1,49) |
 | `gpu-v160-webgl2player.txt` | Classe extraite du build v1.6.0 (idem v1.5.0 + flag dirty `updateCanvas` — `updateFrame` et shader octet pour octet identiques, table GPU v1.4.0/v1.5.0 valide) |
+| `gpu-v170-webgl2player.txt` | **Prototype candidat v1.7.0** : classe v1.6.0 avec le chemin USM du fragment shader remplacé — gaussienne 3×3 exacte en 4 échantillons bilinéaires (±0,5 texel) au lieu de 9 fetches. Seed 42 : draw GPU 10,24 → 7,17 µs (−30 %), ratio perf10/build 1,43. Non intégré au build (prototype à valider visuellement) |
 | `gpu-v130-webgl2player.txt` | Classe v1.3.0 (historique, bug `gl.RGB` non corrigé) |
 | `gpu-runner.js` | Harnais : serveur local, injection, instrumentation GL, GPU timestamps, agrégation par seed — upload décomposé **émission** (boucle tight) vs **sync** (readback `readPixels`) |
 | `machine-state.js` | Capture l'état machine avant/après chaque seed (GPU nvidia-smi : temp/util/clocks/puissance/P-state ; CPU : charge %, % de la fréquence de base si compteurs perf OK, fréquence base via WMI ; top 5 processus) — JSON tolérant (outil absent → champ null) |
@@ -182,6 +183,43 @@ intermédiaire. Seule la table est régénérée ; le bullet « Protocole figé 
 de la section « Lecture des résultats » reste curé (il documente le protocole
 et les sessions, pas seulement des nombres).
 
+
+## Candidat v1.7.0-proto — draw GPU du shader (mesure seed de contrôle)
+
+Le draw GPU (10,24 µs à 640×360 dans toutes les sessions) est la dernière
+partie du hot path jamais touchée : le shader est resté octet pour octet
+identique à perf10. Le filtre USM par défaut fait 9 fetches texture par pixel.
+Une gaussienne 3×3 [1,2,1;2,4,2;1,2,1]/16 est **exactement** la somme de 4
+échantillons bilinéaires aux milieux des arêtes (chaque tap = moyenne 2×2,
+Σ/4 = (a+2b+c+2d+4e+2f+g+2h+i)/16) — vérifié bit-identique en fp64
+(100k tirages). `gpu-v170-webgl2player.txt` porte cette variante (CAS et
+qualityMode inchangés).
+
+Reproduction (2 runs back-to-back, même seed, même ancre perf10) :
+
+```bash
+# référence v1.6.0
+node bench/gpu/gpu-runner.js --seed=42 --no-fix \
+  --cls-new=bench/gpu/gpu-v160-webgl2player.txt --label-new=v1.6.0 \
+  > /tmp/run-s42-v160.json 2>&1
+# candidat v1.7.0-proto
+node bench/gpu/gpu-runner.js --seed=42 --no-fix \
+  --cls-new=bench/gpu/gpu-v170-webgl2player.txt --label-new=v1.7.0-proto \
+  > /tmp/run-s42-v170.json 2>&1
+```
+
+Résultat (16 août, soirée, upload en état haut ×1,8 — le draw n'en dépend pas) :
+
+| Mesure seed 42 | perf10 | build | Ratio |
+|---|---|---|---|
+| draw GPU (réf. v1.6.0) | 10,24 µs | 10,24 µs | 1,00 |
+| draw GPU (v1.7.0-proto) | 10,24 µs | **7,17 µs** | **1,43** |
+| wall updateFrame (ms) | 0,10 | ~0,00 | inchangé |
+| upload émission/sync (µs) | 74,5 / 90,3 | 41,8 / 59,8 | inchangé |
+
+Le gain est strictement GPU-side (compteurs GL identiques : texSubImage2D 1,
+drawArrays 1, 0 uniform/frame). À 1080p (9× les pixels) il extrapole ~30 µs/frame.
+Intégration au build = patch 21 (v1.7.0) après validation visuelle du rendu.
 ## Pièges du harnais
 
 - **Wrapper GL** : les méthodes instrumentées doivent **`return orig(...)`**
