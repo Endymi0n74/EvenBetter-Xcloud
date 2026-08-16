@@ -237,8 +237,14 @@ jobs:
           echo "--- sortie ---"
           cat "${{ runner.temp }}/cold-eval-fork.txt"
 
-      - name: Vérifie la borne de startup (build ≤ 50 ms, perf10 300-1200 ms)
+      - name: Vérifie la borne de startup (build ≤ 50 ms, perf10 15-200 ms Linux)
+        # Sous Linux/Edge il n'y a PAS de one-shot RTC (mesuré : perf10 ≈ build
+        # ~40 ms, vs ~570 ms sur Windows) → bande perf10 dédiée ; la borne build
+        # ≤ 50 ms (médiane) reste le vrai garde-fou, identique au runner Windows.
         run: node bench/check-ratios.js "${{ runner.temp }}/cold-eval-fork.txt" --startup-only --markdown="${{ runner.temp }}/startup-summary-fork.md"
+        env:
+          STARTUP_P10_MIN_MS: 15
+          STARTUP_P10_MAX_MS: 200
 
       - name: Upload du résumé startup (PR externe — pas de commentaire possible)
         uses: actions/upload-artifact@v4

@@ -94,9 +94,13 @@ for (const line of text.split(/\r?\n/)) {
 // revenu au chargement (getCapabilities & co) = 100+ ms. perf10 est la
 // baseline fixe : hors [300,1200] ms = dérive d'environnement (machine/
 // browser), signalée en notice, pas en échec.
-const STARTUP_BUILD_MAX_MS = 50;
-const STARTUP_P10_MIN_MS = 300;
-const STARTUP_P10_MAX_MS = 1200;
+// Bornes overridables par env (STARTUP_BUILD_MAX_MS / STARTUP_P10_MIN_MS /
+// STARTUP_P10_MAX_MS) : le job fork (ubuntu-latest) n'a PAS le one-shot RTC
+// Windows (~550-660 ms d'énumération de codecs) — sous Linux perf10 ≈ build
+// (~40 ms) et la bande par défaut n'a pas de sens → bande dédiée via env.
+const STARTUP_BUILD_MAX_MS = process.env.STARTUP_BUILD_MAX_MS ? +process.env.STARTUP_BUILD_MAX_MS : 50;
+const STARTUP_P10_MIN_MS = process.env.STARTUP_P10_MIN_MS ? +process.env.STARTUP_P10_MIN_MS : 300;
+const STARTUP_P10_MAX_MS = process.env.STARTUP_P10_MAX_MS ? +process.env.STARTUP_P10_MAX_MS : 1200;
 const startup = { present: false, cold: false, perf10: null, build: null };
 for (const line of text.split(/\r?\n/)) {
   if (line.startsWith("=== Éval complète de page")) {
