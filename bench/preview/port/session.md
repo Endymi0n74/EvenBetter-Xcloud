@@ -95,24 +95,33 @@ module config (export `l`/`s`), calculé depuis `deviceInformation`
 
 ## 4. Plan de portage (3 pièces, par risque croissant)
 
-### P1 — Keep-alive idle (ancre identique, quasi gratuit)
+### P1 — Keep-alive idle (ancre identique, quasi gratuit) — **IMPLEMENTE v1**
 
 Le stable : `remotePlayKeepAlive` patche `onServerDisconnectMessage(e){` pour
 intercepter `WarningForBeingIdle` et appeler `this.sendKeepAlive()`.
 Le preview a **le même nom de méthode** sur sa classe de session
-(offset 68298) et une méthode `sendKeepAlive()` (input virtuel, offset 50742).
+(offset 68298) et une méthode `sendKeepAlive()` (input virtuel, offset 50742) —
+**même classe** (classe `e` du module, vérifié : offsets 50742 et 67876).
 
-Deux options :
-- **Patch de chaîne** (même approche que le stable) : dans le corps de
-  `onServerDisconnectMessage`, remplacer le `dispatchEvent(new qe(...))` du cas
-  `WarningForBeingIdle` par un appel à `this.sendKeepAlive()`.
-- **Événement** (plus propre, pas de patch) : l'événement `qe`
-  (`WarningForBeingIdle`, porte `secondsUntilKick`) est dispatché sur
-  l'EventTarget de la session — y écouter et envoyer le keep-alive via
-  l'input virtuel. À valider : qui écoute `qe` (UI countdown) et si le
-  keep-alive reset le compteur.
+Implémentation livrée (`bench/preview/port/keepalive-idle.js`, source unique) :
+- **Transform source** `patchStreamSessionRequestSource(src)` : remplace la
+  branche `WarningForBeingIdle` du handler (le compte à rebours
+  `dispatchEvent(new qe(...))`) par `this.sendKeepAlive()`. Validé sur le
+  bundle capturé (ancre 1×, `node --check` du module patché, 14/14 tests).
+- **Runtime userscript** `installKeepAliveIdle()` (embarqué en fin de build,
+  transform T5 — après `main();` pour se chaîner au hook fetch final) :
+  1. hook `window.fetch` du module `StreamSessionRequest-*.js` (si le runtime
+     le charge via fetch — à confirmer en session) ;
+  2. api `window.PreviewKeepAliveIdle.wrapSession(session)` — wrapper
+     `onServerDisconnectMessage` interceptant `WarningForBeingIdle` →
+     `sendKeepAlive()`, à brancher dès que la session est localisée
+     (capture runtime / hook React).
 
-Risque : faible. Ancre de chaîne identique au stable, `sendKeepAlive` existe.
+Risque : faible (ancre identique, `sendKeepAlive` existe, méthode gardée
+`if(!this.stream?.getInputChannel())`). Reste à valider en session : la voie
+réelle de chargement du module (fetch vs ESM natif → le hook fetch serait
+inactif, le wrapSession reste la voie principale), et que l'input virtuel
+`sendKeepAlive` reset bien le timer d'idle serveur.
 
 ### P2 — Config overrides (vibration, mkb, touch, micro)
 
@@ -140,6 +149,14 @@ Le stable réécrit le payload `/sessions/cloud/play` ; sur le preview, piloter
 dur) et la forme de `deviceInformation` (le champ `osName: E(t)` s'en déduit).
 
 Risque : le plus élevé — dépend du runtime (endpoint, forme du device-info).
+
+## 4 bis. État du plan de portage
+
+| Pièce | État | Détail |
+|---|---|---|
+| **P1 keep-alive idle** | ✅ implémenté v1 | `keepalive-idle.js` + T5 dans le build — 14/14 tests, à valider en session (voie de chargement + reset du timer) |
+| **P2 config overrides** | à faire | injection dans la config client (factory `b()`) — mêmes clés (9/9 compatibles) |
+| **P3 play/résolution** | à faire | piloter `deviceInformation`/osName — runtime requis |
 
 ## 5. Ce qui reste à valider en session runtime
 

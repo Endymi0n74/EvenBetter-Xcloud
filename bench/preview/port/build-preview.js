@@ -27,6 +27,7 @@
 const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
+const keepAlive = require("./keepalive-idle.js");
 
 const ROOT = path.resolve(__dirname, "..", "..", "..");
 const SRC = path.join(ROOT, "better-xcloud.user.js");
@@ -115,6 +116,24 @@ if (BX_PREVIEW) {
 ${entryAnchor}`;
   s = s.replace(entryAnchor, adapter);
 
+  /* ---------- T5 : keep-alive idle (P1) — inséré en FIN de script ----------
+     Après main(); : window.fetch est alors le hook final (bloqueurs du script),
+     le hook fetch de T5 se chaîne au bon maillon. */
+  const t5Block =
+    "/* ============ PREVIEW (play.xbox.com) : keep-alive idle (P1) ============\n" +
+    "   Interception du WarningForBeingIdle (meme protocole que le stable) : au\n" +
+    "   lieu du compte a rebours (dispatchEvent qe), envoi de this.sendKeepAlive()\n" +
+    "   pour garder la session vivante malgre l'inactivite (voir session.md P1).\n" +
+    "   Deux voies : (1) hook fetch du module StreamSessionRequest-*.js (si le\n" +
+    "   runtime le charge via fetch — a confirmer en session), (2) api\n" +
+    "   window.PreviewKeepAliveIdle.wrapSession(session) a brancher quand la\n" +
+    "   session est localisee au runtime (capture / hook React).\n" +
+    "======================================================================== */\n" +
+    "if (BX_PREVIEW) {\n" +
+    keepAlive.installKeepAliveIdle.toString() +
+    "\ninstallKeepAliveIdle();\n}\n";
+  s = s + t5Block;
+
   // normalisation CRLF (le build perf est CRLF pur)
   s = s.replace(/\r?\n/g, "\r\n");
   return s;
@@ -149,7 +168,27 @@ for (const probe of [
   "static init() {if (BX_PREVIEW) return;Patcher.patchNativeBind();}",
   "static checkChunks(item) {if (BX_PREVIEW) return;",
   "var PreviewSettingsEntry = {",
+  "if (BX_PREVIEW) {",
+  "installKeepAliveIdle",
+  "window.PreviewKeepAliveIdle",
 ]) {
   if (!out.includes(probe)) { console.error("[build-preview] probe manquante: " + probe); process.exit(1); }
 }
 console.log("[build-preview] probes overlay OK");
+
+// self-test P1 : le transform s'applique au bundle capturé (si présent)
+try {
+  const BUNDLE_DIR = "D:/tmp/preview-player";
+  const bundle = fs.existsSync(BUNDLE_DIR) ? fs.readdirSync(BUNDLE_DIR).find((f) => /^StreamSessionRequest-.*\.js$/.test(f)) : null;
+  if (bundle) {
+    const src = fs.readFileSync(path.join(BUNDLE_DIR, bundle), "utf8");
+    const r = keepAlive.patchStreamSessionRequestSource(src);
+    if (r.ok && r.patched) console.log(`[build-preview] P1 keep-alive : transform OK sur ${bundle}`);
+    else if (r.ok && !r.patched) console.log(`[build-preview] P1 keep-alive : ${bundle} deja patché (${r.skipped})`);
+    else { console.error(`[build-preview] P1 keep-alive : ECHEC (${r.error}) — le module preview a change, ancre a re-deriver`); process.exit(1); }
+  } else {
+    console.log("[build-preview] P1 keep-alive : bundle StreamSessionRequest absent (self-test ignoré)");
+  }
+} catch (e) {
+  console.log("[build-preview] P1 keep-alive : self-test non exécuté : " + e.message);
+}

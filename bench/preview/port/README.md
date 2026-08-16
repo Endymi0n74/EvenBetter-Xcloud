@@ -22,6 +22,7 @@ qui rend le build v1.7.0 sûr et utilisable sur play.xbox.com.
 | `classify.md` | classification des 13 patches (script-interne vs site-hook) avec preuves |
 | `anchors.md` | ancres React Router 7 issues des statics (route `settings`, `systems.settings`, `streaming.settings.*`) + stratégie + checklist runtime |
 | `session.md` | étude de la couche protocole de session (la surface partagée) : `clientStreamingConfigOverrides` wire-compatible 9/9, keep-alive `onServerDisconnectMessage` ancre identique, flags URL `session.configuration.*`, plan de portage P1-P3 |
+| `keepalive-idle.js` + `.test.js` | **P1 implémenté** : interception du `WarningForBeingIdle` (transform source du bundle + runtime userscript : hook fetch du module + `wrapSession`) — 14/14 tests, embarqué par le build (T5) |
 
 ## L'overlay (T1-T4)
 

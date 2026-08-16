@@ -399,3 +399,76 @@ window.addEventListener("pagehide", (e) => {BxEventBus.Stream.emit("state.stoppe
 window.addEventListener(BxEvent.CAPTURE_SCREENSHOT, (e) => {ScreenshotManager.getInstance().takeScreenshot();});
 function main() {if (GhPagesUtils.fetchLatestCommit(), getGlobalPref("nativeMkb.mode") !== "off") {let customList = getGlobalPref("nativeMkb.forcedGames");BX_FLAGS.ForceNativeMkbTitles.push(...customList);}if (StreamSettings.setup(), patchRtcPeerConnection(), patchRtcCodecs(), interceptHttpRequests(), patchVideoApi(), patchCanvasContext(), AppInterface && patchPointerLockApi(), getGlobalPref("audio.volume.booster.enabled") && patchAudioContext(), getGlobalPref("block.tracking")) patchMeControl(), disableAdobeAudienceManager();if (addCss(), StreamStatsCollector.setupEvents(), StreamBadges.setupEvents(), StreamStats.setupEvents(), WebGPUPlayer.prepare(), STATES.userAgent.capabilities.touch && TouchController.updateCustomList(), DeviceVibrationManager.getInstance(), BX_FLAGS.CheckForUpdate && checkForUpdate(), Patcher.init(), disablePwa(), getGlobalPref("touchController.mode") === "all") TouchController.setup();if (AppInterface && (getGlobalPref("mkb.enabled") || getGlobalPref("nativeMkb.mode") === "on")) STATES.pointerServerPort = AppInterface.startPointerServer() || 9269, BxLogger.info("startPointerServer", "Port", STATES.pointerServerPort.toString());if (getGlobalPref("ui.gameCard.waitTime.show") && GameTile.setup(), EmulatedMkbHandler.setupEvents(), getGlobalPref("ui.controllerStatus.show")) window.addEventListener("gamepadconnected", (e) => showGamepadToast(e.gamepad)), window.addEventListener("gamepaddisconnected", (e) => showGamepadToast(e.gamepad));}
 main();
+/* ============ PREVIEW (play.xbox.com) : keep-alive idle (P1) ============
+   Interception du WarningForBeingIdle (meme protocole que le stable) : au
+   lieu du compte a rebours (dispatchEvent qe), envoi de this.sendKeepAlive()
+   pour garder la session vivante malgre l'inactivite (voir session.md P1).
+   Deux voies : (1) hook fetch du module StreamSessionRequest-*.js (si le
+   runtime le charge via fetch — a confirmer en session), (2) api
+   window.PreviewKeepAliveIdle.wrapSession(session) a brancher quand la
+   session est localisee au runtime (capture / hook React).
+======================================================================== */
+if (BX_PREVIEW) {
+function installKeepAliveIdle() {
+  var OLD = ":t.reason===`WarningForBeingIdle`?(g.Instance.info(`Warning for being idle; secondsUntilKick:${t.secondsUntilKick}`),o.Instance.trackEvent(f.WarningForBeingIdle,{secondsUntilKick:t.secondsUntilKick??0,...this.telemetryContext.getProps()},{location:`StreamSession`}),this.eventTarget.dispatchEvent(new qe(t.secondsUntilKick??0)))";
+  var NEW = ":t.reason===`WarningForBeingIdle`?(g.Instance.info(`BX keep-alive: idle warning intercepted (secondsUntilKick:${t.secondsUntilKick}); sending keep alive`),this.sendKeepAlive())";
+  var MODULE_RE = /StreamSessionRequest-[A-Za-z0-9_-]+\.js/;
+  var _patched = false;
+
+  function patch(src) {
+    if (_patched) return { ok: true, patched: false, skipped: "already-patched-once" };
+    if (src.indexOf(NEW) !== -1) { _patched = true; return { ok: true, patched: false, skipped: "already-patched" }; }
+    if (src.indexOf(OLD) === -1) return { ok: false, error: "anchor-not-found" };
+    _patched = true;
+    return { ok: true, patched: true, src: src.split(OLD).join(NEW) };
+  }
+
+  // 1) hook fetch : couvre le cas où le runtime charge le module via window.fetch
+  //    (à confirmer runtime — chargement ESM natif possible → no-op silencieux).
+  //    Se chaîne au window.fetch existant (le hook bloqueurs du script).
+  var prevFetch = window.fetch;
+  if (typeof prevFetch === "function") {
+    window.fetch = function (input, init) {
+      var url = typeof input === "string" ? input : (input && input.url) || "";
+      if (MODULE_RE.test(url)) {
+        return prevFetch.apply(this, arguments).then(function (resp) {
+          if (!resp || typeof resp.clone !== "function") return resp;
+          try {
+            return resp.clone().text().then(function (text) {
+              var r = patch(text);
+              if (r.ok && r.patched) {
+                BxLogger && BxLogger.info("PreviewKeepAliveIdle", "module StreamSessionRequest patche (fetch)");
+                return new Response(r.src, { status: resp.status, statusText: resp.statusText, headers: resp.headers });
+              }
+              return resp;
+            }).catch(function () { return resp; });
+          } catch (e) { return resp; }
+        });
+      }
+      return prevFetch.apply(this, arguments);
+    };
+  }
+
+  // 2) api d'instance : wrapper onServerDisconnectMessage sur la session.
+  //    À brancher dès que la session est localisée (capture runtime / hook React).
+  window.PreviewKeepAliveIdle = {
+    patched: function () { return _patched; },
+    wrapSession: function (session) {
+      if (!session || typeof session.onServerDisconnectMessage !== "function") return false;
+      if (session._bxKeepAliveWrapped) return true;
+      var org = session.onServerDisconnectMessage.bind(session);
+      session.onServerDisconnectMessage = function (e) {
+        var t = null;
+        try { t = JSON.parse(e); } catch (ex) { return org(e); }
+        if (t && t.reason === "WarningForBeingIdle") {
+          try { if (typeof session.sendKeepAlive === "function") { session.sendKeepAlive(); return; } } catch (ex) { /* fallback */ }
+        }
+        return org(e);
+      };
+      session._bxKeepAliveWrapped = true;
+      return true;
+    }
+  };
+}
+installKeepAliveIdle();
+}
