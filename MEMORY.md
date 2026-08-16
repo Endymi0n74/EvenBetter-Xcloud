@@ -48,13 +48,26 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
 
 - **Étape 0** (hors-navigateur, avant les runs CDP) : `run-e2e0.sh` — gates
   A fetch-early / B userscript-rewrite / D play-chain (échec si rouge) + probe
-  C (info). 3 exécutions journalisées (la 3e : hookActif:true).
+  C (info par défaut).
+  - **`--strict-probe` = gate C dur** : exige `hookActif:true` (navigateur
+    injoignable, hookActif:false ou Playwright absent → exit 1 + GATE C ROUGE).
+    **Usage** : session réelle exigeant la preview T6 active avant un run CDP.
+  - **`--self-test`** : rejoue le chemin d'échec sur une COPIE corrompue du
+    build (GATE A/B ROUGE + exit 1 vérifiés, build réel intact).
+  - **`--skip-probe`** : CI (pas de navigateur CDP sur le runner).
+  - **Critère de départ des runs T6 (Run 1, P1-B) : `run-e2e0.sh
+    --strict-probe` exit 0 = A+B+C+D avec hookActif:true, sinon AUCUN run**
+    (section « Critère de départ » d'e2e-cdp.md). Exceptions : Run 0 témoin
+    (hookActif:false OK). Exécutions journalisées : 1-3 + run strict 17 août
+    (A+B+C+D, hookActif:true).
 - **Run 1 CDP** : `intercept-session.js --connect=9222` — `[P3]` play réécrit,
   `[P2-staging]` puis `[P2]` sur la réponse /configuration (C4 =
   `enableVibration:true` dans Network, preuve CDP). **P2 pas encore validé en
-  réel** — à faire dès un stream + session.
+  réel** — à faire dès un stream + session. Prérequis : Étape 0
+  `--strict-probe` passée (critère de départ).
 - **P1 réel** : `monitor-idle.js` (fenêtre AFK, log « BX keep-alive: idle
-  warning intercepted » + session survivante) — à valider.
+  warning intercepted » + session survivante) — à valider (P1-B). Prérequis :
+  Étape 0 `--strict-probe` passée.
 
 ## Pièges mémorisés
 
