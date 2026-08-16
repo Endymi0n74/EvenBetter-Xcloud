@@ -65,7 +65,9 @@ jobs:
         # Script partagé avec le job startup-cold (PR_COMMENT_MODE) : chaque job
         # met à jour SA section dans le même commentaire (markers <!-- bench-
         # ratios --> / <!-- bench-startup -->) en préservant l'autre.
-        if: github.event_name == 'pull_request' && always()
+        # Les PR de forks ont un token read-only : commenter 403 → la garde
+        # head.repo == github.repository restreint le commentaire aux PR internes.
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && always()
         uses: actions/github-script@v7
         env:
           PR_COMMENT_MODE: hotloops
@@ -108,7 +110,11 @@ jobs:
   # le job reste alors en attente/skip). Runner partagé avec le job GPU.
   # Runner : self-hosted, windows, gpu.
   startup-cold:
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    # GitHub bloque les runners self-hosted (tout OS) pour les PR de forks des
+    # repos publics → job limité aux PR INTERNES + dispatches (les forks ne
+    # laissent plus de job en attente ; leur startup est couvert par
+    # startup-cold-fork sur ubuntu-latest).
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == 'workflow_dispatch'
     runs-on: [self-hosted, windows, gpu]
     permissions:
       contents: read
@@ -148,7 +154,9 @@ jobs:
       - name: Commente la PR — section startup (fusion dans le commentaire hot loops)
         # Même script que le job hotloops-ratios (PR_COMMENT_MODE=startup) : la
         # section startup rejoint le tableau hot loops dans UN SEUL commentaire.
-        if: github.event_name == 'pull_request' && always()
+        # Les PR de forks ont un token read-only : commenter 403 → la garde
+        # head.repo == github.repository restreint le commentaire aux PR internes.
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && always()
         uses: actions/github-script@v7
         env:
           PR_COMMENT_MODE: startup
@@ -188,6 +196,63 @@ jobs:
         with:
           name: cold-eval-${{ github.sha }}
           path: ${{ runner.temp }}/cold-eval.txt
+          if-no-files-found: error
+
+  # PR EXTERNES (forks) : GitHub bloque les runners self-hosted (tout OS) pour
+  # les PR de forks des repos publics — règle de sécurité plateforme. La seule
+  # couverture possible des forks : runner GitHub-hosted ubuntu-latest (autorisé
+  # pour les forks, gratuit pour les repos publics). Edge est préinstallé sur
+  # l'image ubuntu → même canal msedge, même moteur que le runner Windows → les
+  # bornes (build ≤ 50 ms, perf10 300-1200 ms) s'appliquent telles quelles.
+  # Le job tourne sur TOUTES les PR : les PR internes l'exercent en continu
+  # (validation permanente du chemin), et il devient l'unique check startup des
+  # PR de forks. Token read-only sur les forks : pas de commentaire — résultat
+  # en artefact (startup-summary-fork-<sha>) + statut du check.
+  startup-cold-fork:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout (historique complet — la baseline perf10 055d3a0 est requise)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Installe Playwright (module npm — Edge système préinstallé, pas de navigateur à télécharger)
+        run: npm install playwright
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+
+      - name: Éval page à froid (20 runs, navigateur neuf par run — Edge système)
+        shell: bash
+        run: |
+          git show 055d3a0:better-xcloud.user.js > perf10.js
+          node bench/page-eval.js --cold perf10.js better-xcloud.user.js > "${{ runner.temp }}/cold-eval-fork.txt"
+          echo "--- sortie ---"
+          cat "${{ runner.temp }}/cold-eval-fork.txt"
+
+      - name: Vérifie la borne de startup (build ≤ 50 ms, perf10 300-1200 ms)
+        run: node bench/check-ratios.js "${{ runner.temp }}/cold-eval-fork.txt" --startup-only --markdown="${{ runner.temp }}/startup-summary-fork.md"
+
+      - name: Upload du résumé startup (PR externe — pas de commentaire possible)
+        uses: actions/upload-artifact@v4
+        with:
+          name: startup-summary-fork-${{ github.sha }}
+          path: ${{ runner.temp }}/startup-summary-fork.md
+          if-no-files-found: error
+
+      - name: Upload cold-eval-fork.txt (en cas d'échec uniquement)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cold-eval-fork-${{ github.sha }}
+          path: ${{ runner.temp }}/cold-eval-fork.txt
           if-no-files-found: error
 
   # Optionnel (workflow_dispatch + input « gpu ») : protocole GPU 6 seeds sur
