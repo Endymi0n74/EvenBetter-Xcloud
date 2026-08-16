@@ -97,12 +97,31 @@ de deviceInformation). Le PlayService lui-même est lazy
 
 1. Sur la home ou la page du stream de play.xbox.com, DevTools → Console :
    coller le **contenu complet de `bench/preview/capture-session.js`** → Entrée.
-2. **Lancer le stream** (le harnais survit à la navigation SPA — hook fetch + popstate).
+2. **Lancer le stream** (le harnais survit à la navigation SPA — hooks
+   fetch/xhr/ws + popstate) et **laisser l'image du jeu apparaître** :
+   la capture n'a de sens que si la session a réellement démarré.
 3. Attendre ~30 s de stream (provisioning + heartbeat), puis :
+   - `window.BX_SESSION_CAPTURE.diag()` → état live **avant** le rapport :
+     « vues vs matchées » par transport — pour détecter un trafic qui passe
+     par un worker/iframe (vues > 0 mais matchées = 0) ou une session jamais
+     démarrée (tout = 0) ;
    - `window.BX_SESSION_CAPTURE.report()` → **colle le résumé markdown ici**
-     (endpoints chronologiques + body du play request + réponse de provisioning) ;
+     (endpoints chronologiques + body du play request + réponse de
+     provisioning + trace réseau protocolaire du navigateur) ;
    - `window.BX_SESSION_CAPTURE.download()` → rapport JSON complet (à déposer
      dans `/d/tmp`).
+
+### Transports couverts (v2)
+
+Le protocole preview ne passe pas forcément par `window.fetch` de la page. Le
+harnais couvre maintenant : **fetch** (hook direct), **XMLHttpRequest**
+(hook open/send/loadend → statut + responseText), **WebSocket** (hook
+constructeur → URL + cycle open/close), et surtout le **resource timing**
+(`performance.getEntriesByType('resource')`) — la trace réseau du navigateur
+lui-même, qui voit les requêtes faites par workers/iframes même si les hooks
+les ratent. Un compteur global « vues vs matchées » par transport (`diag()`)
+distingue trois cas : hooks morts (0 vue), patterns faux (vues ≫ matchées),
+session jamais démarrée (tout = 0 + rien dans le resource timing).
 
 ### Ce que le rapport confirme pour P3
 
@@ -117,7 +136,8 @@ de deviceInformation). Le PlayService lui-même est lazy
 ### Rejouabilité
 
 `node bench/preview/capture-session.test.js` — smoke test en vm du harnais
-(fetch hook + bodies + rapport), 11 assertions, exit 0 = prêt à lancer en réel.
+(fetch + XHR + WebSocket + resource timing + bodies + rapport + diagnostic),
+19 assertions, exit 0 = prêt à lancer en réel.
 
 ## Rejouabilité hors navigateur
 

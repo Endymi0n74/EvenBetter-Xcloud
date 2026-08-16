@@ -177,6 +177,16 @@ device-info), désormais mesurables par la capture.
 
 ## 5. Ce qui reste à valider en session runtime
 
+> **Essai réel 16 août (P3)** : premier report `capture-session` — **0 requête
+> capturée** alors que la page `/stream/9N683TDT5M7R/...` s'était ouverte.
+> Le harnais v1 ne hookait que `window.fetch` de la page → il ne voyait ni
+> XHR, ni WebSocket, ni le trafic d'un éventuel worker/iframe, et ne pouvait
+> pas distinguer « session jamais démarrée ». Le harnais v2 couvre
+> fetch+XHR+WS+resource timing avec compteurs vues/matchées (`diag()`)
+> pour trancher ces cas. Résultat à re-confirmer : soit le protocole preview
+> passe par un transport non-fetch (WS/worker), soit la session n'avait pas
+> démarré (page ouverte sans lancement du jeu).
+
 1. **Endpoint de provisioning** du preview (équivalent `/sessions/cloud/play`
    et `/configuration`) — pour l'interception fetch si les hooks internes ne
    suffisent pas.
