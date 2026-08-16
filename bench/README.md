@@ -197,6 +197,10 @@ en artefact (`actions/upload-artifact`, `if: failure()`), et sur les PR le
 tableau des ratios est posté en commentaire (`actions/github-script`,
 marqueur `<!-- bench-ratios -->` → mis à jour au run suivant, pas de doublon).
 Nécessite la permission `pull-requests: write` sur le job.
+**Un seul commentaire pour les deux jobs** : le job `startup-cold` rejoint le
+même commentaire avec sa section (marqueur `<!-- bench-startup -->`, placé
+AVANT son contenu), chaque job mettant à jour sa section en préservant l'autre
+(layout canonique : [hot loops] [SEC] [startup] [MAIN]).
 
 **Job GPU optionnel** (`workflow_dispatch` + input `gpu`) : le workflow
 contient aussi `gpu-upload`, qui rejoue le protocole 6 seeds de `bench/gpu/`

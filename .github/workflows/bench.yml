@@ -61,38 +61,43 @@ jobs:
           path: ${{ runner.temp }}/bench-out.txt
           if-no-files-found: error
 
-      - name: Commente la PR avec le tableau des ratios (créé puis mis à jour)
+      - name: Commente la PR — section hot loops (fusion dans un seul commentaire)
+        # Script partagé avec le job startup-cold (PR_COMMENT_MODE) : chaque job
+        # met à jour SA section dans le même commentaire (markers <!-- bench-
+        # ratios --> / <!-- bench-startup -->) en préservant l'autre.
         if: github.event_name == 'pull_request' && always()
         uses: actions/github-script@v7
+        env:
+          PR_COMMENT_MODE: hotloops
+          PR_COMMENT_SECTION: ${{ runner.temp }}/bench-summary.md
         with:
           script: |
             const fs = require('fs');
-            const summary = fs.readFileSync(process.env.RUNNER_TEMP + '/bench-summary.md', 'utf8');
-            const marker = '<!-- bench-ratios -->';
-            const body = summary + '\n' + marker;
-            const opts = {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-            };
-            const { data: comments } = await github.rest.issues.listComments({
-              ...opts,
-              issue_number: context.issue.number,
-            });
-            const existing = comments.find((c) => c.body.includes(marker));
-            if (existing) {
-              await github.rest.issues.updateComment({
-                ...opts,
-                comment_id: existing.id,
-                body,
-              });
+            const mode = process.env.PR_COMMENT_MODE;
+            const section = fs.readFileSync(process.env.PR_COMMENT_SECTION, 'utf8').trimEnd();
+            const MAIN = '<!-- bench-ratios -->';
+            const SEC = '<!-- bench-startup -->';
+            const opts = { owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number };
+            const { data: comments } = await github.rest.issues.listComments({ ...opts, per_page: 100 });
+            const existing = comments.find((c) => c.body.includes(MAIN));
+            const body = existing ? existing.body : '';
+            const mIdx = body.indexOf(MAIN);
+            const sIdx = body.indexOf(SEC);
+            const hotPart = !body ? '' : sIdx !== -1 ? body.slice(0, sIdx) : mIdx !== -1 ? body.slice(0, mIdx) : body;
+            const startPart = sIdx !== -1 ? body.slice(sIdx, mIdx !== -1 ? mIdx : body.length) : '';
+            let newBody;
+            if (mode === 'hotloops') {
+              newBody = section + '\n' + (startPart ? startPart + '\n' : '') + MAIN;
             } else {
-              await github.rest.issues.createComment({
-                ...opts,
-                issue_number: context.issue.number,
-                body,
-              });
+              const head = hotPart.trim();
+              newBody = (head ? head + '\n\n' : '') + SEC + '\n' + section + '\n' + MAIN;
             }
-            console.log(existing ? 'commentaire mis à jour' : 'commentaire créé');
+            if (existing) {
+              await github.rest.issues.updateComment({ ...opts, comment_id: existing.id, body: newBody });
+            } else {
+              await github.rest.issues.createComment({ ...opts, body: newBody });
+            }
+            console.log((existing ? 'commentaire mis à jour' : 'commentaire créé') + ' (' + mode + ')');
 
   # Protocole froid (pull_request + workflow_dispatch) : éval page à froid
   # (navigateur neuf par run) sur le runner SELF-HOSTED Windows — les bornes
@@ -105,6 +110,9 @@ jobs:
   startup-cold:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: [self-hosted, windows, gpu]
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - name: Checkout (historique complet — la baseline perf10 055d3a0 est requise)
         uses: actions/checkout@v4
@@ -136,6 +144,43 @@ jobs:
           name: startup-summary-${{ github.sha }}
           path: ${{ runner.temp }}/startup-summary.md
           if-no-files-found: error
+
+      - name: Commente la PR — section startup (fusion dans le commentaire hot loops)
+        # Même script que le job hotloops-ratios (PR_COMMENT_MODE=startup) : la
+        # section startup rejoint le tableau hot loops dans UN SEUL commentaire.
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        env:
+          PR_COMMENT_MODE: startup
+          PR_COMMENT_SECTION: ${{ runner.temp }}/startup-summary.md
+        with:
+          script: |
+            const fs = require('fs');
+            const mode = process.env.PR_COMMENT_MODE;
+            const section = fs.readFileSync(process.env.PR_COMMENT_SECTION, 'utf8').trimEnd();
+            const MAIN = '<!-- bench-ratios -->';
+            const SEC = '<!-- bench-startup -->';
+            const opts = { owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number };
+            const { data: comments } = await github.rest.issues.listComments({ ...opts, per_page: 100 });
+            const existing = comments.find((c) => c.body.includes(MAIN));
+            const body = existing ? existing.body : '';
+            const mIdx = body.indexOf(MAIN);
+            const sIdx = body.indexOf(SEC);
+            const hotPart = !body ? '' : sIdx !== -1 ? body.slice(0, sIdx) : mIdx !== -1 ? body.slice(0, mIdx) : body;
+            const startPart = sIdx !== -1 ? body.slice(sIdx, mIdx !== -1 ? mIdx : body.length) : '';
+            let newBody;
+            if (mode === 'hotloops') {
+              newBody = section + '\n' + (startPart ? startPart + '\n' : '') + MAIN;
+            } else {
+              const head = hotPart.trim();
+              newBody = (head ? head + '\n\n' : '') + SEC + '\n' + section + '\n' + MAIN;
+            }
+            if (existing) {
+              await github.rest.issues.updateComment({ ...opts, comment_id: existing.id, body: newBody });
+            } else {
+              await github.rest.issues.createComment({ ...opts, body: newBody });
+            }
+            console.log((existing ? 'commentaire mis à jour' : 'commentaire créé') + ' (' + mode + ')');
 
       - name: Upload cold-eval.txt (en cas d'échec uniquement)
         if: failure()
