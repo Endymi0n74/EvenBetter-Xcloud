@@ -32,8 +32,14 @@ const keepAlive = require("./keepalive-idle.js");
 const ROOT = path.resolve(__dirname, "..", "..", "..");
 const SRC = path.join(ROOT, "better-xcloud.user.js");
 const OUT = path.join(ROOT, "better-xcloud-preview.user.js");
+const META_OUT = path.join(ROOT, "better-xcloud-preview.meta.js");
 
 const EOL = "\r\n"; // le build perf est en CRLF
+
+// ---- contrat « deux versions » : identité DISTINCTE du build preview ----
+const PREVIEW_VERSION = "1.7.0-preview1";
+const PREVIEW_NAME = "Better xCloud (Preview)";
+const PREVIEW_TAG = "better-xcloud-perf-" + PREVIEW_VERSION; // releases/download/<tag>/...
 
 function must(src, needle, label) {
   const i = src.indexOf(needle);
@@ -44,14 +50,43 @@ function must(src, needle, label) {
 function build() {
   let s = fs.readFileSync(SRC, "utf8");
 
-  /* ---------- T1 : header ---------- */
-  const matchAnchor = "// @match        https://www.xbox.com/*/auth/msa?*loggedIn*" + EOL;
-  must(s, matchAnchor, "T1 @match");
-  s = s.replace(matchAnchor, matchAnchor + "// @match        https://play.xbox.com/*" + EOL);
+  /* ---------- T1 : header — identité DISTINCTE (contrat deux versions) ----------
+     Le preview ne doit JAMAIS partager l'identité du stable : même @name =
+     conflit Tampermonkey, même @updateURL = auto-update vers le stable
+     (clobbering), @match www.xbox.com = double injection sur le stable.
+     → name/version/updateURL/downloadURL distincts, match = play.xbox.com seul. */
+  const nameAnchor = "// @name         Better xCloud" + EOL;
+  must(s, nameAnchor, "T1 @name");
+  s = s.replace(nameAnchor, "// @name         " + PREVIEW_NAME + EOL);
 
   const versionAnchor = "// @version      1.7.0" + EOL;
   must(s, versionAnchor, "T1 @version");
-  s = s.replace(versionAnchor, "// @version      1.7.0-preview1" + EOL);
+  s = s.replace(versionAnchor, "// @version      " + PREVIEW_VERSION + EOL);
+
+  // le preview ne matche QUE play.xbox.com (suppression des matches www.xbox.com)
+  const matchStable = "// @match        https://www.xbox.com/*/play*" + EOL +
+    "// @match        https://www.xbox.com/*/auth/msa?*loggedIn*" + EOL +
+    "// @exclude      https://www.xbox.com/*/xbox-game-pass/play-day-one" + EOL;
+  must(s, matchStable, "T1 @match stable");
+  s = s.replace(matchStable, "// @match        https://play.xbox.com/*" + EOL);
+
+  // auto-update DÉDIÉ (tag preview — jamais le latest du stable)
+  const updateAnchor = "// @updateURL    https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.meta.js" + EOL +
+    "// @downloadURL  https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.user.js" + EOL;
+  must(s, updateAnchor, "T1 @updateURL");
+  s = s.replace(updateAnchor,
+    "// @updateURL    https://github.com/Endymi0n74/better-xcloud-perf/releases/download/" + PREVIEW_TAG + "/better-xcloud-preview.meta.js" + EOL +
+    "// @downloadURL  https://github.com/Endymi0n74/better-xcloud-perf/releases/download/" + PREVIEW_TAG + "/better-xcloud-preview.user.js" + EOL);
+
+  // l'en-tête OPTIMISATIONS signale la variante preview
+  const headerAnchor = "/* OPTIMISATIONS v1.7.0:";
+  must(s, headerAnchor, "T1 header OPTIMISATIONS");
+  s = s.replace(headerAnchor,
+    "/* OPTIMISATIONS " + PREVIEW_VERSION + " — VARIANTE PREVIEW (play.xbox.com uniquement) :\n" +
+    "   Identite distincte du stable (name/version/updateURL) — les deux versions\n" +
+    "   cohabitent sans se confondre. Overlay T1-T4 (detection BX_PREVIEW, garde\n" +
+    "   du Patcher site, entree settings) + T5 (keep-alive idle P1).\n" +
+    "   STABLE:");
 
   /* ---------- T2 : détection runtime ---------- */
   const detAnchor = "var NATIVE_FETCH = window.fetch;";
@@ -139,6 +174,33 @@ ${entryAnchor}`;
   return s;
 }
 
+/* Invariants « deux versions » — le build échoue si la séparation casse.
+   (appelés après écriture du fichier, sur le contenu réel) */
+function checkTwoVersionInvariants(stableSrc, previewSrc) {
+  const fail = (msg) => { console.error("[build-preview] CONTRAT DEUX VERSIONS VIOLÉ : " + msg); process.exit(1); };
+  // 1. identité distincte
+  if (previewSrc.includes("// @name         Better xCloud" + EOL)) fail("@name du preview = celui du stable (conflit Tampermonkey)");
+  if (!previewSrc.includes("// @name         " + PREVIEW_NAME + EOL)) fail("@name preview manquant: " + PREVIEW_NAME);
+  if (!previewSrc.includes("// @version      " + PREVIEW_VERSION + EOL)) fail("@version preview manquant");
+  // 2. auto-update dédié — jamais le latest du stable
+  if (previewSrc.includes("releases/latest/download/better-xcloud")) fail("@updateURL/@downloadURL pointent le latest du stable (clobbering)");
+  if (!previewSrc.includes(PREVIEW_TAG + "/better-xcloud-preview.meta.js")) fail("@updateURL preview manquant (tag " + PREVIEW_TAG + ")");
+  // 3. matches disjoints : preview = play.xbox.com seul, stable = www.xbox.com seul
+  if (previewSrc.includes("https://www.xbox.com/*/play*")) fail("@match www.xbox.com présent dans le preview (double injection sur le stable)");
+  if (previewSrc.includes("https://www.xbox.com/*/xbox-game-pass")) fail("@exclude www.xbox.com hérité dans le preview");
+  if (!previewSrc.includes("// @match        https://play.xbox.com/*")) fail("@match play.xbox.com manquant");
+  if (stableSrc.includes("https://play.xbox.com")) fail("@match play.xbox.com présent dans le stable");
+  console.log("[build-preview] invariants deux versions OK (name/version/updateURL/matches disjoints)");
+}
+
+/* Extraire le bloc ==UserScript== (pour better-xcloud-preview.meta.js) */
+function extractMeta(fullSrc) {
+  const start = fullSrc.indexOf("// ==UserScript==");
+  const end = fullSrc.indexOf("// ==/UserScript==");
+  if (start < 0 || end < 0) throw new Error("[build-preview] bloc ==UserScript== introuvable");
+  return fullSrc.slice(start, end + "// ==/UserScript==".length) + EOL;
+}
+
 let out;
 try {
   out = build();
@@ -147,8 +209,13 @@ try {
   process.exit(1);
 }
 
+// invariants deux versions (avant écriture — sur le contenu généré + le stable)
+checkTwoVersionInvariants(fs.readFileSync(SRC, "utf8"), out);
+
 fs.writeFileSync(OUT, out);
 console.log(`[build-preview] ecrit ${path.relative(ROOT, OUT)} (${out.length} octets)`);
+fs.writeFileSync(META_OUT, extractMeta(out));
+console.log(`[build-preview] ecrit ${path.relative(ROOT, META_OUT)}`);
 
 // validation syntaxe
 try {
@@ -163,7 +230,9 @@ try {
 // round-trip : les ancres de l'overlay sont bien presentes
 for (const probe of [
   "// @match        https://play.xbox.com/*",
-  "// @version      1.7.0-preview1",
+  "// @version      " + PREVIEW_VERSION,
+  "// @name         " + PREVIEW_NAME,
+  "// @updateURL    https://github.com/Endymi0n74/better-xcloud-perf/releases/download/" + PREVIEW_TAG,
   'var BX_PREVIEW = window.location.hostname === "play.xbox.com"',
   "static init() {if (BX_PREVIEW) return;Patcher.patchNativeBind();}",
   "static checkChunks(item) {if (BX_PREVIEW) return;",

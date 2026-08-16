@@ -3,6 +3,34 @@
 État : **v1 — infrastructure + détection + garde + entrée settings (candidats)**.
 La branche de travail porte le build `better-xcloud-preview.user.js` (v1.7.0-preview1).
 
+## Contrat « deux versions » (stable et preview distincts, toujours)
+
+Le repo maintient **deux builds indépendants, jamais fusionnés** :
+
+| | Stable | Preview |
+|---|---|---|
+| Fichier | `better-xcloud.user.js` | `better-xcloud-preview.user.js` (+ `.meta.js`) |
+| Version | `1.7.0` | `1.7.0-preview1` |
+| @name | `Better xCloud` | `Better xCloud (Preview)` |
+| @match | `www.xbox.com/*/play*` (+ auth) | `play.xbox.com/*` **uniquement** |
+| Auto-update | `releases/latest` (stable) | `releases/download/better-xcloud-perf-1.7.0-preview1/*` (jamais le latest) |
+| Produit par | patches/ (baseline amont) | `build-preview.js` depuis le stable (overlay T1-T5) |
+
+La séparation est **garantie par le build** (`checkTwoVersionInvariants`) :
+@name/@version/@updateURL distincts, @match disjoints (le preview ne matche
+jamais www.xbox.com → pas de double injection, et son auto-update ne peut pas
+l'écraser avec le stable). Le **CI vérifie le contrat à chaque PR** (step
+« Build preview — contrat deux versions » dans bench.yml) : rebuild + invariants
++ self-test P1 → une évolution du stable qui casse le preview ou la séparation
+échoue le job.
+
+Règles à respecter :
+1. Ne jamais fusionner les deux fichiers ni leur logique d'entrée.
+2. Toute modification du stable → régénérer le preview (`node bench/preview/port/build-preview.js`).
+3. Bumper `PREVIEW_VERSION` dans `build-preview.js` (tag d'auto-update dérivé).
+4. Le build preview n'embarque que l'overlay — les patches 13-20 (webgl2) y
+   sont inertes (garde T3), le rendu preview est Babylon (pas de WebGL2Player).
+
 ## Le constat de départ
 
 Le preview n'est pas le stable : React Router 7 + rolldown (pas de

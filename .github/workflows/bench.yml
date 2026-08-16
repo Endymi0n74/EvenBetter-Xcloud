@@ -48,6 +48,18 @@ jobs:
         # la fusion casse. Lancement local : node bench/pr-comment-merge.test.js
         run: node bench/pr-comment-merge.test.js
 
+      - name: Build preview — contrat deux versions (stable et preview distincts)
+        # Garantit la séparation des deux builds : rebuild du preview depuis
+        # le stable (better-xcloud.user.js → better-xcloud-preview.user.js),
+        # node --check, invariants (name/version/updateURL/matches disjoints —
+        # le preview ne doit JAMAIS partager l'identité du stable ni pointer
+        # son auto-update vers le latest du stable) + self-test P1 keep-alive.
+        # Échoue le job si une évolution du stable casse le preview ou la
+        # séparation. Lancement local : node bench/preview/port/build-preview.js
+        run: |
+          node bench/preview/port/build-preview.js
+          node bench/preview/port/keepalive-idle.test.js
+
       - name: Vérifie les ratios des hot loops (seuils CI)
         run: |
           # le résumé markdown inclut la ligne de session (état haut/bas +

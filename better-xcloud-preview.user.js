@@ -1,20 +1,21 @@
 // ==UserScript==
-// @name         Better xCloud
+// @name         Better xCloud (Preview)
 // @namespace    https://github.com/redphx
 // @version      1.7.0-preview1
 // @description  Improve Xbox Cloud Gaming (xCloud) experience
 // @author       redphx
 // @license      MIT
-// @match        https://www.xbox.com/*/play*
-// @match        https://www.xbox.com/*/auth/msa?*loggedIn*
 // @match        https://play.xbox.com/*
-// @exclude      https://www.xbox.com/*/xbox-game-pass/play-day-one
 // @run-at       document-start
 // @grant        none
-// @updateURL    https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.meta.js
-// @downloadURL  https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.user.js
+// @updateURL    https://github.com/Endymi0n74/better-xcloud-perf/releases/download/better-xcloud-perf-1.7.0-preview1/better-xcloud-preview.meta.js
+// @downloadURL  https://github.com/Endymi0n74/better-xcloud-perf/releases/download/better-xcloud-perf-1.7.0-preview1/better-xcloud-preview.user.js
 // ==/UserScript==
-/* OPTIMISATIONS v1.7.0:
+/* OPTIMISATIONS 1.7.0-preview1 — VARIANTE PREVIEW (play.xbox.com uniquement) :
+   Identite distincte du stable (name/version/updateURL) — les deux versions
+   cohabitent sans se confondre. Overlay T1-T4 (detection BX_PREVIEW, garde
+   du Patcher site, entree settings) + T5 (keep-alive idle P1).
+   STABLE:
    - Settings: codecProfile evalue paresseusement (RTCRtpReceiver.getCapabilities plus appele au chargement, ~15-20 ms de startup) - resultat memoise (constant par navigateur), options/unsupported/suggest calcules a la 1re lecture reelle (ouverture des settings / demarrage de session)
    - WebGL2: updateCanvas ne recalcule les 7 gl.uniform* que si les options/canvas ont change (flag dirty : chemin stable 60 Hz = 1 lecture + branche, au lieu de la comparaison complete de valeurs)
    - WebGL2: valeurs des uniforms mises en cache dans updateCanvas (7 gl.uniform* sautes par frame quand rien ne change, invalidation par comparaison de valeurs)
