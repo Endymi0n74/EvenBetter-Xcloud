@@ -317,6 +317,32 @@ device-info), désormais mesurables par la capture.
 > réinstallée) et que le hook intercepte réellement le play preview
 > (log XcloudInterceptor / vérif osName dans la réponse).
 
+> **Réécriture userscript P2+P3 prouvée en vm (16 août,
+> `bench/preview/port/userscript-rewrite.js`, 14/14)** : la classe
+> `XcloudInterceptor` est extraite **du build preview réel** et exécutée dans
+> un vm avec `NATIVE_FETCH` simulé — les requêtes réelles du protocole y
+> passent et ressortent réécrites, SANS CDP :
+>
+> | Scénario | Résultat |
+> |---|---|
+> | P3 play POST (URL sans GUID `…/v5/sessions/cloud/play`, forme réelle) | `settings.osName` windows → **tizen** + header `x-ms-device-info` `dev.os.name=tizen` |
+> | P3 chirurgical | `locale`, `clientSessionId` intacts ; `resolution=auto` → inchangé ; `1080p` → windows |
+> | P2 réponse `/configuration` (avec GUID, forme réelle) | `enableVibration:true` + `enableMouseInput`/`enableKeyboardInput` (mkb=on) + `enableMicrophone` (mic=on) **fusionnés par-dessus** les overrides serveur (`useIntervalWorkerThreadForInput`, `videoConfiguration` préservés) ; `keepAlivePulseInSeconds` intact |
+>
+> → le hook userscript (posé en document-start par T6, capturé par le SDK
+> via la classe `ub`) réécrit play + configuration **sans CDP**. Détails de
+> mise en garde pour la mesure : le play est routé par
+> `url.endsWith("/sessions/cloud/play")` → l'URL play est **sans GUID** (les
+> state/configuration l'ont) ; `class` est lexicale dans le vm (évaluation en
+> class expression pour l'attacher au sandbox) ; le sandbox doit fournir
+> `window.location.host` (lu par `generateMsDeviceInfo`).
+>
+> **Indice runtime réel (16 août, log CDP 21:16) : `[P3#1] play réécrit →
+> osName=tizen (original:tizen)`** — le play partait déjà avec `osName=tizen`
+> AVANT l'interception CDP, cohérent avec la voie userscript active (le hook
+> document-start l'a réécrit en amont) — à confirmer en session avec la
+> preview1 reconstruite installée.
+
 > **Chronologie du play (analyse statique 16 août)** — la chaîne complète du
 > play request, dans l'ordre du lancement :
 >
