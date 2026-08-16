@@ -157,6 +157,7 @@ async function installInterceptor(cdp, prefs, onLog) {
       // --- P2 : requête /configuration au stage Request : la continuer en
       // demandant l'interception de la réponse (interceptResponse) ---
       if (CONFIG_RE.test(url) && responseStatusCode === undefined) {
+        log(`[P2-staging ${ts()}] /configuration vue (stage Request) — interception de la réponse demandée (${url.slice(0, 90)})`);
         await cdp.send("Fetch.continueRequest", { requestId, interceptResponse: true });
         return;
       }

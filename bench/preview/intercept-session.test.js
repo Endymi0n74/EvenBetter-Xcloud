@@ -165,7 +165,15 @@ function fakeCdp() {
     check("pattern configuration Response présent", cfgPatterns.some((p) => p.requestStage === "Response"));
 
     // étape 1 : stage Request → continuer avec interceptResponse (la réponse sera pausée)
-    await cdp.fire("Fetch.requestPaused", {
+    const p2logs = [];
+    const cdp2 = fakeCdp();
+    cdp2.send = async (method, params) => {
+      cdp2.calls.push({ method, params });
+      if (method === "Fetch.getResponseBody") return { body: JSON.stringify(CONFIG_BODY), base64Encoded: false };
+      return {};
+    };
+    await installInterceptor(cdp2, PREFS, (m) => p2logs.push(m));
+    await cdp2.fire("Fetch.requestPaused", {
       requestId: "req-cfg-1",
       request: {
         url: "https://uks.core.gssv-play-prod.xboxlive.com/v5/sessions/cloud/8A7F6A20-DA4A-4607-9B45-29180C93730B/configuration",
@@ -173,11 +181,12 @@ function fakeCdp() {
         headers: {},
       },
     });
-    const contReq = cdp.calls.find((c) => c.method === "Fetch.continueRequest" && c.params.requestId === "req-cfg-1");
+    const contReq = cdp2.calls.find((c) => c.method === "Fetch.continueRequest" && c.params.requestId === "req-cfg-1");
     check("P2 : stage Request → continueRequest avec interceptResponse:true", contReq && contReq.params.interceptResponse === true);
+    check("P2 : log staging émis (config vue au Request)", p2logs.some((m) => m.includes("[P2-staging ") && m.includes("/configuration vue")));
 
     // étape 2 : stage Response → getResponseBody + fulfillRequest (réécriture)
-    await cdp.fire("Fetch.requestPaused", {
+    await cdp2.fire("Fetch.requestPaused", {
       requestId: "req-cfg-1",
       request: {
         url: "https://uks.core.gssv-play-prod.xboxlive.com/v5/sessions/cloud/8A7F6A20-DA4A-4607-9B45-29180C93730B/configuration",
@@ -187,7 +196,7 @@ function fakeCdp() {
       responseStatusCode: 200,
       responseHeaders: [{ name: "content-type", value: "application/json" }, { name: "content-length", value: "999" }],
     });
-    const fulfilled = cdp.calls.find((c) => c.method === "Fetch.fulfillRequest" && c.params.requestId === "req-cfg-1");
+    const fulfilled = cdp2.calls.find((c) => c.method === "Fetch.fulfillRequest" && c.params.requestId === "req-cfg-1");
     check("P2 : fulfillRequest envoyé pour la configuration", !!fulfilled);
     const resBody = fulfilled && JSON.parse(Buffer.from(fulfilled.params.body, "base64").toString("utf8"));
     const resOv = resBody && JSON.parse(resBody.clientStreamingConfigOverrides);
