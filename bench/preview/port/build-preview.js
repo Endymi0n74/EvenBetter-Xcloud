@@ -175,10 +175,10 @@ ${entryAnchor}`;
     "   Interception du WarningForBeingIdle (meme protocole que le stable) : au\n" +
     "   lieu du compte a rebours (dispatchEvent qe), envoi de this.sendKeepAlive()\n" +
     "   pour garder la session vivante malgre l'inactivite (voir session.md P1).\n" +
-    "   Deux voies : (1) hook fetch du module StreamSessionRequest-*.js (si le\n" +
-    "   runtime le charge via fetch — a confirmer en session), (2) api\n" +
-    "   window.PreviewKeepAliveIdle.wrapSession(session) a brancher quand la\n" +
-    "   session est localisee au runtime (capture / hook React).\n" +
+    "   Deux voies : (1) hook fetch du module StreamSessionRequest-*.js (ESM\n" +
+    "   natif prouve 16 aout → inactif, fallback), (2) api\n" +
+    "   window.PreviewKeepAliveIdle.wrapSession(session) — VOIE PRINCIPALE, a\n" +
+    "   brancher quand la session est localisee au runtime (capture / hook React).\n" +
     "======================================================================== */\n" +
     "if (BX_PREVIEW) {\n" +
     keepAlive.installKeepAliveIdle.toString() +

@@ -19,6 +19,16 @@
  *   2. userscript : installKeepAliveIdle() — self-contained (toString() →
  *      embarqué par build-preview.js, transform T5) : hook fetch du module +
  *      api window.PreviewKeepAliveIdle.wrapSession(session).
+ *
+ * VERDICT 16 août (statique, session.md) : le module est chargé en ESM natif
+ * (entry.client → import() dynamique du chunk route → import STATIQUE de
+ * StreamSessionRequest dans GameStreamBootstrapper ; 0 fetch de module .js,
+ * 0 importScripts, 0 <script> créé). Le loader ESM n'utilise JAMAIS
+ * window.fetch → le hook fetch du module (voie 1) ne peut pas se brancher,
+ * quel que soit le timing. wrapSession (voie 2) est la SEULE voie runtime de
+ * P1 — reste à localiser l'instance de session au runtime (hook React /
+ * capture). Le hook fetch est conservé en fallback inoffensif (si Microsoft
+ * bascule un jour sur un chargement par fetch).
  */
 
 "use strict";

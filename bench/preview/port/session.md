@@ -123,6 +123,33 @@ réelle de chargement du module (fetch vs ESM natif → le hook fetch serait
 inactif, le wrapSession reste la voie principale), et que l'input virtuel
 `sendKeepAlive` reset bien le timer d'idle serveur.
 
+> **Verdict 16 août — voie de chargement du module : ESM NATIF prouvé, le hook
+> fetch ne peut pas se brancher, wrapSession = SEULE voie runtime.** La chaîne
+> d'imports capturée dans les bundles :
+>
+> - `entry.client` charge les chunks de route en **`import()` dynamique natif**
+>   (418 occurrences, forme `` import(`./chunk.js`) `` — React Router lazy) ;
+>   `GameStreamBootstrapper` n'y figure QUE comme chaîne du manifeste de chunks
+>   (`"assets/GameStreamBootstrapper-f0xgky2u.js"`).
+> - `GameStreamBootstrapper` (chunk lazy) fait un **import STATIQUE** de
+>   `./StreamSessionRequest-iiux1fqv.js` (parmi 33 imports statiques, 0 import
+>   dynamique dans le module) — l'ancre play-chain.
+> - **Aucun chargement de module par fetch** : 0 `fetch(...js)`, 0
+>   `importScripts`, 0 `createElement("script")` ; les 5 `blob:` d'entry.client
+>   sont sans rapport (Sentry/CSP/React Router).
+> - Le loader ESM de Chromium résout `import()`/imports statiques via le
+>   réseau interne (et le SW le cas échéant), **jamais `window.fetch`** — un
+>   hook posé en document-start ne change rien.
+>
+> Conséquence : `installKeepAliveIdle()` (T5) — la voie 1 (hook fetch du
+> module) est **morte**, conservée en fallback inoffensif (bascule future du
+> preview vers un chargement par fetch) ; la voie 2
+> `window.PreviewKeepAliveIdle.wrapSession(session)` est la **voie
+> principale**. Le point ouvert restant n'est plus le transport du module mais
+> la **localisation de l'instance de session au runtime** (hook React /
+> capture) pour la wrapper — et la validation AFK en réel (monitor-idle.js,
+> que `sendKeepAlive` reset bien le timer).
+
 > **Verdict étude 16 août — le hook fetch ne couvre PAS le keep-alive, P1
 > reste nécessaire** :
 >
