@@ -18,15 +18,18 @@
  *     même si le build régresse, quand perf10 régresse aussi — ex. driver ou
  *     harnais ; un build qui remonte vers le niveau perf10 échappe au ratio) :
  *     émission upload ≤ --build-upload-max µs (défaut 25 — nominal ~10 sur le
- *     runner CI) et wallTotal ≤ --build-wall-max ms (défaut 0,10 — nominal
- *     ~0,015). Calibrées sur le runner CI ; flags pour les sessions locales en
- *     état haut.
+ *     runner CI), wallTotal ≤ --build-wall-max ms (défaut 0,10 — nominal
+ *     ~0,015) et draw ≤ --build-draw-max µs (défaut 25 — nominal ~10,2 ; couvre
+ *     une régression de shader qui ralentirait les DEUX versions : le ratio
+ *     draw reste ~1,0 et passerait sans cette borne). Calibrées sur le runner
+ *     CI ; flags pour les sessions locales en état haut.
  *
  * `--markdown=<fichier>` : écrit aussi le résumé en tableau markdown (même en
  * cas d'échec, avant l'exit).
  *
  * Usage : node bench/gpu/check-gpu.js 100 200 300 400 500 600 [--markdown=out.md]
  *         [--upload-min=1.3] [--wall-min=1.2] [--draw-min=0.5] [--draw-max=2.0]
+ *         [--build-upload-max=25] [--build-wall-max=0.10] [--build-draw-max=25]
  */
 "use strict";
 
@@ -49,6 +52,7 @@ const DRAW_MIN = numVal("--draw-min", 0.5);
 const DRAW_MAX = numVal("--draw-max", 2.0);
 const BUILD_UPLOAD_MAX = numVal("--build-upload-max", 25); // µs — nominal ~10 sur le runner CI (9-12)
 const BUILD_WALL_MAX = numVal("--build-wall-max", 0.10);   // ms — nominal ~0,015 (0,011-0,019)
+const BUILD_DRAW_MAX = numVal("--build-draw-max", 25);     // µs — nominal ~10,2 (10,24 médiane, max inter-seed 16,4)
 const markdownFile = (argv.find((a) => a.startsWith("--markdown=")) || "").split("=").slice(1).join("=") || null;
 
 // ---------- lecture des runs ----------
@@ -158,9 +162,10 @@ add(`Chemin GL ${NEW} (compteurs/frame)`, `texImage2D=${cP10.texImage2D || 0}, t
 
 // Bornes absolues du build — complètent les ratios (qui peuvent passer même
 // si le build régresse quand perf10 régresse aussi) : le coût du build est
-// calibré sur le runner CI (émission ~10 µs, wall ~0,015 ms).
+// calibré sur le runner CI (émission ~10 µs, wall ~0,015 ms, draw ~10,2 µs).
 add("Upload build — émission (µs, abs.)", "—", `${fmt(upNew.med)} (${fmt(upNew.range[0])}–${fmt(upNew.range[1])})`, null, `≤ ${fmt(BUILD_UPLOAD_MAX)}`, upNew.med <= BUILD_UPLOAD_MAX);
 add("wallTotal build (ms, abs.)", "—", `${fmt(wallNew.med)} (${fmt(wallNew.range[0])}–${fmt(wallNew.range[1])})`, null, `≤ ${fmt(BUILD_WALL_MAX)}`, wallNew.med <= BUILD_WALL_MAX);
+add("Draw build (µs, abs.)", "—", `${fmt(drawNew.med)} (${fmt(drawNew.range[0])}–${fmt(drawNew.range[1])})`, null, `≤ ${fmt(BUILD_DRAW_MAX)}`, drawNew.med <= BUILD_DRAW_MAX);
 
 for (const r of rows) {
   const ratio = r.ratio != null ? fmt(r.ratio) : "—";

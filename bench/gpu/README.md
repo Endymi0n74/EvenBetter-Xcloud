@@ -261,8 +261,10 @@ même sans régression de timing). **Bornes absolues du build** (garde-fou : le
 ratio perf10/build peut passer même si le build régresse, quand perf10 régresse
 aussi — ex. driver ou harnais ; un build qui remonte vers le niveau perf10
 échappe au ratio) : émission upload ≤ `--build-upload-max` (défaut **25 µs** —
-nominal ~10 sur le runner CI) et wallTotal ≤ `--build-wall-max` (défaut
-**0,10 ms** — nominal ~0,015). Calibrées sur le runner CI ; les flags
+nominal ~10 sur le runner CI), wallTotal ≤ `--build-wall-max` (défaut
+**0,10 ms** — nominal ~0,015) et draw ≤ `--build-draw-max` (défaut **25 µs** —
+nominal ~10,2 ; couvre une régression de shader qui ralentirait les DEUX
+versions : le ratio draw resterait ~1,0 et passerait sans cette borne). Calibrées sur le runner CI ; les flags
 permettent de les élargir pour une session locale en état haut. Le résumé
 markdown (`--markdown=`) contient en plus la **ligne de session** — date
 (capture `state-s<seed>.before.json` du 1er seed, sinon date courante), plages
@@ -274,7 +276,7 @@ upload `gpu-summary.md` en artefact (`gpu-summary-<sha>`) en plus des
 machine réelle :
 `node bench/gpu/check-gpu.js 100 200 300 400 500 600
 [--upload-min=…] [--wall-min=…] [--draw-min=…] [--draw-max=…]
-[--build-upload-max=…] [--build-wall-max=…]`.
+[--build-upload-max=…] [--build-wall-max=…] [--build-draw-max=…]`.
 
 Le harnais CPU (parse, hot loops, éval page) vit dans `bench/` — voir
 `bench/README.md`. La section « Repro » du README principal documente les
