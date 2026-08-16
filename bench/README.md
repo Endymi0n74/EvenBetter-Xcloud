@@ -95,9 +95,9 @@ Pièges :
 - l'éval exige un navigateur **neuf** : dans un process partagé la pile RTC survit d'un run à l'autre et le one-shot disparaît (le warm ne voit que −8,7 %, le froid −95 %).
 - écart isolé/in-eval (~100 ms) : variance d'environnement de la même init native (540–670 ms), même ordre, même lecture.
 
-## CI — job `startup-cold` (workflow bench.yml, workflow_dispatch)
+## CI — job `startup-cold` (workflow bench.yml, pull_request + workflow_dispatch)
 
-Le job hotloops (ubuntu-latest) n'a ni Playwright ni la pile RTC Edge/Windows : les bornes mesurées (build ~30 ms, perf10 550–660 ms) ne s'y appliquent pas. Le job `startup-cold` tourne donc sur le **runner self-hosted Windows** (labels `self-hosted, windows, gpu`, même machine que le protocole GPU) : `page-eval.js --cold` (20 runs, navigateur neuf par run) puis `check-ratios.js --startup-only` — échec si le build dépasse **50 ms** (un coût one-shot est revenu au chargement), notice si perf10 sort de [300, 1200] ms (dérive d'environnement). Artefacts : `startup-summary-<sha>` (tableau markdown), `cold-eval-<sha>` (sortie complète, en cas d'échec). Dispatch-only (le runner est partagé avec le job GPU).
+Le job hotloops (ubuntu-latest) n'a ni Playwright ni la pile RTC Edge/Windows : les bornes mesurées (build ~30 ms, perf10 550–660 ms) ne s'y appliquent pas. Le job `startup-cold` tourne donc sur le **runner self-hosted Windows** (labels `self-hosted, windows, gpu`, même machine que le protocole GPU) : `page-eval.js --cold` (20 runs, navigateur neuf par run) puis `check-ratios.js --startup-only` — échec si le build dépasse **50 ms** (un coût one-shot est revenu au chargement), notice si perf10 sort de [300, 1200] ms (dérive d'environnement). Artefacts : `startup-summary-<sha>` (tableau markdown), `cold-eval-<sha>` (sortie complète, en cas d'échec). Le job s'exécute sur chaque **PR de branche interne** (les PR de forks ne peuvent pas utiliser les runners self-hosted — job en attente/skip) et sur chaque **workflow_dispatch** — le runner étant partagé avec le job GPU, une PR le mobilise ~2-3 min.
 
 ## Protocole figé (tables du README principal)
 

@@ -94,13 +94,16 @@ jobs:
             }
             console.log(existing ? 'commentaire mis à jour' : 'commentaire créé');
 
-  # Protocole froid (workflow_dispatch) : éval page à froid (navigateur neuf
-  # par run) sur le runner SELF-HOSTED Windows — les bornes mesurées (build
-  # ~30 ms, perf10 550-660 ms) sont spécifiques à Edge/Windows (pile RTC et
-  # one-shot), le job ubuntu n'a ni Playwright ni les mêmes chiffres. Runner
-  # partagé avec le job GPU → dispatch-only. Runner : self-hosted, windows, gpu.
+  # Protocole froid (pull_request + workflow_dispatch) : éval page à froid
+  # (navigateur neuf par run) sur le runner SELF-HOSTED Windows — les bornes
+  # mesurées (build ~30 ms, perf10 550-660 ms) sont spécifiques à Edge/Windows
+  # (pile RTC et one-shot), le job ubuntu n'a ni Playwright ni les mêmes
+  # chiffres. Alerte à chaque changement du script via les PR de branches
+  # internes (les PR de forks ne peuvent pas utiliser les runners self-hosted,
+  # le job reste alors en attente/skip). Runner partagé avec le job GPU.
+  # Runner : self-hosted, windows, gpu.
   startup-cold:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: [self-hosted, windows, gpu]
     steps:
       - name: Checkout (historique complet — la baseline perf10 055d3a0 est requise)
