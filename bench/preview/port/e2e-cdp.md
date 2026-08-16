@@ -208,6 +208,78 @@ But : prouver que l'outil réécrit les deux cibles sans casser le flux.
    - `[P2] /configuration réécrite → inputConfiguration,nqiConfiguration,… (…)`
      → apparaît après le play (provisioning).
 
+## Validation P1 — idle serveur (fenêtre AFK)
+
+But : prouver que la preview T6 intercepte le `WarningForBeingIdle` et empêche
+le kick d'idle serveur pendant une fenêtre AFK (aucun input utilisateur).
+**État au 17 août** : le runtime P1 expose `wrapSession` mais ne la branche
+encore sur aucune session (localisation de l'instance = pièce manquante) →
+les runs actuels sont des **témoins** : ils confirment que le kick idle est
+réel sur le preview et en figent le timing.
+
+### Les 3 mécanismes (étude session.md — à ne pas confondre)
+
+| Mécanisme | Fonction | Effet sur l'idle |
+|---|---|---|
+| Heartbeat HTTP natif (`keepAlivePulseInSeconds: 60` → POST `/keepalive`) | garde la **connexion de session** vivante | aucun — n'alimente PAS l'activité utilisateur |
+| Détection d'idle serveur (`WarningForBeingIdle` → `secondsUntilKick` → dispatch) | kick si **aucun input** pendant le countdown | c'est lui qui coupe |
+| P1 (`sendKeepAlive` sur interception du warning) | input virtuel gamepad → reset du timer d'idle | seul mécanisme qui empêche le kick |
+
+Un AFK garde la connexion vivante (le heartbeat continue de tourner) mais le
+timer d'idle expire quand même → kick. Le heartbeat ne protège donc PAS du
+kick idle : les deux mécanismes sont indépendants, et seul P1 fausse l'input.
+
+### Run P1-A — témoin (sans P1 branché)
+
+But : figer le comportement natif — le warning part et son timing de kick.
+
+1. Profil edge-cdp, page play.xbox.com (probe `hookActif: false` pour un
+   témoin propre ; `true` sans wrapSession branchée = même résultat).
+2. Lancer un stream, **plein écran**, laisser la session se stabiliser ~2 min.
+3. Lancer la surveillance **sans toucher à rien** :
+   ```bash
+   node bench/preview/monitor-idle.js --port=9222 --duration=600
+   ```
+4. **Ne toucher à RIEN** pendant la fenêtre (souris, clavier, manette — tout
+   input reset le timer d'idle serveur).
+
+Signaux attendus : warning **natif** `Warning for being idle; secondsUntilKick:…`
+(sans préfixe `BX`) puis kick au countdown (`paused`/navigation →
+`survived:false`). Le heartbeat `/keepalive` continue de tourner pendant toute
+la fenêtre (preuve de l'indépendance des deux mécanismes).
+
+### Run P1-B — T6 (wrapSession branchée sur la session réelle)
+
+1. Même protocole, mais `hookActif: true` **et** `wrapSession` branchée
+   (localisation de l'instance de session au runtime : capture / hook React —
+   pièce manquante, voir session.md).
+2. Signaux attendus : `BX keep-alive: idle warning intercepted (secondsUntilKick:…)`
+   puis **session vivante à la fin** (`survived:true`) — `sendKeepAlive` a
+   reset le timer à chaque warning.
+
+### Lecture des signaux (monitor-idle.js)
+
+| Signal (console) | Sens |
+|---|---|
+| `BX keep-alive: idle warning intercepted (secondsUntilKick:…)` | P1 INTERCEPTÉ ✅ (module patché par `installKeepAliveIdle`) |
+| `Warning for being idle; secondsUntilKick:…` (sans préfixe `BX`) | P1 NON actif ❌ — countdown natif → risque de kick |
+| `/keepalive` en réseau (~60 s) | heartbeat natif — connexion vivante (indépendant de l'idle) |
+| vidéo `readyState`/`paused` + URL | la session survit / a été coupée |
+
+Verdict : **P1 VALIDÉ ✅** = warning intercepté **et** session vivante en fin
+de fenêtre. Tout autre combinaison → re-tenter avec les signaux, ou fenêtre
+sans warning (ni BX ni natif) = run invalide (le timer n'a pas atteint son
+seuil : jeu qui « bouge » tout seul, session trop courte) → allonger
+`--duration`.
+
+### Contraintes du protocole
+
+- **Zéro input** pendant la fenêtre : même bouger la souris sur la page reset
+  le timer d'idle. La fenêtre longue (défaut 600 s) est le plus dur du
+  protocole — prévoir de s'éloigner du PC.
+- Chaque run coûte ~10 min d'AFK → faire P1-A d'abord (données de contrôle et
+  timing), puis P1-B quand `wrapSession` sera branchée.
+
 ## Critères de succès
 
 | # | Où | Run 0 (témoin) | Run 1 (intercepté) | Statut |
@@ -271,3 +343,7 @@ Les étapes **hors-navigateur** (Étape 0) sont rejouables sans session et
 sans navigateur : `fetch-early.test.js` (17/17) + `userscript-rewrite.test.js`
 (14/14) — elles doivent être vertes avant chaque session CDP (garde la
 logique, les runs réels gardent le câblage réseau).
+
+La validation P1 est rejouable **par fenêtre AFK** via
+`bench/preview/monitor-idle.js` (session réelle requise — un run = une
+fenêtre de surveillance ; les signaux et le verdict sont déterministes).
