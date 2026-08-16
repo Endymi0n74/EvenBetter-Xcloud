@@ -51,9 +51,10 @@ qui rend le build v1.7.0 sûr et utilisable sur play.xbox.com.
 | `anchors.md` | ancres React Router 7 issues des statics (route `settings`, `systems.settings`, `streaming.settings.*`) + stratégie + checklist runtime |
 | `session.md` | étude de la couche protocole de session (la surface partagée) : `clientStreamingConfigOverrides` wire-compatible 9/9, keep-alive `onServerDisconnectMessage` ancre identique, flags URL `session.configuration.*`, plan de portage P1-P3 |
 | `keepalive-idle.js` + `.test.js` | **P1 implémenté** : interception du `WarningForBeingIdle` (transform source du bundle + runtime userscript : hook fetch du module + `wrapSession`) — 14/14 tests, embarqué par le build (T5) |
+| `fetch-early.js` + `.test.js` | **Mesure document-start (P2/P3 côté userscript)** : prouve que le build preview (`@run-at document-start`) pose `window.fetch` AVANT entry.client, et que la classe `ub` du SDK capture NOTRE hook (`_baseFetchImpl === window.fetch`) — 17/17 tests. Rend P2/P3 possibles sans CDP (voir session.md) |
 | `e2e-cdp.md` | **protocole de validation E2E** de l'interception CDP P3+P2 : deux runs comparés (témoin vs intercepté), 8 critères de succès (Network + logs outil), pièges de timing |
 
-## L'overlay (T1-T4)
+## L'overlay (T1-T6)
 
 1. **T1 — header** : `@match https://play.xbox.com/*`, version `1.7.0-preview1`.
 2. **T2 — détection** : `var BX_PREVIEW` (hostname `play.xbox.com`).
@@ -64,6 +65,12 @@ qui rend le build v1.7.0 sûr et utilisable sur play.xbox.com.
    `HeaderSection` (dialog 100 % autonome) dans le shell preview via
    MutationObserver délégué. **Sélecteurs candidats** — à affiner sur le DOM
    réel (CSS modules hashés, voir `anchors.md`).
+5. **T5 — keep-alive idle (P1)** : `installKeepAliveIdle` en fin de build.
+6. **T6 — garde `Not xCloud page` neutralisé** : le garde du stable throw sur
+   play.xbox.com (pathname jamais `/<locale>/play`) et tuait `main()` → pas de
+   hook fetch, pas d'overlay complet, pas de T5. `if (!BX_PREVIEW && …)` :
+   main() tourne sur preview, la garde stable reste intacte. **Cause probable
+   du « aucun overlay » sur la preview1.**
 
 ## Usage
 

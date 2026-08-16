@@ -276,6 +276,47 @@ device-info), désormais mesurables par la capture.
 >   entry.client (`@run-at document-start`) et wrapper `fetch` avant que le
 >   SDK ne le capture — à étudier pour P2/P3 côté build.
 
+> **Injection document-start : VIABLE pour P2/P3 côté userscript (étude +
+> mesure 16 août, `bench/preview/port/fetch-early.js`)**. Le paradoxe (réf.
+> ci-dessus) disait « hooks JS impuissants, CDP seule voie ». L'étude corrige
+> la conclusion : les hooks posés en console (après entry.client) sont
+> impuissants, MAIS le build preview est `@run-at document-start` +
+> `@grant none` — s'il pose `window.fetch` AVANT le chargement d'entry.client,
+> la classe `ub` du SDK capture NOTRE hook (`i=fetch` par défaut évalué à
+> l'instanciation, au bootstrap d'entry.client).
+>
+> **Le blocage réel n'était pas le timing : c'était le garde `Not xCloud page`**
+> du stable, qui throw si le pathname n'est pas `/<locale>/play` — sur
+> play.xbox.com le pathname est `/`, `/stream/...`, `/products/...` → le garde
+> tuait TOUT le script AVANT `main()`, donc sans hook fetch, sans overlay
+> complet, sans T5. Fix livré : **T6** dans `build-preview.js` — le garde est
+> neutralisé sur preview (`if (!BX_PREVIEW && …)`), main() tourne, le hook
+> est posé en document-start. (C'est très probablement la cause du « aucun
+> overlay » signalé sur la preview1.)
+>
+> **Mesure (fetch-early.js, 17/17)** :
+>
+> | Volet | Résultat |
+> |---|---|
+> | Garde T6 sur preview (`/stream/…`, `/products/…`, `/`) | ✅ `main()` atteint |
+> | Garde stable préservée (`/fr-fr/play` passe, hors-xCloud throw) | ✅ protection intacte |
+> | Build : `@run-at document-start` + `@grant none` | ✅ |
+> | Build : `main()` au top-level, hook `BX_FETCH = window.fetch =` avant main() | ✅ |
+> | SDK : `new ub(void 0,[i])` et `build()` → `_baseFetchImpl === window.fetch` (NOTRE hook) | ✅ |
+> | NATIVE_FETCH préservé (pas de boucle) | ✅ |
+>
+> **Conséquence pour P2/P3** : si le hook du stable (XcloudInterceptor, qui
+> gère déjà play/configuration/login/ice) est posé avant entry.client, les
+> requêtes du SDK preview passent dedans → **les handlers existants du stable
+> s'appliquent tels quels** : `handlePlay` (osName + x-ms-device-info),
+> `handleConfiguration` (overrides), etc. La voie CDP reste un filet de
+> sécurité ; l'injection document-start rend P2/P3 possibles **sans CDP**.
+> Reste à valider en session réelle : que main() ne rencontre pas d'autre
+> garde/erreur sur play.xbox.com (le pathname n'est pas xCloud, certaines
+> ancres DOM du stable peuvent manquer — à confirmer avec la preview1
+> réinstallée) et que le hook intercepte réellement le play preview
+> (log XcloudInterceptor / vérif osName dans la réponse).
+
 > **Chronologie du play (analyse statique 16 août)** — la chaîne complète du
 > play request, dans l'ordre du lancement :
 >

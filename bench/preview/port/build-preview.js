@@ -120,6 +120,7 @@ function build() {
    Router 7, CSS modules hashes), cette ancre n'existe pas : on injecte via un
    MutationObserver delegue sur les selecteurs candidats (anchors.md, T4). */
 if (BX_PREVIEW) {
+  BxLogger.info("BX_PREVIEW", "overlay actif (T4 arme) — play.xbox.com");
   var PreviewSettingsEntry = {
     SELECTORS: ["header[class*='Header']", "[class*='AppHeader']", "[class*='shell'] header", "header"],
     TARGET_SELECTORS: ["[class*='right']", "[class*='actions']", "[class*='nav']", "[class*='menu']", "[class*='buttons']"],
@@ -152,6 +153,19 @@ if (BX_PREVIEW) {
 /* ============ FIN PREVIEW ============ */
 ${entryAnchor}`;
   s = s.replace(entryAnchor, adapter);
+
+  /* ---------- T6 : garde « Not xCloud page » neutralisé sur preview ----------
+     Le stable throw si le pathname n'est pas /<locale>/play (page xCloud de
+     www.xbox.com). Sur play.xbox.com le pathname est "/", "/stream/...",
+     "/products/..." — le garde tuerait tout le script AVANT main(), donc sans
+     hook fetch, sans overlay, sans T5. BX_PREVIEW (T2, défini avant) skip le
+     garde : main() tourne, le hook window.fetch est posé en document-start
+     (le userscript est @run-at document-start) — AVANT entry.client, donc le
+     SDK preview capture NOTRE hook (classe ub, i=fetch par défaut) et P2/P3
+     deviennent viables côté userscript (voir fetch-early.js). */
+  const guardAnchor = "if (!window.location.pathname.match(/^\\/[a-zA-Z]{2}-[a-zA-Z]{2}\\/play/)) throw Error(\"[Better xCloud] Not xCloud page\");";
+  must(s, guardAnchor, "T6 garde Not xCloud page");
+  s = s.replace(guardAnchor, "if (!BX_PREVIEW && !window.location.pathname.match(/^\\/[a-zA-Z]{2}-[a-zA-Z]{2}\\/play/)) throw Error(\"[Better xCloud] Not xCloud page\");");
 
   /* ---------- T5 : keep-alive idle (P1) — inséré en FIN de script ----------
      Après main(); : window.fetch est alors le hook final (bloqueurs du script),
@@ -241,6 +255,7 @@ for (const probe of [
   'var BX_PREVIEW = window.location.hostname === "play.xbox.com"',
   "static init() {if (BX_PREVIEW) return;Patcher.patchNativeBind();}",
   "static checkChunks(item) {if (BX_PREVIEW) return;",
+  "if (!BX_PREVIEW && !window.location.pathname.match(/^\\/[a-zA-Z]{2}-[a-zA-Z]{2}\\/play/)) throw Error(\"[Better xCloud] Not xCloud page\");",
   "var PreviewSettingsEntry = {",
   "if (BX_PREVIEW) {",
   "installKeepAliveIdle",
