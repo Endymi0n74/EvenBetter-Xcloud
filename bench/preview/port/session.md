@@ -206,11 +206,27 @@ device-info), désormais mesurables par la capture.
 > en plus du heartbeat `keepAlivePulseInSeconds` : P1 (interception
 > `WarningForBeingIdle` → `sendKeepAlive`) reste complémentaire.
 >
-> **Le trafic part d'un worker** → les hooks fetch/xhr/ws de la page ne
-> voient pas les BODIES : seul le resource timing (URLs) est accessible côté
-> page. Pour la forme `deviceInformation` (body du play request), la voie est
-> l'onglet **Network de DevTools** (le worker y apparaît) → filtrer `play` →
-> onglet Payload/Response.
+> **Localisation du protocole (analyse statique 16 août, corrigée)** : le
+> service worker `entry.worker.js` (récupéré sans auth, 262 Ko) est un
+> **précache Workbox pur** — 0 import ESM dans le code exécuté (les modules
+> de session n'y figurent QUE dans le manifeste de précache, strings +
+> integrity), routes = navigation same-origin (`NetworkFirst` timeout 3 s) +
+> images (`StaleWhileRevalidate`), aucune route gssv, et le code déclare que
+> les requêtes non-matchées passent au réseau « as if there were no service
+> worker present ». Le protocole ne tourne PAS dans le SW. La chaîne réelle :
+> `entry.client` → (lazy React Router) → `GameStreamBootstrapper` → import
+> STATIQUE de `StreamSessionRequest` (Bootstrapper sans aucun `new Worker`/
+> `importScripts`/`blob:`) → le protocole s'exécute **dans la page**.
+>
+> **Paradoxe restant** : si le protocole vit dans la page, pourquoi les hooks
+> `window.fetch` n'ont rien vu ? Le play part au tout début du lancement — si
+> le harnais est collé APRÈS le démarrage, il ne reste que state/keepalive
+> (espacés, parfois au-delà de la fenêtre) et d'éventuels transports non
+> couverts (sendBeacon/keepalive fetch). À trancher par une capture avec
+> harnais collé **avant** le lancement + ligne workers v3. Conséquence pour
+> P2/P3 : si la page porte le protocole, le hook fetch devient de nouveau
+> possible (comme le stable) et l'interception CDP reste la voie robuste
+> (page ET worker).
 
 > **Réponse `/configuration` capturée (16 août, session réelle)** :
 >

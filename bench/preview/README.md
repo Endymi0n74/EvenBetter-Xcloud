@@ -128,10 +128,18 @@ session jamais démarrée (tout = 0 + rien dans le resource timing).
 La trace resource timing du navigateur (pas les hooks) a confirmé le
 protocole : **même gssv v5 que le stable**, base `uks.core.gssv-play-prod.xboxlive.com`
 (région `uks`), endpoints `v2/login/user` → `v5/sessions/cloud/play`
-(provisioning) → `state`/`configuration`/`sdp`/`ice`/`keepalive`. Le trafic
-passe par un **worker** (fetch=1, xhr=0, ws=0 mais 224 ressources dont 11
-protocolaires) → les hooks de la page ne voient **que les URLs** (via le
-resource timing), jamais les bodies.
+(provisioning) → `state`/`configuration`/`sdp`/`ice`/`keepalive`. Les hooks
+de page n'ont rien vu (fetch=1, xhr=0, ws=0 mais 224 ressources dont 11
+protocolaires) → les bodies ne sont accessibles que via l'onglet Network.
+
+**Localisation (analyse statique, corrigée)** : le service worker
+`entry.worker.js` est un **précache Workbox pur** (0 import de session,
+routes navigation/images uniquement) — le protocole s'exécute **dans la
+page** (entry.client → lazy → GameStreamBootstrapper → import statique de
+StreamSessionRequest, aucun worker créé). Le paradoxe « hooks muets »
+s'explique probablement par un collage du harnais **après** le démarrage du
+stream (le play part au tout début) — à trancher par une capture avec
+harnais v3 collé avant le lancement.
 
 ### Ce que le rapport confirme pour P3
 
