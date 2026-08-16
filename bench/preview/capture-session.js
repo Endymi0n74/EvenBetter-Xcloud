@@ -40,15 +40,16 @@
   "use strict";
 
   const NS = "BX_SESSION_CAPTURE";
-  if (window[NS] && window[NS].diag) {
-    // v2 déjà active (elle seule expose diag) — ne pas re-hooker
-    console.warn("[BX-SESSION-CAPTURE] v2 déjà injectée — API existante sur window." + NS);
+  const VERSION = 3; // v1 = fetch seul · v2 = +xhr/ws/resource timing · v3 = +workers/SW
+  if (window[NS] && (window[NS].VERSION || 1) >= VERSION) {
+    // version courante (ou plus récente) déjà active — ne pas re-hooker
+    console.warn(`[BX-SESSION-CAPTURE] v${window[NS].VERSION || 1} déjà injectée (courante v${VERSION}) — API existante sur window.` + NS);
     return window[NS];
   }
   if (window[NS]) {
-    // v1 (sans diag) encore active : la remplacer proprement (stop + delete) —
+    // version antérieure encore active : la remplacer proprement (stop + delete) —
     // évite le reload de page quand on recolle par-dessus l'ancienne version.
-    console.warn("[BX-SESSION-CAPTURE] v1 détectée — remplacement par la v2 (hooks relancés)");
+    console.warn(`[BX-SESSION-CAPTURE] v${window[NS].VERSION || 1} détectée — remplacement par la v${VERSION} (hooks relancés)`);
     try { window[NS].stop(); } catch (e) {}
     delete window[NS];
   }
@@ -363,7 +364,7 @@
   hookWorkers();
   hookNav();
 
-  const api = { report, download, stop, diag, state };
+  const api = { report, download, stop, diag, state, VERSION };
   window[NS] = api;
   console.log(
     "[BX-SESSION-CAPTURE] actif (fetch + xhr + ws + resource timing) — lance le stream puis :\n" +

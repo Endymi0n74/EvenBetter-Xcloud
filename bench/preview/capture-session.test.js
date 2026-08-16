@@ -227,15 +227,38 @@ check("API exposée (BX_SESSION_CAPTURE)", !!cap && typeof cap.report === "funct
   sandbox2.removeEventListener = () => {};
   sandbox2.navigator = { serviceWorker: { controller: null, register: () => Promise.resolve({}) } };
   sandbox2.fetch = (input) => Promise.resolve(new Response("{}", { status: 200 }));
-  // fausse v1 : même NS mais SANS diag
+  // fausse v1 : même NS mais sans VERSION ni diag
   sandbox2.BX_SESSION_CAPTURE = { report() {}, download() {}, stop() { sandbox2._stopped = true; } };
   vm.createContext(sandbox2);
   vm.runInContext(SRC, sandbox2);
-  check("v1 présente → la v2 la remplace (diag existe maintenant)", typeof sandbox2.BX_SESSION_CAPTURE.diag === "function");
+  check("v1 présente → la v3 la remplace (VERSION=3)", sandbox2.BX_SESSION_CAPTURE.VERSION === 3);
   check("v1 présente → stop() appelé avant remplacement", sandbox2._stopped === true);
   const cap2 = sandbox2.BX_SESSION_CAPTURE;
   cap2.diag(); // ne doit pas thrower
-  check("v2 remplaçante : diag() fonctionne sans erreur", true);
+  check("v3 remplaçante : diag() fonctionne sans erreur", true);
+
+  // fausse v2 (VERSION=2) → la v3 doit aussi la remplacer (workers hooks)
+  const sandbox4 = {
+    console, URL, Blob, Request, Response,
+    location: { href: "https://play.xbox.com/stream/BWBP12345" },
+    history: { pushState() {}, replaceState() {} },
+    XMLHttpRequest: FakeXHR,
+    WebSocket: FakeWS,
+    Worker: function FakeWorker(url) { this.url = url; },
+    navigator: { serviceWorker: { controller: null, register: () => Promise.resolve({}) } },
+    performance: { getEntriesByType: () => [] },
+  };
+  sandbox4.window = sandbox4;
+  sandbox4.addEventListener = () => {};
+  sandbox4.removeEventListener = () => {};
+  sandbox4.fetch = (input) => Promise.resolve(new Response("{}", { status: 200 }));
+  sandbox4.BX_SESSION_CAPTURE = { VERSION: 2, diag() {}, report() {}, download() {}, stop() { sandbox4._stopped = true; } };
+  vm.createContext(sandbox4);
+  vm.runInContext(SRC, sandbox4);
+  check("v2 présente → la v3 la remplace (VERSION=3)", sandbox4.BX_SESSION_CAPTURE.VERSION === 3);
+  check("v2 présente → stop() appelé avant remplacement", sandbox4._stopped === true);
+  new sandbox4.Worker("/assets/stream-worker.js");
+  check("v3 après v2 : hook worker actif", sandbox4.BX_SESSION_CAPTURE.state.workers.some((w) => w.kind === "worker" && w.url.includes("stream-worker")));
 
   console.log(failures === 0 ? "\nSmoke test capture-session : OK ✅" : `\n${failures} échec(s) ❌`);
   process.exit(failures === 0 ? 0 : 1);
