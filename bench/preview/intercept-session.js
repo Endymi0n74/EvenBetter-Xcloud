@@ -29,6 +29,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { mergeStreamingOverrides, rewriteConfigurationBody } = require("./p2-inject.js");
 
 function loadChromium() {
   try {
@@ -90,44 +91,6 @@ function rewritePlayBody(body, resolution) {
   return out;
 }
 
-/** Fusionne les overrides du stable dans le JSON clientStreamingConfigOverrides. */
-function mergeStreamingOverrides(existingStr, prefs) {
-  let base = {};
-  try { base = existingStr ? JSON.parse(existingStr) : {}; } catch (e) { base = {}; }
-  const out = JSON.parse(JSON.stringify(base));
-  // même structure que handleConfiguration du stable
-  if (prefs.vibration) {
-    out.inputConfiguration = out.inputConfiguration || {};
-    out.inputConfiguration.enableVibration = true;
-  }
-  if (prefs.mkb !== null && prefs.mkb !== undefined) {
-    out.inputConfiguration = out.inputConfiguration || {};
-    out.inputConfiguration.enableMouseInput = !!prefs.mkb;
-    out.inputConfiguration.enableKeyboardInput = !!prefs.mkb;
-  }
-  if (prefs.touch) {
-    out.inputConfiguration = out.inputConfiguration || {};
-    out.inputConfiguration.enableTouchInput = true;
-    out.inputConfiguration.maxTouchPoints = 10;
-  }
-  if (prefs.mic) {
-    out.audioConfiguration = out.audioConfiguration || {};
-    out.audioConfiguration.enableMicrophone = true;
-  }
-  return out;
-}
-
-/**
- * Réécrit la réponse /configuration : fusionne les overrides dans
- * clientStreamingConfigOverrides. Retourne l'objet réponse réécrit.
- */
-function rewriteConfigurationBody(body, prefs) {
-  if (!body || typeof body !== "object") return body;
-  const out = JSON.parse(JSON.stringify(body));
-  const merged = mergeStreamingOverrides(out.clientStreamingConfigOverrides, prefs);
-  out.clientStreamingConfigOverrides = JSON.stringify(merged);
-  return out;
-}
 
 // ---------------- helpers CDP ----------------
 
@@ -297,3 +260,4 @@ if (require.main === module) {
 }
 
 module.exports = { getOsNameFromResolution, generateMsDeviceInfo, rewritePlayBody, mergeStreamingOverrides, rewriteConfigurationBody, installInterceptor, PLAY_RE, CONFIG_RE };
+

@@ -186,7 +186,19 @@ Options : `--resolution=1080p-hq|1080p|auto` (P3), `--vibration=on|off`,
 Rejouabilité : `node bench/preview/intercept-session.test.js` — self-test de
 la logique pure sur les formes réelles capturées (play body + réponse
 configuration) et du flux CDP simulé (continueRequest / getResponseBody /
-fulfillRequest), 38 assertions.
+fulfillRequest), 39 assertions.
+
+## Module d'injection P2 (`bench/preview/p2-inject.js`)
+
+Source unique de la fusion des overrides du stable dans
+`clientStreamingConfigOverrides`, calquée sur `handleConfiguration` du
+stable (XcloudInterceptor) : `enableVibration` toujours, `localCoOp` →
+`useUnreliableInput=false`, `mkb` on/off/force (`resolveMkb` +
+`mkbForceTitles`), `touch` → `enableTouchInput` + `maxTouchPoints=10`,
+`mic` → `enableMicrophone`. Importé par `intercept-session.js` (P2) ;
+testé en isolation sur la réponse `/configuration` réelle capturée :
+`node bench/preview/p2-inject.test.js` — 25 assertions, overrides serveur
+existants préservés, cas limites (JSON invalide/vide, body null).
 
 ## Rejouabilité hors navigateur
 

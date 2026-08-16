@@ -60,7 +60,7 @@ const CONFIG_BODY = {
   }),
 };
 
-const PREFS = { resolution: "1080p-hq", vibration: true, mkb: true, touch: true, mic: true };
+const PREFS = { resolution: "1080p-hq", vibration: true, mkb: "on", touch: true, mic: true };
 
 // ---------------- 1. logique pure ----------------
 
