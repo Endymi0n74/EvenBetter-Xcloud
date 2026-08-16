@@ -316,9 +316,16 @@ device-info), désormais mesurables par la capture.
 > **P2 : wire-viabilité CONFIRMÉE 16 août** — la réponse `/configuration`
 > réelle contient déjà `clientStreamingConfigOverrides` (merge requis, pas
 > remplacement), et le filtre client-exclusif `ie` ne couvre que les clés
-> racine — les sous-clés du stable passent. Reste à choisir le point
-> d'injection : interception CDP (`Fetch.fulfillRequest` sur la réponse
-> `/configuration`) ou réécriture si le module vit dans la page.
+> racine — les sous-clés du stable passent.
+
+> **Point d'injection CHOISI : interception CDP** (`bench/preview/intercept-session.js`,
+> livré avec self-test 38/38) — le trafic partant d'un worker, les hooks de
+> page sont impuissants ; `Fetch.enable` au niveau navigateur couvre
+> page ET worker. P3 = stage Request sur la requête play (réécriture
+> `settings.osName` + `x-ms-device-info`) ; P2 = stage Response sur la
+> réponse `/configuration` (`Fetch.getResponseBody` → fusion →
+> `Fetch.fulfillRequest`). Deux modes : `--connect=PORT` (navigateur existant
+> avec remote-debugging) ou launch avec profil persistant dédié.
 4. **Événement `qe`** (WarningForBeingIdle) : qui l'écoute, et un keep-alive
    envoyé reset-il bien le compteur serveur ?
 5. **`deviceInformation`** — **FORME CONFIRMÉE 16 août** (body play request

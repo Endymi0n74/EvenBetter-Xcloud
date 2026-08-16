@@ -36,6 +36,9 @@ bench/gpu/state-s*.json
 bench/state-cpu-s*.json
 bench/state-cpu-ci.*.json
 
+# Profil navigateur persistant de l'interception CDP preview (session authentifiée)
+bench/preview/.cdp-profile/
+
 # Artefacts locaux (système)
 .DS_Store
 Thumbs.db

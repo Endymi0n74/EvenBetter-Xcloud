@@ -153,6 +153,41 @@ resource timing), jamais les bodies.
 (fetch + XHR + WebSocket + resource timing + bodies + rapport + diagnostic),
 19 assertions, exit 0 = prêt à lancer en réel.
 
+## Interception CDP P3+P2 (réécriture active du protocole)
+
+`bench/preview/intercept-session.js` s'attache au navigateur via CDP et
+réécrit le protocole en vol, là où les hooks de page sont impuissants (le
+trafic part d'un worker) :
+
+- **P3** — requête `v5/sessions/cloud/play` (POST, stage Request) :
+  `settings.osName` + en-tête `x-ms-device-info`, même logique que
+  `handlePlay` du stable (`getOsNameFromResolution` / `generateMsDeviceInfo`).
+- **P2** — réponse `…/configuration` (GET, stage Response) : fusion des
+  overrides du stable (`enableVibration`, `enableTouchInput`,
+  `enableMouseInput`/`enableKeyboardInput`, `enableMicrophone`…) dans
+  `clientStreamingConfigOverrides` — les overrides serveur existants sont
+  préservés (le client preview filtre les clés racine `ie` puis merge
+  `ae()`, nos sous-clés passent).
+
+Usage (2 modes) :
+
+```
+# mode connect : s'attacher à un Chrome/Edge déjà lancé avec --remote-debugging-port=9222
+node bench/preview/intercept-session.js --connect=9222 --resolution=1080p-hq
+
+# mode launch : profil persistant dédié (bench/preview/.cdp-profile/, gitignoré) —
+# à connecter à play.xbox.com une première fois
+node bench/preview/intercept-session.js --resolution=1080p
+```
+
+Options : `--resolution=1080p-hq|1080p|auto` (P3), `--vibration=on|off`,
+`--mkb=on|off`, `--touch=on|off`, `--mic=on|off` (P2), `--timeout=S`.
+
+Rejouabilité : `node bench/preview/intercept-session.test.js` — self-test de
+la logique pure sur les formes réelles capturées (play body + réponse
+configuration) et du flux CDP simulé (continueRequest / getResponseBody /
+fulfillRequest), 38 assertions.
+
 ## Rejouabilité hors navigateur
 
 `node bench/preview/self-test.js` rejoue le **moteur de signatures** (extrait
