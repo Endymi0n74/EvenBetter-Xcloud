@@ -14,7 +14,7 @@
 "use strict";
 
 const path = require("path");
-const { getOsNameFromResolution, generateMsDeviceInfo, rewritePlayBody, mergeStreamingOverrides, rewriteConfigurationBody, installInterceptor, installSWInterceptor, PLAY_RE, CONFIG_RE } = require("./intercept-session.js");
+const { getOsNameFromResolution, generateMsDeviceInfo, rewritePlayBody, mergeStreamingOverrides, rewriteConfigurationBody, installInterceptor, installSWInterceptor, parseArgs, PLAY_RE, CONFIG_RE } = require("./intercept-session.js");
 
 let failures = 0;
 function check(label, cond, extra) {
@@ -305,6 +305,15 @@ function fakeCdp() {
     //  vérifie que les sessions sont bien distinctes)
     check("sessions page et SW distinctes (Fetch par-session)", swCdp !== fakeCdp());
   }
+
+  // --- parseArgs : flags CLI (--sw notamment) ---
+  // Régression 17 août : sw: has("--sw") doublait le tiret (----sw) → le flag
+  // n'a jamais été parsé. Verrouille le parsing de chaque flag.
+  check("parseArgs : --sw → sw=true", parseArgs(["--connect=9222", "--sw"]).sw === true);
+  check("parseArgs : sans --sw → sw=false", parseArgs(["--connect=9222"]).sw === false);
+  check("parseArgs : --timeout=480 → 480", parseArgs(["--timeout=480"]).timeout === 480);
+  check("parseArgs : --vibration=off → false", parseArgs(["--vibration=off"]).vibration === false);
+  check("parseArgs : --mkb=on → true", parseArgs(["--mkb=on"]).mkb === true);
 
   // --- regex : formes d'URL réelles ---
   check("PLAY_RE : URL play réelle", PLAY_RE.test("https://uks.core.gssv-play-prod.xboxlive.com/v5/sessions/cloud/8A7F6A20-DA4A-4607-9B45-29180C93730B/play"));

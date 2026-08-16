@@ -210,12 +210,73 @@ async function installInterceptor(cdp, prefs, onLog) {
 }
 
 /**
+ * Client CDP minimal par WebSocket (global WebSocket, Node 22+).
+ * Utilisé pour les targets service_worker en mode connect, où l'API
+ * Playwright ne sait pas créer de session (newCDPSession exige Page/Frame —
+ * « expected Page or Frame » sur un Worker). API compatible installInterceptor :
+ * send(method, params) + on(event, cb).
+ */
+function createRawCdpClient(wsUrl) {
+  const ws = new WebSocket(wsUrl);
+  let id = 0;
+  const pending = new Map();
+  const listeners = new Map();
+  ws.onmessage = (ev) => {
+    const m = JSON.parse(ev.data);
+    if (m.id && pending.has(m.id)) {
+      const { res, rej } = pending.get(m.id);
+      pending.delete(m.id);
+      m.error ? rej(new Error(m.error.message)) : res(m.result);
+    } else if (m.method) {
+      for (const cb of listeners.get(m.method) || []) cb(m.params);
+    }
+  };
+  ws.onerror = () => { for (const { rej } of pending.values()) rej(new Error("ws fermé")); pending.clear(); };
+  const ready = new Promise((r) => (ws.onopen = r));
+  return {
+    on: (event, cb) => {
+      const l = listeners.get(event) || [];
+      l.push(cb);
+      listeners.set(event, l);
+    },
+    send: async (method, params) => {
+      await ready;
+      return new Promise((res, rej) => {
+        const i = ++id;
+        pending.set(i, { res, rej });
+        ws.send(JSON.stringify({ id: i, method, params }));
+      });
+    },
+    close: () => ws.close(),
+  };
+}
+
+/**
  * Attache l'interception aux service workers du contexte (mode --sw).
  * Un SW est un target séparé : ses self.fetch ne produisent PAS de
  * requestPaused sur la session de la page — il faut une session par SW.
+ *
+ * Mode connect (--connect=PORT) : CDP brut — /json/list pour lister les
+ * targets service_worker du site (play.xbox.com uniquement, pas les SW
+ * d'extensions), puis Fetch.enable sur leur session (testé réel : OK).
+ * Mode launch : API Playwright (serviceWorkers + événement serviceworker).
  */
 async function installSWInterceptor(context, prefs, onLog) {
   const log = onLog || (() => {});
+  if (prefs.connect) {
+    const list = await (await fetch(`http://127.0.0.1:${prefs.connect}/json/list`)).json();
+    const targets = list.filter((t) => t.type === "service_worker" && t.url.includes("play.xbox.com"));
+    for (const t of targets) {
+      try {
+        const cdp = createRawCdpClient(t.webSocketDebuggerUrl);
+        await installInterceptor(cdp, prefs, log);
+        log(`[sw] interception attachée à ${t.url.slice(0, 90)} (CDP brut)`);
+      } catch (e) {
+        log(`[warn] attachement SW échoué : ${e.message}`);
+      }
+    }
+    return;
+  }
   const attach = async (sw) => {
     try {
       const cdp = await context.newCDPSession(sw);
@@ -248,7 +309,7 @@ function parseArgs(argv) {
     mkb: arg("mkb", "null") === "null" ? null : arg("mkb", "null") === "on",
     touch: arg("touch", "off") === "on",
     mic: arg("mic", "off") === "on",
-    sw: has("--sw"),
+    sw: has("sw"),
     timeout: parseInt(arg("timeout", "0"), 10) || 0,
     channel: arg("channel", process.platform === "win32" ? "msedge" : "chromium"),
     headless: has("--headless"),
@@ -309,5 +370,5 @@ if (require.main === module) {
   main().catch((e) => { console.error(e); process.exit(1); });
 }
 
-module.exports = { getOsNameFromResolution, generateMsDeviceInfo, rewritePlayBody, mergeStreamingOverrides, rewriteConfigurationBody, installInterceptor, installSWInterceptor, PLAY_RE, CONFIG_RE };
+module.exports = { getOsNameFromResolution, generateMsDeviceInfo, rewritePlayBody, mergeStreamingOverrides, rewriteConfigurationBody, installInterceptor, installSWInterceptor, parseArgs, PLAY_RE, CONFIG_RE };
 
