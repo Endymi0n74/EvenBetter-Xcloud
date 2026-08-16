@@ -8,17 +8,19 @@
 # msedge). Sans Playwright local, installer avec `npm i -D playwright`, ou pointer
 # NODE_PATH vers un install existant (ex. export NODE_PATH=/d/Codex/koharu/node_modules).
 #
-# Usage : ./bench/run-all.sh [--skip-page-eval] [--skip-startup-profile] [--skip-cold-getcap]
+# Usage : ./bench/run-all.sh [--skip-page-eval] [--skip-startup-profile] [--skip-cold-getcap] [--cold-page-eval]
 set -e
 cd "$(dirname "$0")/.."
 
 SKIP_PAGE_EVAL=0
 SKIP_STARTUP_PROFILE=0
 SKIP_COLD_GETCAP=0
+COLD_PAGE_EVAL=0
 for a in "$@"; do
   [ "$a" = "--skip-page-eval" ] && SKIP_PAGE_EVAL=1
   [ "$a" = "--skip-startup-profile" ] && SKIP_STARTUP_PROFILE=1
   [ "$a" = "--skip-cold-getcap" ] && SKIP_COLD_GETCAP=1
+  [ "$a" = "--cold-page-eval" ] && COLD_PAGE_EVAL=1
 done
 
 TMP=$(mktemp -d)
@@ -66,8 +68,13 @@ if [ "$PW" = "0" ]; then
 fi
 
 echo
-echo "== 3/5 Éval page (Edge via Playwright) =="
-node bench/page-eval.js "$TMP/perf10.js" "$TMP/build.js"
+if [ "$COLD_PAGE_EVAL" = "1" ]; then
+  echo "== 3/5 Éval page (Edge via Playwright, navigateur neuf par run — pile RTC froide) =="
+  node bench/page-eval.js --cold "$TMP/perf10.js" "$TMP/build.js"
+else
+  echo "== 3/5 Éval page (Edge via Playwright) =="
+  node bench/page-eval.js "$TMP/perf10.js" "$TMP/build.js"
+fi
 
 if [ "$SKIP_STARTUP_PROFILE" = "1" ]; then
   echo
