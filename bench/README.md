@@ -243,3 +243,10 @@ Le harnais **GPU** (renderer WebGL2, compteurs GL, GPU timestamps) vit dans
 `gpu-runner.js`, `agg-seeds.js`, `gpu-update-readme.js`, classes extraites ;
 `test.webm` et `run-s*.json` gitignorés) — voir `bench/gpu/README.md` et la
 section Repro du README.
+
+Le harnais **preview** (`bench/preview/`) capture les bundles runtime du
+nouveau client web xCloud (play.xbox.com, renderer Babylon.js) en session
+authentifiée : `capture.js` (bookmarklet/console : dump modules + signatures +
+mesure du draw Babylon), `self-test.js` (moteur de signatures rejouable sur
+les bundles locaux, drift check de `static-matrix.md`) — voir
+`bench/preview/README.md`.
