@@ -65,6 +65,13 @@ jobs:
           # cohérence interne de p2-inject.js, exit 0). En local, lancer avec
           # le répertoire de capture : node bench/preview/p2-schema.test.js
           node bench/preview/p2-schema.test.js
+          # Étape 0 E2E (gates A/B/D) : document-start viable (fetch-early),
+          # réécriture P2+P3 en vm (userscript-rewrite) et chronologie du play
+          # (play-chain) — échoue le job si un gate est rouge (la logique
+          # dérive : ancres/minifier). Probe C ignoré (pas de navigateur CDP
+          # en CI) ; play-chain en soft sans bundles capturés → warning, exit 0.
+          # En local : bash bench/preview/port/run-e2e0.sh [--dir=<capture>]
+          bash bench/preview/port/run-e2e0.sh --skip-probe
 
       - name: Vérifie les ratios des hot loops (seuils CI)
         run: |
