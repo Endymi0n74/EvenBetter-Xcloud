@@ -158,8 +158,11 @@ harnais v3 collé avant le lancement.
 ### Rejouabilité
 
 `node bench/preview/capture-session.test.js` — smoke test en vm du harnais
-(fetch + XHR + WebSocket + resource timing + bodies + rapport + diagnostic),
-19 assertions, exit 0 = prêt à lancer en réel.
+(fetch + sendBeacon + fetch keepalive + XHR + WebSocket + workers/SW +
+resource timing + bodies + rapport + diagnostic), 38 assertions, exit 0 =
+prêt à lancer en réel. Les transports `sendBeacon` et les fetch `keepalive`
+sont couverts depuis la v4 (ce sont des voies possibles pour les requêtes
+state/keepalive du protocole que les hooks fetch seuls pouvaient manquer).
 
 ## Interception CDP P3+P2 (réécriture active du protocole)
 

@@ -213,6 +213,46 @@ check("API exposée (BX_SESSION_CAPTURE)", !!cap && typeof cap.report === "funct
   check("workers : SW déjà actif signalé (sw-active)", cap3.state.workers.some((w) => w.kind === "sw-active" && w.url.includes("entry.worker")));
   check("rapport : ligne workers visible", cap3.report().includes("Workers / service workers vus"));
 
+  // 11. sendBeacon + fetch keepalive (transports non vus lors des captures)
+  const beaconSeen = [];
+  const sandbox5 = {
+    console, URL, Blob, Request, Response, URLSearchParams,
+    location: { href: "https://play.xbox.com/stream/BWBP12345" },
+    history: { pushState() {}, replaceState() {} },
+    XMLHttpRequest: FakeXHR,
+    WebSocket: FakeWS,
+    navigator: {
+      serviceWorker: { controller: null, register: () => Promise.resolve({}) },
+      sendBeacon(url, data) { beaconSeen.push({ url, data }); return true; },
+    },
+    performance: { getEntriesByType: () => [] },
+  };
+  sandbox5.window = sandbox5;
+  sandbox5.addEventListener = () => {};
+  sandbox5.removeEventListener = () => {};
+  sandbox5.fetch = (input, init) => {
+    const url = typeof input === "string" ? input : input.url;
+    if (/keepalive-test/.test(url)) return Promise.resolve(new Response("ok", { status: 200 }));
+    return Promise.resolve(new Response("{}", { status: 200 }));
+  };
+  vm.createContext(sandbox5);
+  vm.runInContext(SRC, sandbox5);
+  const cap5 = sandbox5.BX_SESSION_CAPTURE;
+  // sendBeacon vers un endpoint protocole (état)
+  sandbox5.navigator.sendBeacon("https://uks.core.gssv-play-prod.xboxlive.com/v5/sessions/cloud/8A7F6A20-DA4A-4607-9B45-29180C93730B/state", "ping");
+  // sendBeacon hors protocole → vu mais non matché
+  sandbox5.navigator.sendBeacon("https://telemetry.xbox.com/beacon", "x");
+  // fetch keepalive vers un endpoint protocole
+  sandbox5.fetch("https://uks.core.gssv-play-prod.xboxlive.com/v5/sessions/cloud/8A7F6A20-DA4A-4607-9B45-29180C93730B/keepalive-test", { method: "POST", keepalive: true });
+  const beaconRec = cap5.state.requests.find((r) => r.via === "beacon" && /state/.test(r.url));
+  check("sendBeacon : endpoint capturé (via=beacon, méthode POST)", !!beaconRec && beaconRec.method === "POST");
+  check("sendBeacon : body string lu", beaconRec && beaconRec.reqBody === "ping");
+  check("sendBeacon : hors protocole non matché", cap5.state.requests.filter((r) => r.via === "beacon").length === 1);
+  const kaRec = cap5.state.requests.find((r) => r.keepalive === true);
+  check("fetch keepalive : endpoint capturé avec flag keepalive", !!kaRec && /keepalive-test/.test(kaRec.url));
+  check("diag v4 : compteurs beacon + keepalive", cap5.diag().vues.beacon === 2 && cap5.diag().vues.keepalive === 1, JSON.stringify(cap5.diag().vues));
+  check("rapport : ligne transports avec beacon + keepalive", cap5.report().includes("beacon=2") && cap5.report().includes("keepalive=1"));
+
   // ---- scénario réel : v1 déjà active dans la page → la v2 doit la remplacer ----
   const sandbox2 = {
     console, URL, Blob, Request, Response,
@@ -231,11 +271,11 @@ check("API exposée (BX_SESSION_CAPTURE)", !!cap && typeof cap.report === "funct
   sandbox2.BX_SESSION_CAPTURE = { report() {}, download() {}, stop() { sandbox2._stopped = true; } };
   vm.createContext(sandbox2);
   vm.runInContext(SRC, sandbox2);
-  check("v1 présente → la v3 la remplace (VERSION=3)", sandbox2.BX_SESSION_CAPTURE.VERSION === 3);
+  check("v1 présente → la v4 la remplace (VERSION=4)", sandbox2.BX_SESSION_CAPTURE.VERSION === 4);
   check("v1 présente → stop() appelé avant remplacement", sandbox2._stopped === true);
   const cap2 = sandbox2.BX_SESSION_CAPTURE;
   cap2.diag(); // ne doit pas thrower
-  check("v3 remplaçante : diag() fonctionne sans erreur", true);
+  check("v4 remplaçante : diag() fonctionne sans erreur", true);
 
   // fausse v2 (VERSION=2) → la v3 doit aussi la remplacer (workers hooks)
   const sandbox4 = {
@@ -255,7 +295,7 @@ check("API exposée (BX_SESSION_CAPTURE)", !!cap && typeof cap.report === "funct
   sandbox4.BX_SESSION_CAPTURE = { VERSION: 2, diag() {}, report() {}, download() {}, stop() { sandbox4._stopped = true; } };
   vm.createContext(sandbox4);
   vm.runInContext(SRC, sandbox4);
-  check("v2 présente → la v3 la remplace (VERSION=3)", sandbox4.BX_SESSION_CAPTURE.VERSION === 3);
+  check("v2 présente → la v4 la remplace (VERSION=4)", sandbox4.BX_SESSION_CAPTURE.VERSION === 4);
   check("v2 présente → stop() appelé avant remplacement", sandbox4._stopped === true);
   new sandbox4.Worker("/assets/stream-worker.js");
   check("v3 après v2 : hook worker actif", sandbox4.BX_SESSION_CAPTURE.state.workers.some((w) => w.kind === "worker" && w.url.includes("stream-worker")));

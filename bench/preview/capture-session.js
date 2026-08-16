@@ -14,9 +14,11 @@
  *   3. Les BODIES response des endpoints clés (play/configuration) — la forme
  *      de la réponse de provisioning (clientStreamingConfigOverrides, etc.).
  *
- * Transports couverts (v2 — le protocole preview peut passer ailleurs que par
+ * Transports couverts (v4 — le protocole preview peut passer ailleurs que par
  * window.fetch) :
- *   - fetch (page)          — hook direct
+ *   - fetch (page)          — hook direct (les fetch keepalive sont taggés
+ *     et comptés séparément)
+ *   - sendBeacon            — hook navigator.sendBeacon (URL + body, via)
  *   - XMLHttpRequest        — hook open/send + loadend (statut + responseText)
  *   - WebSocket             — hook constructeur (URL + état open/close)
  *   - Workers / SW          — hook new Worker/SharedWorker + register() :
@@ -40,7 +42,7 @@
   "use strict";
 
   const NS = "BX_SESSION_CAPTURE";
-  const VERSION = 3; // v1 = fetch seul · v2 = +xhr/ws/resource timing · v3 = +workers/SW
+  const VERSION = 4; // v1 = fetch seul · v2 = +xhr/ws/resource timing · v3 = +workers/SW · v4 = +sendBeacon/keepalive
   if (window[NS] && (window[NS].VERSION || 1) >= VERSION) {
     // version courante (ou plus récente) déjà active — ne pas re-hooker
     console.warn(`[BX-SESSION-CAPTURE] v${window[NS].VERSION || 1} déjà injectée (courante v${VERSION}) — API existante sur window.` + NS);
@@ -69,8 +71,8 @@
     active: true,
     startedAt: new Date().toISOString(),
     nav: [{ ts: Date.now(), href: location.href }],
-    requests: [],          // { ts, url, method, status, endpoint, reqBody, resBody, via }
-    counts: { fetch: 0, xhr: 0, ws: 0 },  // requêtes VUES par transport (toutes)
+    requests: [],          // { ts, url, method, status, endpoint, reqBody, resBody, via, keepalive }
+    counts: { fetch: 0, xhr: 0, ws: 0, beacon: 0, keepalive: 0 },  // requêtes VUES par transport (toutes)
     workers: [],           // { ts, kind: "worker"|"shared"|"sw", url }
     hooks: [],
   };
@@ -101,10 +103,12 @@
     if (typeof orig !== "function") return;
     window.fetch = function (input, init) {
       state.counts.fetch++;
+      const keepalive = !!((init && init.keepalive) || (input && input.keepalive));
+      if (keepalive) state.counts.keepalive++;
       const url = typeof input === "string" ? input : (input && input.url) || "";
       const ep = endpointOf(url);
       if (ep) {
-        const rec = { ts: Date.now(), url, method: (init && init.method) || (input && input.method) || "GET", status: null, endpoint: ep, reqBody: null, resBody: null, via: "fetch" };
+        const rec = { ts: Date.now(), url, method: (init && init.method) || (input && input.method) || "GET", status: null, endpoint: ep, reqBody: null, resBody: null, via: "fetch", keepalive: keepalive || undefined };
         state.requests.push(rec);
         // body request (JSON) sans toucher au flux : clone parallèle
         try {
@@ -189,6 +193,31 @@
     unHook(() => { window.WebSocket = W; });
   }
 
+  // ---------- 1ter1. hook navigator.sendBeacon (POST keepalive natif) ----------
+  function hookBeacon() {
+    if (typeof navigator === "undefined" || typeof navigator.sendBeacon !== "function") return;
+    const orig = navigator.sendBeacon.bind(navigator);
+    navigator.sendBeacon = (url, data) => {
+      state.counts.beacon++;
+      const ep = endpointOf(url);
+      if (ep) {
+        const rec = { ts: Date.now(), url: typeof url === "string" ? url : String(url), method: "POST", status: null, endpoint: ep, reqBody: null, resBody: null, via: "beacon" };
+        state.requests.push(rec);
+        try {
+          if (typeof data === "string") rec.reqBody = trunc(data);
+          else if (typeof URLSearchParams !== "undefined" && data instanceof URLSearchParams) rec.reqBody = trunc(data.toString());
+          else if (typeof Blob !== "undefined" && data instanceof Blob && typeof data.clone === "function" && typeof data.clone().text === "function") {
+            data.clone().text().then((t) => { rec.reqBody = trunc(t); }).catch(() => {});
+          } else if (data != null && typeof data === "object") {
+            rec.reqBody = trunc(JSON.stringify(data));
+          }
+        } catch (e) { /* non bloquant */ }
+      }
+      return orig(url, data);
+    };
+    unHook(() => { navigator.sendBeacon = orig; });
+  }
+
   // ---------- 1ter2. workers / service workers : où tourne le protocole ----------
   function hookWorkers() {
     // dedicated workers
@@ -268,8 +297,8 @@
     const byVia = (v) => state.requests.filter((r) => r.via === v).length;
     return {
       active: state.active,
-      vues: { fetch: state.counts.fetch, xhr: state.counts.xhr, ws: state.counts.ws },
-      matchées: { fetch: byVia("fetch"), xhr: byVia("xhr"), ws: byVia("ws") },
+      vues: { fetch: state.counts.fetch, xhr: state.counts.xhr, ws: state.counts.ws, beacon: state.counts.beacon, keepalive: state.counts.keepalive },
+      matchées: { fetch: byVia("fetch"), xhr: byVia("xhr"), ws: byVia("ws"), beacon: byVia("beacon") },
       resourceTiming: { disponible: rt.available, totales: rt.total, protocolaires: rt.protocol.length },
       depuis: state.startedAt,
     };
@@ -283,10 +312,10 @@
     lines.push("- Date : " + state.startedAt);
     lines.push("- Nav : " + state.nav.map((n) => new Date(n.ts).toISOString().slice(11, 19) + " " + n.href).join(" | "));
     lines.push("- Requêtes capturées : " + state.requests.length);
-    lines.push("- Vues par transport (toutes requêtes, même non-matchées) : fetch=" + state.counts.fetch + " · xhr=" + state.counts.xhr + " · ws=" + state.counts.ws);
+    lines.push("- Vues par transport (toutes requêtes, même non-matchées) : fetch=" + state.counts.fetch + " (dont keepalive=" + state.counts.keepalive + ") · xhr=" + state.counts.xhr + " · ws=" + state.counts.ws + " · beacon=" + state.counts.beacon);
     lines.push("    - Resource timing : " + (rt.available ? rt.total + " ressources chargées, " + rt.protocol.length + " protocolaires" : "API indisponible"));
     lines.push("- Workers / service workers vus : " + (state.workers.length ? state.workers.map((w) => w.kind + "(" + w.url.slice(0, 60) + ")").join(", ") : "aucun"));
-    if (state.requests.length === 0 && state.counts.fetch + state.counts.xhr + state.counts.ws === 0 && (!rt.available || rt.protocol.length === 0)) {
+    if (state.requests.length === 0 && state.counts.fetch + state.counts.xhr + state.counts.ws + state.counts.beacon === 0 && (!rt.available || rt.protocol.length === 0)) {
       lines.push("");
       lines.push("⚠️ DIAGNOSTIC : aucune requête vue nulle part — soit la session n'a PAS démarré");
       lines.push("  (page /stream ouverte sans lancer le jeu), soit tout le trafic passe par un");
@@ -359,6 +388,7 @@
 
   // ---------- 4. démarrage ----------
   hookFetch();
+  hookBeacon();
   hookXHR();
   hookWebSocket();
   hookWorkers();
@@ -367,7 +397,7 @@
   const api = { report, download, stop, diag, state, VERSION };
   window[NS] = api;
   console.log(
-    "[BX-SESSION-CAPTURE] actif (fetch + xhr + ws + resource timing) — lance le stream puis :\n" +
+    "[BX-SESSION-CAPTURE] actif (fetch + xhr + ws + beacon + resource timing) — lance le stream puis :\n" +
     "  BX_SESSION_CAPTURE.diag()       (état live : vues vs matchées)\n" +
     "  BX_SESSION_CAPTURE.report()     (colle-le ici)\n" +
     "  BX_SESSION_CAPTURE.download()   (rapport JSON)\n" +
