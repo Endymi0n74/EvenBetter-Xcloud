@@ -1,0 +1,77 @@
+# MEMORY — état courant du projet (17 août 2026)
+
+Mémoire de travail des sessions. Détails dans `bench/preview/port/session.md`
+(étude protocole), `bench/preview/port/e2e-cdp.md` (protocole E2E + journal),
+`bench/preview/port/anchors.md`, `bench/preview/port/classify.md`.
+
+## Projet
+
+Fork better-xcloud (redphx) avec **deux versions contractuelles** :
+- `better-xcloud.user.js` (stable, www.xbox.com) — upstream.
+- `better-xcloud-preview.user.js` (preview, play.xbox.com) — build depuis le
+  stable via `bench/preview/port/build-preview.js` (transforms T1-T6).
+  `@name`/`@version`/`@updateURL`/`@match` disjoints (invariants au build).
+
+Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
+
+## État preview (17 août)
+
+- **T6** : garde « Not xCloud page » neutralisé sur preview (il tuait `main()`
+  → « aucun overlay » constaté sur preview1).
+- **P2/P3 réécriture** (XcloudInterceptor, hook fetch posé en document-start) :
+  prouvée en vm (fetch-early 17/17, userscript-rewrite 14/14) ET **actifs en
+  réel** (chaîne `window.fetch` = hook T5 → `BX_FETCH` → NATIVE_FETCH, SDK
+  capture la chaîne). Play : `osName=tizen` (1080p) + `x-ms-device-info`.
+  Réponse `/configuration` : fusion `enableVibration`/mkb/mic dans
+  `clientStreamingConfigOverrides` (schéma Zod validé — p2-schema.test.js).
+- **P1 keep-alive idle** : `keepalive-idle.js` (T5). **Verdict 16 août** : le
+  module StreamSessionRequest est chargé en **ESM natif** (import statique via
+  GameStreamBootstrapper) → le hook fetch du module ne peut pas se brancher ;
+  **wrapSession est la seule voie runtime** (localiser l'instance de session
+  restant à faire). Le heartbeat natif /keepalive (60 s) est complémentaire
+  (connexion), pas un substitut (timer d'idle = inactivité utilisateur).
+- **hookActif en réel (edge-cdp)** : le profil NE PEUT PAS exécuter d'userscript
+  (Tampermonkey MV3 exige le mode développeur d'Edge, inactivable en CDP).
+  Solution : mini-extension `.edge-inject/` (`content_scripts` +
+  `world:"MAIN"` + `document_start` — équivalent `@grant none`), lancée avec
+  `--load-extension=…\.edge-inject`. **Ne pas** injecter via Playwright
+  addInitScript / `Page.addScriptToEvaluateOnNewDocument` (realm : crash
+  « MutationObserver: parameter 1 is not of type Node »).
+
+## Protocole E2E (e2e-cdp.md)
+
+- **Étape 0** (hors-navigateur, avant les runs CDP) : `run-e2e0.sh` — gates
+  A fetch-early / B userscript-rewrite / D play-chain (échec si rouge) + probe
+  C (info). 3 exécutions journalisées (la 3e : hookActif:true).
+- **Run 1 CDP** : `intercept-session.js --connect=9222` — `[P3]` play réécrit,
+  `[P2-staging]` puis `[P2]` sur la réponse /configuration (C4 =
+  `enableVibration:true` dans Network, preuve CDP). **P2 pas encore validé en
+  réel** — à faire dès un stream + session.
+- **P1 réel** : `monitor-idle.js` (fenêtre AFK, log « BX keep-alive: idle
+  warning intercepted » + session survivante) — à valider.
+
+## Pièges mémorisés
+
+- URL **play SANS GUID** (`…/v5/sessions/cloud/play`) ; state/configuration
+  AVEC GUID. Le hook route par `endsWith("/sessions/cloud/play")`.
+- Réécriture **réponse** page-level (userscript) = invisible dans Network ;
+  seul `Fetch.fulfillRequest` CDP l'affiche. Réécriture **requête** = visible.
+- Double réécriture : hook actif → le CDP logue `[P3] original:tizen` (déjà
+  réécrit avant le réseau).
+- `probe-page.js` : `hookActif` = présence de `window.BX_FETCH` (ne pas exiger
+  `window.fetch === BX_FETCH` — T5 enveloppe après main()).
+- `class` est lexicale dans un vm (évaluer en class expression).
+- Le preview CSP bloque raw.githubusercontent.com (listes native-mkb /
+  local-co-op) → « Failed to fetch » (non fatals, rejets non gérés).
+- Conventions merge : rebase + fast-forward + suppression de branche ; badge
+  Closed/Merged trompeur (§5 mémo projet). Runner edge-cdp : port 9222,
+  profil `C:\edge-cdp`, relance : `Start-Process msedge.exe -ArgumentList
+  '--remote-debugging-port=9222','--user-data-dir=C:\edge-cdp','--no-first-run',
+  '--load-extension=D:\Codex\better-xcloud-fork\.edge-inject'`.
+
+## En attente / prochaines étapes
+
+1. Run 1 CDP : valider `[P2]` réel (C4) — stream requis (session utilisateur).
+2. Valider P1 AFK (monitor-idle) avec hook actif.
+3. Brancher `run-e2e0.sh` au step preview de bench.yml (CI).
+4. Localiser l'instance de session au runtime pour brancher wrapSession (P1).
