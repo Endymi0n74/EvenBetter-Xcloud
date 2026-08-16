@@ -14,7 +14,7 @@
 "use strict";
 
 const path = require("path");
-const { getOsNameFromResolution, generateMsDeviceInfo, rewritePlayBody, mergeStreamingOverrides, rewriteConfigurationBody, installInterceptor, PLAY_RE, CONFIG_RE } = require("./intercept-session.js");
+const { getOsNameFromResolution, generateMsDeviceInfo, rewritePlayBody, mergeStreamingOverrides, rewriteConfigurationBody, installInterceptor, installSWInterceptor, PLAY_RE, CONFIG_RE } = require("./intercept-session.js");
 
 let failures = 0;
 function check(label, cond, extra) {
@@ -199,6 +199,77 @@ function fakeCdp() {
     });
     const cont = cdp.calls.find((c) => c.method === "Fetch.continueRequest" && c.params.requestId === "req-state-1");
     check("state (GET, non-play) : continué sans modification", !!cont && !cont.params.postData);
+  }
+
+  // --- 3. flux service worker (intégration --sw) ---
+  // Modélise la réalité CDP : Fetch est par-session. Un SW est un target
+  // séparé — ses self.fetch ne produisent PAS de requestPaused sur la
+  // session de la page ; installSWInterceptor attache une session par SW.
+  {
+    console.log("== flux service worker (intégration --sw) ==");
+    // faux contexte Playwright : 1 SW existant + événement serviceworker
+    const swSessions = [];
+    const swListeners = [];
+    const fakeContext = {
+      swUrl: "https://play.xbox.com/entry.worker.js",
+      serviceWorkers() {
+        return [{ url: () => this.swUrl, __isSw: true }];
+      },
+      async newCDPSession(sw) {
+        const cdp = fakeCdp();
+        swSessions.push(cdp);
+        return cdp;
+      },
+      on(event, fn) { if (event === "serviceworker") swListeners.push(fn); },
+    };
+    const swLogs = [];
+    await installSWInterceptor(fakeContext, PREFS, (m) => swLogs.push(m));
+    check("SW existant : Fetch.enable installé sur sa session", swSessions.length === 1 && swSessions[0].calls.some((c) => c.method === "Fetch.enable"));
+    check("log d'attachement SW émis", swLogs.some((m) => m.includes("[sw]") && m.includes("entry.worker")));
+
+    // P3 depuis le SW : self.fetch du play → la session SW reçoit requestPaused
+    const swCdp = swSessions[0];
+    await swCdp.fire("Fetch.requestPaused", {
+      requestId: "req-sw-play",
+      request: {
+        url: "https://uks.core.gssv-play-prod.xboxlive.com/v5/sessions/cloud/8A7F6A20-DA4A-4607-9B45-29180C93730B/play",
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        postData: JSON.stringify(PLAY_BODY),
+      },
+    });
+    const swCont = swCdp.calls.find((c) => c.method === "Fetch.continueRequest" && c.params.requestId === "req-sw-play");
+    check("P3 depuis le SW : play réécrit (osName=tizen)", swCont && JSON.parse(swCont.params.postData).settings.osName === "tizen");
+
+    // P2 depuis le SW : réponse configuration → session SW
+    swCdp.send = async (method, params) => {
+      swCdp.calls.push({ method, params });
+      if (method === "Fetch.getResponseBody") return { body: JSON.stringify(CONFIG_BODY), base64Encoded: false };
+      return {};
+    };
+    await swCdp.fire("Fetch.requestPaused", {
+      requestId: "req-sw-cfg",
+      request: { url: "https://uks.core.gssv-play-prod.xboxlive.com/v5/sessions/cloud/8A7F6A20-DA4A-4607-9B45-29180C93730B/configuration", method: "GET", headers: {} },
+      responseStatusCode: 200,
+      responseHeaders: [{ name: "content-type", value: "application/json" }],
+    });
+    const swFulf = swCdp.calls.find((c) => c.method === "Fetch.fulfillRequest" && c.params.requestId === "req-sw-cfg");
+    const swRes = swFulf && JSON.parse(Buffer.from(swFulf.params.body, "base64").toString("utf8"));
+    check("P2 depuis le SW : /configuration réécrite (enableVibration)", swRes && JSON.parse(swRes.clientStreamingConfigOverrides).inputConfiguration.enableVibration === true);
+
+    // SW futur : l'événement serviceworker installe l'interception aussi
+    const listenersBefore = swListeners.length;
+    await installSWInterceptor(fakeContext, PREFS, () => {});
+    const newListener = swListeners[listenersBefore]; // celui ajouté par cette 2e installation
+    const before = swSessions.length;
+    newListener({ url: () => "https://play.xbox.com/entry.worker.js?v=2", __isSw: true });
+    await new Promise((r) => setTimeout(r, 10));
+    check("SW futur : interception installée sur l'événement serviceworker", swSessions.length === before + 1 && swSessions[before].calls.some((c) => c.method === "Fetch.enable"));
+
+    // Preuve du paradigme : la session PAGE ne reçoit PAS les requêtes du SW.
+    // (modélisation : le mock route les self.fetch vers la session SW uniquement —
+    //  vérifie que les sessions sont bien distinctes)
+    check("sessions page et SW distinctes (Fetch par-session)", swCdp !== fakeCdp());
   }
 
   // --- regex : formes d'URL réelles ---

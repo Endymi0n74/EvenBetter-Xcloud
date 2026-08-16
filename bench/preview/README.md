@@ -189,12 +189,23 @@ node bench/preview/intercept-session.js --resolution=1080p
 ```
 
 Options : `--resolution=1080p-hq|1080p|auto` (P3), `--vibration=on|off`,
-`--mkb=on|off`, `--touch=on|off`, `--mic=on|off` (P2), `--timeout=S`.
+`--mkb=on|off`, `--touch=on|off`, `--mic=on|off` (P2), `--sw` (attacher
+aussi l'interception aux service workers), `--timeout=S`.
+
+**Portée SW (important)** : Fetch est par-session. Les requêtes initiées
+PAR LA PAGE (même contrôlée par un service worker) produisent des
+`requestPaused` sur la session de la page. Les requêtes initiées DANS le
+SW (`self.fetch`) sont un **target séparé** — `--sw` installe
+l'interception sur chaque service worker du contexte
+(`context.serviceWorkers()` + événement `serviceworker`). Le verdict
+statique du preview (entry.worker.js = précache Workbox pur, protocole en
+page) rend `--sw` optionnel mais couvre le cas où le protocole migrerait.
 
 Rejouabilité : `node bench/preview/intercept-session.test.js` — self-test de
 la logique pure sur les formes réelles capturées (play body + réponse
-configuration) et du flux CDP simulé (continueRequest / getResponseBody /
-fulfillRequest), 39 assertions.
+configuration), du flux CDP simulé (continueRequest / getResponseBody /
+fulfillRequest) et de l'intégration service worker (`installSWInterceptor` :
+SW existant + futur, P3/P2 depuis la session SW), 45 assertions.
 
 ## Module d'injection P2 (`bench/preview/p2-inject.js`)
 

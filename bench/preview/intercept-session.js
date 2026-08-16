@@ -22,8 +22,14 @@
  *
  * Usage :
  *   node bench/preview/intercept-session.js --connect=9222 [--resolution=1080p-hq|1080p|auto]
- *       [--vibration=on|off] [--mkb=on|off] [--touch=on|off] [--mic=on|off] [--timeout=S]
+ *       [--vibration=on|off] [--mkb=on|off] [--touch=on|off] [--mic=on|off] [--timeout=S] [--sw]
  *   node bench/preview/intercept-session.js [mêmes options, mode launch]
+ *
+ * Portée SW : Fetch est par-session. Les requêtes initiées PAR LA PAGE (même
+ * contrôlée par un service worker) produisent des requestPaused sur la
+ * session de la page. Les requêtes initiées DANS le SW (self.fetch) sont un
+ * target séparé : --sw attache l'interception à chaque service worker du
+ * contexte (context.serviceWorkers + événement serviceworker).
  */
 "use strict";
 
@@ -123,7 +129,7 @@ const PLAY_RE = /\/v5\/.*\/play(\?|$)/;
 const CONFIG_RE = /\/v5\/.*\/configuration(\?|$)/;
 
 /**
- * Installe l'interception Fetch sur une session CDP (page).
+ * Installe l'interception Fetch sur une session CDP (page ou service worker).
  * Toute requête non ciblée est continuée telle quelle.
  */
 async function installInterceptor(cdp, prefs, onLog) {
@@ -186,6 +192,30 @@ async function installInterceptor(cdp, prefs, onLog) {
   });
 }
 
+/**
+ * Attache l'interception aux service workers du contexte (mode --sw).
+ * Un SW est un target séparé : ses self.fetch ne produisent PAS de
+ * requestPaused sur la session de la page — il faut une session par SW.
+ */
+async function installSWInterceptor(context, prefs, onLog) {
+  const log = onLog || (() => {});
+  const attach = async (sw) => {
+    try {
+      const cdp = await context.newCDPSession(sw);
+      await installInterceptor(cdp, prefs, log);
+      log(`[sw] interception attachée à ${sw.url().slice(0, 90)}`);
+    } catch (e) {
+      log(`[warn] attachement SW échoué : ${e.message}`);
+    }
+  };
+  // SW déjà actifs
+  for (const sw of context.serviceWorkers ? context.serviceWorkers() : []) await attach(sw);
+  // SW futurs
+  if (typeof context.on === "function") {
+    context.on("serviceworker", (sw) => { attach(sw).catch(() => {}); });
+  }
+}
+
 // ---------------- CLI ----------------
 
 function parseArgs(argv) {
@@ -201,6 +231,7 @@ function parseArgs(argv) {
     mkb: arg("mkb", "null") === "null" ? null : arg("mkb", "null") === "on",
     touch: arg("touch", "off") === "on",
     mic: arg("mic", "off") === "on",
+    sw: has("--sw"),
     timeout: parseInt(arg("timeout", "0"), 10) || 0,
     channel: arg("channel", process.platform === "win32" ? "msedge" : "chromium"),
     headless: has("--headless"),
@@ -228,7 +259,8 @@ async function main() {
     context = target.context();
     const cdp = await context.newCDPSession(target);
     await installInterceptor(cdp, prefs, (m) => console.log(m));
-    console.log(`[intercept] attaché à ${target.url()} — interception active (Ctrl+C pour arrêter)`);
+    if (prefs.sw) await installSWInterceptor(context, prefs, (m) => console.log(m));
+    console.log(`[intercept] attaché à ${target.url()}${prefs.sw ? " + service workers" : ""} — interception active (Ctrl+C pour arrêter)`);
   } else {
     const profileDir = path.join(__dirname, ".cdp-profile");
     fs.mkdirSync(profileDir, { recursive: true });
@@ -241,7 +273,8 @@ async function main() {
     const page = context.pages()[0] || (await context.newPage());
     const cdp = await context.newCDPSession(page);
     await installInterceptor(cdp, prefs, (m) => console.log(m));
-    console.log("[intercept] interception active sur cette page — ouvre play.xbox.com et lance un stream");
+    if (prefs.sw) await installSWInterceptor(context, prefs, (m) => console.log(m));
+    console.log(`[intercept] interception active sur cette page${prefs.sw ? " + service workers" : ""} — ouvre play.xbox.com et lance un stream`);
   }
 
   // timeout optionnel (pour runs automatisés)
@@ -259,5 +292,5 @@ if (require.main === module) {
   main().catch((e) => { console.error(e); process.exit(1); });
 }
 
-module.exports = { getOsNameFromResolution, generateMsDeviceInfo, rewritePlayBody, mergeStreamingOverrides, rewriteConfigurationBody, installInterceptor, PLAY_RE, CONFIG_RE };
+module.exports = { getOsNameFromResolution, generateMsDeviceInfo, rewritePlayBody, mergeStreamingOverrides, rewriteConfigurationBody, installInterceptor, installSWInterceptor, PLAY_RE, CONFIG_RE };
 
