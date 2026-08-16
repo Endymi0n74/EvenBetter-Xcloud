@@ -23,6 +23,7 @@ avec `npm i -D playwright` ou pointer `NODE_PATH` vers un install existant.
 | `cold-getcap.js` | Coût one-shot isolé de `getCapabilities` : navigateur neuf par run, 1er appel (pile RTC froide) vs 2e + eval document-start à froid perf10 vs build (5 runs × 2 versions) | Edge headless + Playwright |
 | `freeze.sh` | Rejoue le protocole figé (3 seeds × 3 passes), capture l'état machine par seed hotloops et formate les tableaux markdown du README | Node V8 (+ Edge si `--with-page-eval`) |
 | `check-ratios.js` | CI : parse la sortie de `run-all.sh --skip-page-eval` (ratios hot loops) — `--startup-only` : borne de startup sur la sortie de `page-eval.js --cold` (build ≤ 50 ms, perf10 300–1200 ms) | Node V8 (workflow `.github/workflows/bench.yml`) |
+| `update-startup-session.js` | Insère/remplace la ligne « Sessions startup » du README à partir d'un résumé `check-ratios.js --startup-only` (artefact `startup-summary-<sha>`) — dédup par libellé, CRLF préservé | Node V8 |
 
 `hotloops.js` et `parse.js` sont stabilisés (même recette que le harnais GPU) :
 
@@ -48,6 +49,7 @@ node --expose-gc bench/parse.js  <perf10.js> <build.js> [--passes=N] [--seed=N] 
 node bench/page-eval.js [--cold] <perf10.js> <build.js>   # --cold : 20 runs à froid, navigateur neuf par run
 node bench/startup-profile.js <perf10.js> <build.js> [--runs=N] [--top=N] [--channel=msedge|chromium]
 node bench/cold-getcap.js <perf10.js> <build.js> [--runs=N] [--channel=msedge|chromium]
+node bench/update-startup-session.js startup-summary.md [--label=...] [--print-only] [--readme=...]
 ```
 
 `parse.js` chronomètre par itération en `process.hrtime.bigint()` (résolution

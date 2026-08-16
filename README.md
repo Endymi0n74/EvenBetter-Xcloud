@@ -105,6 +105,17 @@ absolue mais la comparaison relative entre les deux builds.
 | Éval complète de page (Edge headless, `document-start`, 20 runs, médiane — pile RTC chaude) | 26,5 ms (min 23,7) | ~25 ms (min 22) | **24,2 ms** (min 21,1) | **−8,7 %** |
 | Éval complète de page **à froid** (navigateur neuf par run, 1er chargement — pile RTC froide, médiane 8 runs) | 656,8 ms (min 597,5) | ≈ perf10 (même appel eager) | **32,9 ms** (min 27,9) | **−95 %** |
 
+**Sessions startup — état** (éval page à froid, navigateur neuf par run — le one-shot RTC est par-process, le build ~30 ms est stable ; **état dérivé du perf10** : `bas` = perf10 ≤ 620 ms — init RTC nominale ; `haut` = perf10 > 620 ms — machine chargée (c'est perf10, pas le build, qui porte la dérive d'environnement). Bornes CI : build ≤ 50 ms (échec = coût one-shot revenu au chargement), perf10 dans [300, 1200] ms.)
+
+| Session | perf10 éval (ms) | build éval (ms) | Δ perf10/build | État | Statut |
+|---|---|---|---|---|---|
+| Nuit 15 août (8 runs) | 656,8 | 32,9 | −95,0 % | haut | ✅ |
+| Matin 16 août (8 runs) | 572,4 (541–581) | 31,3 (26–34,5) | −94,5 % | bas | ✅ |
+| Midi 16 août (5 runs) | 587,8 (577–623) | 31,9 (31–43) | −94,6 % | bas | ✅ |
+| Après-midi 16 août (20 runs) | 566,1 (531–712) | 29,8 (23–37,6) | −94,7 % | bas | ✅ |
+| CI 16 août (dispatch) | 567,7 (529–689) | 31,9 (27,5–38,8) | −94,4 % | bas | ✅ |
+| CI 16 août (PR #6) | 594,4 (551,2–717,4) | 29,9 (24,3–40,6) | −95,0 % | bas | ✅ |
+
 La série perf11 (re-mesurée sur le build v1.6.0 officiel) visait le **runtime**
 (hot loops, GPU, caches), pas le chargement — confirmé v1.6.0 : coût de démarrage identique.
 
