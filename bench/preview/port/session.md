@@ -140,15 +140,32 @@ Risque : moyen. Les clés sont compatibles (prouvé), mais le point de hook exac
 (constructeur vs flags) se confirme runtime — et le schéma Zod rejette toute
 clé inconnue (garde stricte, à connaître avant d'injecter).
 
-### P3 — Play request (résolution, locale)
+### P3 — Play request (résolution, locale) — **harnais de capture prêt, à lancer en session**
 
 Le stable réécrit le payload `/sessions/cloud/play` ; sur le preview, piloter
 `deviceInformation`/`clientDeviceCapabilities` (osName) avant le play.
-À confirmer runtime : le endpoint exact de provisioning du preview (le
-`StreamSessionRequest` construit les URLs depuis `serviceSettings`, pas en
-dur) et la forme de `deviceInformation` (le champ `osName: E(t)` s'en déduit).
 
-Risque : le plus élevé — dépend du runtime (endpoint, forme du device-info).
+**Ce que les statics prédisent déjà :**
+- Endpoint : log « Subsequent **v5/.../play** calls » (`StreamSessionRequest`,
+  offset 75005) ; domaines `gssv` (relying parties `gssv.xboxlive.com` /
+  `connect.gssv.xboxlive.com`, `entry.client` @1799230 ; exemple réel
+  `gssv-sigl-prod.xboxlive.com/v1/usersigls`). Le PlayService est lazy
+  (`playServiceAdaptor`, `entry.client` @3072649 — module runtime non
+  statique, `capture.js` le dump en session).
+- Forme du play request : `settings.osName = E(t)`, `settings.locale`,
+  `settings.timezoneOffsetMinutes`, `settings.sdkType:"web"`, `settings.highContrast`
+  (`StreamSessionRequest`, offsets ~69600) — la forme dérivée de
+  `deviceInformation` (classe `te`/`wd` d'entry.client, non résolue en
+  statique — à capturer).
+
+**Harnais livré** (`bench/preview/capture-session.js`, smoke 11/11) : capture
+en session authentifiée des endpoints du protocole (play/configuration/
+waittime/ice/sdp/usersigls/sessions) avec méthode + body request/response.
+Procédure dans `bench/preview/README.md` — coller le script dans la console
+avant de lancer le stream, puis `BX_SESSION_CAPTURE.report()` / `.download()`.
+
+Risque : le plus élevé — dépend du runtime (endpoint exact + forme du
+device-info), désormais mesurables par la capture.
 
 ## 4 bis. État du plan de portage
 

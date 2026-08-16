@@ -81,6 +81,44 @@ ouvrir un jeu, laisser tourner le stream ~30 s, puis `download()`.
   passe par `GPUQueue.submit` — les optimisations à porter seraient alors
   côté pass/encodage, pas côté texSubImage2D.
 
+## Capture du protocole de session (P3 — endpoint de provisioning + deviceInformation)
+
+Pour le portage **P3 résolution** (voir `port/session.md`) il faut confirmer en
+session authentifiée : (a) l'endpoint exact de provisioning du preview et
+(b) la forme de `deviceInformation` (les `settings` du play request). Les
+statics prédisent : `v5/.../play` (log « Subsequent v5/.../play calls »),
+domaine `gssv` (relying parties `gssv.xboxlive.com` / `connect.gssv.xboxlive.com`,
+exemple réel `gssv-sigl-prod.xboxlive.com/v1/usersigls`), et le play request
+contient `settings.osName`/`sdkType`/`timezoneOffsetMinutes`/`locale` (dérivés
+de deviceInformation). Le PlayService lui-même est lazy
+(`playServiceAdaptor` — module runtime non statique, `capture.js` le dump).
+
+### Procédure (session authentifiée)
+
+1. Sur la home ou la page du stream de play.xbox.com, DevTools → Console :
+   coller le **contenu complet de `bench/preview/capture-session.js`** → Entrée.
+2. **Lancer le stream** (le harnais survit à la navigation SPA — hook fetch + popstate).
+3. Attendre ~30 s de stream (provisioning + heartbeat), puis :
+   - `window.BX_SESSION_CAPTURE.report()` → **colle le résumé markdown ici**
+     (endpoints chronologiques + body du play request + réponse de provisioning) ;
+   - `window.BX_SESSION_CAPTURE.download()` → rapport JSON complet (à déposer
+     dans `/d/tmp`).
+
+### Ce que le rapport confirme pour P3
+
+- **Endpoint(s) exact(s)** de provisioning (URL complète + méthode) — le
+  pattern `v5/.../play` réel, et s'il y a un `/configuration` séparé.
+- **Forme de deviceInformation** : le body du play request (osName, locale,
+  timezoneOffsetMinutes, sdkType…) — à comparer au `generateMsDeviceInfo`/
+  `getOsNameFromResolution` du stable pour re-dériver le trick résolution.
+- **Réponse de provisioning** : `clientStreamingConfigOverrides` réel (P2),
+  `keepAlivePulseInSeconds` (P1), `serverDetails` (région).
+
+### Rejouabilité
+
+`node bench/preview/capture-session.test.js` — smoke test en vm du harnais
+(fetch hook + bodies + rapport), 11 assertions, exit 0 = prêt à lancer en réel.
+
 ## Rejouabilité hors navigateur
 
 `node bench/preview/self-test.js` rejoue le **moteur de signatures** (extrait
