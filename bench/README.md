@@ -4,8 +4,9 @@ Mesures **perf10 (baseline `055d3a0`)** vs **build courant** (`better-xcloud.use
 à la racine du repo). Tout se lance d'un coup :
 
 ```bash
-./bench/run-all.sh                 # les 3 harnais
-./bench/run-all.sh --skip-page-eval # sans Playwright/Edge
+./bench/run-all.sh                    # les 4 harnais
+./bench/run-all.sh --skip-page-eval  # sans Playwright/Edge (pas de page-eval ni de profil)
+./bench/run-all.sh --skip-startup-profile # sans le profil CDP du startup
 ```
 
 Prérequis : Node. Pour l'éval page : Playwright + Edge (canal `msedge`) — installer
@@ -16,6 +17,7 @@ avec `npm i -D playwright` ou pointer `NODE_PATH` vers un install existant.
 | `parse.js` | Parse/compile (`new Function`, sans exécution, ×300/passe) | Node V8 |
 | `hotloops.js` | Hot loops injectés ~60 Hz (controller, poll_gamepad, updateFrame, updateCanvas) | Node V8 |
 | `page-eval.js` | Éval complète de page, injection au document-start, 20 runs | Edge headless + Playwright |
+| `startup-profile.js` | Profil CPU du startup : **self time par fonction** sur le eval document-start (CDP Profiler, échantillonnage 100 µs, 5 runs) — perf10 vs build | Edge headless + Playwright + CDP |
 | `freeze.sh` | Rejoue le protocole figé (3 seeds × 3 passes), capture l'état machine par seed hotloops et formate les tableaux markdown du README | Node V8 (+ Edge si `--with-page-eval`) |
 | `check-ratios.js` | CI : parse la sortie de `run-all.sh --skip-page-eval` et échoue si un ratio de hot loop régresse au-delà de son seuil | Node V8 (workflow `.github/workflows/bench.yml`) |
 
@@ -39,11 +41,41 @@ node --expose-gc bench/hotloops.js <perf10.js> <build.js> [--passes=N] [--seed=N
 node --expose-gc bench/parse.js  <perf10.js> <build.js> [--passes=N] [--seed=N] [--iters=N]
 ```
 
+```bash
+node bench/startup-profile.js <perf10.js> <build.js> [--runs=N] [--top=N] [--channel=msedge|chromium]
+```
+
 `parse.js` chronomètre par itération en `process.hrtime.bigint()` (résolution
 ns) : à ~130 µs/compile, `performance.now()` n'est pas assez fin pour une
 mesure par itération fiable. Le `p95` de parse capture les outliers GC
 (absorbés par la médiane) ; l'écart perf10/build est dans le bruit inter-seed
 (≈ ±10-20 % run à run) — le protocole le montre au lieu de figer un chiffre.
+
+
+
+## Profil CPU du startup (fonction-par-fonction)
+
+`startup-profile.js` échantillonne le **eval document-start** (même protocole que
+`page-eval.js`) via le **CDP Profiler** et agrège le **self time** par fonction sur
+`--runs` exécutions (contexte neuf à chaque run, même process navigateur). C'est ce
+profil qui a révélé `getSupportedCodecProfiles` (667 ms de
+`RTCRtpReceiver.getCapabilities` à froid = 96 % du eval, sorti du chargement en
+v1.7.0) : la dominante fonction-par-fonction reste visible à chaque session.
+
+Sortie par version : médiane du eval (ms), top `--top` fonctions par self time
+(ms/run + % des échantillons), et le % **non-attribué** (idle/program/GC : temps
+natif hors frames JS).
+
+Pièges :
+
+- le userscript est **strict** → internes non globaux ; le profil n'accède à rien,
+  il échantillonne (frames nommées du eval).
+- la **pile RTC froide** fait exploser le 1er run de perf10 (~600 ms) : la médiane
+  du eval l'absorbe, mais la **masse d'échantillons du run froid** domine l'agrégat
+  (getSupportedCodecProfiles ~70 % des échantillons de perf10) — c'est le signal
+  voulu : le vrai coût du 1er chargement.
+- bruit exclu du classement : `(idle)`, `(program)`, `(garbage collector)`,
+  `tryRun`/`InjectedScript`/`UtilityScript` (harnais + DevTools).
 
 ## Protocole figé (tables du README principal)
 
