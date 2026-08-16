@@ -270,6 +270,7 @@ draw, jamais les absolus.
 | Soir 15 août — re-mesure (6 seeds + état machine) | v1.6.0 | 42,2–77,7 | 7,7–11,8 | **×5,47** | bas | 24,5 (19,5–75) | **33,3** (29–83,8) | 10,2 vs 9,2 | émission ≤ 25,00 µs · wall ≤ 0,10 ms · draw ≤ 25,00 µs | ✅ |
 | Nuit 15 août — phase capturée (6 seeds) | v1.6.0 | 57,25 (51,25–60,50) | 11,00 (9,00–11,75) | **×5,20** | bas | 16,75 (15,00–26,25) | **26,25** (25,25–34,25) | 11,26 vs 10,24 | émission ≤ 25,00 µs · wall ≤ 0,10 ms · draw ≤ 25,00 µs | ✅ |
 | CI 15 août (6 seeds, runner self-hosted Windows/GPU) | v1.6.0 | 47,50 (45,50–52,50) | 10,00 (8,25–11,75) | **×4,75** | bas | 17,25 (14,75–25,25) | **26,75** (24,25–35,50) | 10,24 vs 10,24 | émission ≤ 25,00 µs · wall ≤ 0,10 ms · draw ≤ 25,00 µs | ✅ |
+| CI 2026-08-16 (6 seeds) | v1.6.0 | 53,75 (47,75–79,00) | 11,25 (9,50–44,75) | **×4,78** | bas | 25,50 (15,25–64,00) | **35,50** (25,75–110,75) | 10,24 vs 10,24 | émission ≤ 25,00 µs · wall ≤ 0,10 ms · draw ≤ 25,00 µs | ✅ |
 
 _Colonnes **Borne**/**Statut** : bornes absolues du build (émission ≤ 25 µs, wall ≤ 0,10 ms, draw ≤ 25 µs — calibrées sur le runner CI). Les sessions antérieures au split émission/sync ou en état haut/mixte (absolus non comparables, « seuls les ratios comptent ») sont marquées « — ». Générées par `check-gpu.js` (`--update-readme`)._
 
