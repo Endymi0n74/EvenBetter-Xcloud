@@ -61,6 +61,45 @@ script complet que si une nouvelle version existe. Évite de télécharger 470 K
 > L'`@updateURL` pointe vers le fork depuis la v1.1.0 — les installations
 > antérieures gardent l'URL upstream (voir la note « Upgrade » ci-dessus).
 
+## Deux versions — stable et preview (play.xbox.com)
+
+Le repo maintient **deux builds indépendants, jamais fusionnés** (contrat
+détaillé dans `bench/preview/port/README.md`) :
+
+| | **Stable** (production) | **Preview** (play.xbox.com) |
+|---|---|---|
+| Rôle | Le fork optimisé classique — xbox.com/play (SPA Webpack, renderer WebGL2) | La variante du nouveau client web (React Router 7 + rolldown, renderer Babylon.js) |
+| Fichier | `better-xcloud.user.js` | `better-xcloud-preview.user.js` (+ `.meta.js`) |
+| Version | `1.7.0` | `1.7.0-preview1` (prerelease) |
+| @name | `Better xCloud` | `Better xCloud (Preview)` |
+| @match | `www.xbox.com/*/play*` | `play.xbox.com/*` uniquement |
+| Auto-update | `releases/latest` (canal stable) | tag dédié `better-xcloud-perf-1.7.0-preview1` (jamais le `latest`) |
+
+Les deux builds **cohabitent sans se confondre** : identité distincte
+(name/version/updateURL) et matches disjoints (le preview ne s'exécute jamais
+sur www.xbox.com). La séparation est vérifiée à chaque PR/push par le CI
+(step « Build preview — contrat deux versions ») — toute évolution du stable
+qui casserait le preview ou la séparation fait échouer le job.
+
+### Installation
+
+**Stable** (canal `latest`) :
+
+```
+https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.user.js
+```
+
+**Preview** (prerelease — à tester sur play.xbox.com, compte Insider avec
+Preview Features activé) :
+
+```
+https://github.com/Endymi0n74/better-xcloud-perf/releases/download/better-xcloud-perf-1.7.0-preview1/better-xcloud-preview.user.js
+```
+
+Le preview est **encore en validation runtime** : sélecteurs du bouton settings
+(T4) et voie de chargement du module keep-alive (P1) sont des candidats à
+confirmer en session authentifiée. Le stable n'est jamais affecté.
+
 ## Optimisations perf11 + perf13
 
 | # | Optimisation | Effet |
