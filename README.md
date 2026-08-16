@@ -1,11 +1,11 @@
-# better-xcloud-perf — v1.6.0
+# better-xcloud-perf — v1.7.0
 
 [![Release](https://img.shields.io/github/v/release/Endymi0n74/better-xcloud-perf?style=for-the-badge&color=green)](https://github.com/Endymi0n74/better-xcloud-perf/releases/latest)
 [![Install](https://img.shields.io/badge/Install-userscript-blue?style=for-the-badge)](https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.user.js)
 
 Fork performance du userscript [Better xCloud](https://github.com/redphx/better-xcloud)
 (redphx), orienté **performance**. Dernière release :
-[better-xcloud-perf-v1.6.0](https://github.com/Endymi0n74/better-xcloud-perf/releases/tag/better-xcloud-perf-v1.6.0).
+[better-xcloud-perf-v1.7.0](https://github.com/Endymi0n74/better-xcloud-perf/releases/tag/better-xcloud-perf-v1.7.0).
 
 Ce dépôt contient le script **buildé** (`better-xcloud.user.js`) — c'est le
 fichier à installer tel quel dans un gestionnaire d'userscripts. Les
@@ -85,6 +85,7 @@ script complet que si une nouvelle version existe. Évite de télécharger 470 K
 | 18 | `WebGL2Player` : fix `texStorage2D` | `gl.RGB` (format **non-sized** → `INVALID_ENUM`, renderer WebGL2 **écran noir**) → `gl.RGB8` — corrige le bug introduit par l'opti 13 (présent aussi dans le TS upstream) |
 | 19 | `WebGL2Player.updateCanvas` : cache des valeurs de uniforms | 7 `gl.uniform*` sautés par frame quand rien ne change (invalidation par comparaison de valeurs) — chemin stable ~296 → ~22 ns/frame (**×13,7**) |
 | 20 | `WebGL2Player.updateCanvas` : skip par flag dirty | Le recalcul des uniforms n'est relancé que si `updateOptions`/`refreshPlayer` a invalidé le flag (options/canvas inchangés = 1 lecture + branche) — chemin stable ~22 → ~12,7 ns/frame (**×19,4** vs perf10) |
+| 21 | `stream.video.codecProfile` : évaluation **paresseuse + mémoïsée** | `RTCRtpReceiver.getCapabilities("video")` (667 ms à froid = 96 % du eval de démarrage dans un Edge neuf) n'est plus appelé au chargement — options/unsupported/suggest sont calculés à la 1re lecture réelle (ouverture des settings / validation d'une valeur) puis mis en cache (constant par navigateur). Éval de page à froid 656,8 → 32,9 ms (**−95 %**), warm 26,5 → 24,2 ms (**−8,7 %**) |
 
 L'historique perf1–perf10 (Set O(1) du patcher, debounce localStorage, cache
 `getBattery()`, uniform locations pré-calculées, etc.) est conservé dans
@@ -98,17 +99,25 @@ absolue mais la comparaison relative entre les deux builds.
 
 ### Chargement (parse + éval de page)
 
-| Mesure | perf10 | v1.6.0 | Δ |
-|---|---|---|---|
-| Parse/compile (Node `new Function`, ×300/passe, protocole stabilisé : médiane de 3 passes × 3 seeds) | ~0,11–0,11 ms | ~0,10–0,11 ms | non mesurable : ≈ ±10–20 % run à run (bruit sub-ms) |
-| Éval complète de page (Edge headless, injection `document-start`, 20 runs, médiane) | ~24 ms (min 21) | ~25 ms (min 22) | ~-4,7 % |
+| Mesure | perf10 | v1.6.0 | v1.7.0 | Δ v1.7.0 vs perf10 |
+|---|---|---|---|---|
+| Parse/compile (Node `new Function`, ×300/passe, médiane de 3 passes) | ~0,11–0,12 ms | ~0,10–0,11 ms | ~0,12 ms | non mesurable : bruit sub-ms ±10–20 % |
+| Éval complète de page (Edge headless, `document-start`, 20 runs, médiane — pile RTC chaude) | 26,5 ms (min 23,7) | ~25 ms (min 22) | **24,2 ms** (min 21,1) | **−8,7 %** |
+| Éval complète de page **à froid** (navigateur neuf par run, 1er chargement — pile RTC froide, médiane 8 runs) | 656,8 ms (min 597,5) | ≈ perf10 (même appel eager) | **32,9 ms** (min 27,9) | **−95 %** |
 
-La série perf11 (re-mesurée sur le build v1.6.0 officiel — v1.5.0 a remplacé
-les 7 `gl.uniform*` par un cache de valeurs dans `updateCanvas`, v1.6.0 par un
-flag dirty) visait le
-**runtime** (hot loops, GPU, caches), pas le chargement — confirmé : le coût de
-démarrage est identique (le `p95` de perf10 présente des outliers
-environnementaux, la médiane est stable).
+La série perf11 (re-mesurée sur le build v1.6.0 officiel) visait le **runtime**
+(hot loops, GPU, caches), pas le chargement — confirmé v1.6.0 : coût de démarrage identique.
+
+**v1.7.0 attaque enfin le chargement** : `stream.video.codecProfile` était évalué
+au chargement (options statiques des définitions), et `RTCRtpReceiver.getCapabilities("video")`
+coûte **667 ms à froid** (96 % du eval document-start) dans un Edge neuf — l'init de la
+pile RTC est synchrone et bloquante. L'évaluation est maintenant **paresseuse** (1re
+lecture réelle : rendu des settings ou validation d'une valeur) et **mémoïsée** (le
+résultat est constant par navigateur ; `validateValue`/`getValueText` relisent le cache).
+Les gardes de `patchRtcCodecs`/`patchRtcPeerConnection` lisent la valeur stockée brute
+(déjà validée par le getter `settings`) — le cas « aucune valeur stockée » ne déclenche
+plus l'appel au chargement, la sémantique est inchangée (valeur invalide → `default`).
+Gain mesuré : **−95 % à froid** (656,8 → 32,9 ms), **−8,7 % à chaud** (26,5 → 24,2 ms).
 
 ### Hot loops (~60 Hz)
 
@@ -539,6 +548,7 @@ Seule la table est régénérée : le bullet « Protocole figé » de la section
 ## Historique du dépôt
 
 ```
+a299c38 build: prepare v1.7.0 with lazy + memoized codecProfile (getCapabilities out of startup)
 089375e bench: extend updateCanvas scenario to the dirty-flag steady state and add a GL-count check
 b4821d8 build: prepare v1.6.0 with dirty-flag skip in WebGL2 updateCanvas
 17dfaad bench: add --resume mode to run-gpu-ci.sh to skip completed seeds

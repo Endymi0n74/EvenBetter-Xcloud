@@ -3,7 +3,7 @@
 Les patches produisent le build `better-xcloud-perf-v1.6.0` (`@version 1.6.0`,
 série d'optimisations perf11 + perf13 + fix RGB8 + cache uniforms + flag dirty).
 
-20 patches individuels, chacun **vérifié applicable seul** sur la baseline
+21 patches individuels, chacun **vérifié applicable seul** sur la baseline
 `Better xCloud-6.7.12-perf10.js` (round-trip : `node --check` OK après application).
 
 ## Application d'un patch seul
@@ -40,33 +40,35 @@ l'application — conversion LF→CRLF du contexte).
 | `18-webgl2-texstorage-rgb8.patch` | Fix `texStorage2D` : `gl.RGB` (non-sized → INVALID_ENUM, renderer WebGL2 noir) → `gl.RGB8` (état final `updateFrame`) | webgl2 |
 | `19-webgl2-uniform-cache.patch` | Cache des valeurs de uniforms dans `updateCanvas` (7 `gl.uniform*` sautés par frame au repos ; invalidation par comparaison de valeurs — état final `updateCanvas` v1.5.0) | webgl2 |
 | `20-webgl2-uniform-dirty-flag.patch` | `updateCanvas` skip par flag dirty (le recalcul des uniforms n'est relancé que si `updateOptions`/`refreshPlayer` invalide le flag — état final `updateCanvas` v1.6.0) | webgl2 |
+| `21-getcodecprofiles-lazy.patch` | `stream.video.codecProfile` évalué paresseusement (options en getter lazy, `ready` sans calcul — `RTCRtpReceiver.getCapabilities` plus appelé au chargement, ~667 ms à froid) + mémoïsation + gardes `patchRtcCodecs`/`patchRtcPeerConnection` sur valeur stockée brute | settings/rtc |
 
 ## Matrice de compatibilité (empilement par paires)
 
 Ligne i, colonne j : ✓ = j s'applique proprement après i, ✗ = conflit.
 
 ```
-    01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20
-  01  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
-  02  ✓  .  ✓  ✓  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
-  03  ✓  ✓  .  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
-  04  ✓  ✓  ✗  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
-  05  ✓  ✗  ✓  ✓  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
-  06  ✓  ✓  ✓  ✓  ✓  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
-  07  ✓  ✓  ✓  ✓  ✓  ✓  .  ✗  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
-  08  ✓  ✓  ✓  ✓  ✓  ✓  ✗  .  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
-  09  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
-  10  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
-  11  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✗  ✓  ✓  ✗  ✓  ✓  ✓  ✓  ✓
-  12  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  .  ✓  ✓  ✗  ✓  ✓  ✓  ✓  ✓
-  13  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✗  ✓  ✗  ✓  ✗  ✗  ✗
-  14  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  .  ✓  ✗  ✓  ✗  ✗  ✗
-  15  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  ✓  .  ✓  ✓  ✓  ✓  ✓
-  16  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  .  ✓  ✗  ✗  ✗
-  17  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✓  ✓  ✓
-  18  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  ✗  ✓  .  ✗  ✗
-  19  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  ✗  ✓  ✗  .  ✗
-  20  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  ✗  ✓  ✗  ✗  .
+    01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21
+  01  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✓
+  02  ✓  .  ✓  ✓  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✓
+  03  ✓  ✓  .  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✗
+  04  ✓  ✓  ✗  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✗
+  05  ✓  ✗  ✓  ✓  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✓
+  06  ✓  ✓  ✓  ✓  ✓  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✓
+  07  ✓  ✓  ✓  ✓  ✓  ✓  .  ✗  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✓
+  08  ✓  ✓  ✓  ✓  ✓  ✓  ✗  .  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✓
+  09  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✓
+  10  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✓
+  11  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✗  ✓  ✓  ✗  ✓  ✓  ✓  ✓  ✓ ✓
+  12  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  .  ✓  ✓  ✗  ✓  ✓  ✓  ✓  ✓ ✓
+  13  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✗  ✓  ✗  ✓  ✗  ✗  ✗ ✓
+  14  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  .  ✓  ✗  ✓  ✗  ✗  ✗ ✓
+  15  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  ✓  .  ✓  ✓  ✓  ✓  ✓ ✓
+  16  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  .  ✓  ✗  ✗  ✗ ✓
+  17  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✓  ✓  ✓ ✓
+  18  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  ✗  ✓  .  ✗  ✗ ✓
+  19  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  ✗  ✓  ✗  .  ✗ ✓
+  20  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  ✗  ✓  ✗  ✗  . ✓
+  21  ✓  ✓  ✗  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .
 ```
 
 ### Zones incompatibles (mêmes lignes physiques du fichier minifié)
