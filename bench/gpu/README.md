@@ -257,16 +257,24 @@ dépendances système), génération de `test.webm`, 6 seeds × 3 passes
 CI inconnus), wallTotal < `--wall-min` (1,2), draw hors `--draw-min/--draw-max`
 (0,5-2,0), ou **chemin GL non fonctionnel** (le build récent doit uploader par
 `texSubImage2D` avec 0 `texImage2D` — un revert du patch 13/16 est détecté
-même sans régression de timing). Le résumé markdown (`--markdown=`) contient
-en plus la **ligne de session** — date (capture `state-s<seed>.before.json` du
-1er seed, sinon date courante), plages upload, ratio, **état** (bas ≥ ×4 /
-haut ≤ ×2,5 / transitionnel, mêmes seuils que le README) et draw — prête à
-coller telle quelle dans le tableau « Sessions GPU » du README. Le workflow
-capture l'état machine avant/après chaque seed et upload `gpu-summary.md` en
-artefact (`gpu-summary-<sha>`) en plus des `run-s*.json` en cas d'échec. Les
-seuils sont ajustables au premier run sur une machine réelle :
+même sans régression de timing). **Bornes absolues du build** (garde-fou : le
+ratio perf10/build peut passer même si le build régresse, quand perf10 régresse
+aussi — ex. driver ou harnais ; un build qui remonte vers le niveau perf10
+échappe au ratio) : émission upload ≤ `--build-upload-max` (défaut **25 µs** —
+nominal ~10 sur le runner CI) et wallTotal ≤ `--build-wall-max` (défaut
+**0,10 ms** — nominal ~0,015). Calibrées sur le runner CI ; les flags
+permettent de les élargir pour une session locale en état haut. Le résumé
+markdown (`--markdown=`) contient en plus la **ligne de session** — date
+(capture `state-s<seed>.before.json` du 1er seed, sinon date courante), plages
+upload, ratio, **état** (bas ≥ ×4 / haut ≤ ×2,5 / transitionnel, mêmes seuils
+que le README) et draw — prête à coller telle quelle dans le tableau « Sessions
+GPU » du README. Le workflow capture l'état machine avant/après chaque seed et
+upload `gpu-summary.md` en artefact (`gpu-summary-<sha>`) en plus des
+`run-s*.json` en cas d'échec. Les seuils sont ajustables au premier run sur une
+machine réelle :
 `node bench/gpu/check-gpu.js 100 200 300 400 500 600
-[--upload-min=…] [--wall-min=…] [--draw-min=…] [--draw-max=…]`.
+[--upload-min=…] [--wall-min=…] [--draw-min=…] [--draw-max=…]
+[--build-upload-max=…] [--build-wall-max=…]`.
 
 Le harnais CPU (parse, hot loops, éval page) vit dans `bench/` — voir
 `bench/README.md`. La section « Repro » du README principal documente les
