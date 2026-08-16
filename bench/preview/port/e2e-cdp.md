@@ -9,6 +9,20 @@ l'onglet Network ET dans les logs de l'outil.
 
 ## Résultats réels (session Edge, 16 août 2026)
 
+### Étape 0 — hors-navigateur (exécution 1, 16 août ~23:45)
+
+| Gate | Commande | Résultat |
+|---|---|---|
+| A — document-start | `node bench/preview/port/fetch-early.test.js` | **17/17 OK ✅** (exit 0) — garde T6 neutralisé, hook posé avant entry.client, SDK `ub` capture notre hook |
+| B — réécriture P2+P3 | `node bench/preview/port/userscript-rewrite.test.js` | **14/14 OK ✅** (exit 0) — play → tizen + x-ms-device-info ; configuration → overrides fusionnés, serveur préservé |
+| Probe (recommandé) | `node bench/preview/probe-page.js 9222` | `hookActif: false` — page en **preview stock**, stream en cours (`readyState 4, paused:false`), aucun marqueur BX_* |
+
+- **Lecture** : la logique de réécriture est verte (vm), le hook userscript
+  n'est **pas** actif dans la page ouverte → le prochain run CDP verra le play
+  en `original:windows` (interprétation directe de C1/C2, pas de double
+  réécriture). Le stream en cours confirme que le câblage réseau est vivant ;
+  reste à valider P2 (`[P2]` après `[P3]`, C4) et P1 (idle) en réel.
+
 ### Run 1 — P3 validé ✅
 
 ```
