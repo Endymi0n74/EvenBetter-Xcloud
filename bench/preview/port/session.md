@@ -123,6 +123,37 @@ réelle de chargement du module (fetch vs ESM natif → le hook fetch serait
 inactif, le wrapSession reste la voie principale), et que l'input virtuel
 `sendKeepAlive` reset bien le timer d'idle serveur.
 
+> **Verdict étude 16 août — le hook fetch ne couvre PAS le keep-alive, P1
+> reste nécessaire** :
+>
+> 1. **Routage `XcloudInterceptor.handle`** (stable ET preview — identiques) :
+>    seules routes traitées = `login/user` (auth, `offeringId: "xhome"`),
+>    `sessions/cloud/play` (P3), `waittime/` (UX file), `configuration` (P2),
+>    `ice` GET — tout le reste (dont `/keepalive`) passe par `NATIVE_FETCH`
+>    **sans réécriture**.
+> 2. **`handleLogin` ≠ keep-alive** : réécrit l'offering vers xhome et la base
+>    d'URL (authentification/région) — aucun lien avec le heartbeat.
+> 3. **`handleWaitTime` ≠ keep-alive** : lit `estimatedAllocationTimeInSeconds`
+>    pour afficher le temps de file sur l'écran de chargement — UX pure.
+> 4. **P1 vs heartbeat natif : complémentaires, pas redondants** — trois
+>    mécanismes distincts dans le preview :
+>    - heartbeat HTTP natif (`keepAlivePulseInSeconds: 60` →
+>      `setInterval(heartBeatSession)` → POST `/v5/sessions/cloud/{id}/keepalive`)
+>      : garde la **connexion de session** vivante (niveau réseau) ;
+>    - détection d'idle serveur (`WarningForBeingIdle` → countdown
+>      `secondsUntilKick` → `dispatchEvent(new qe(...))` → UI) : déclenchée par
+>      l'**inactivité utilisateur** (pas d'input), indépendante du heartbeat ;
+>    - P1 : intercepte le Warning → `sendKeepAlive()` (input virtuel gamepad)
+>      → reset du **timer d'idle serveur**.
+>    Un utilisateur AFK garde la connexion vivante (heartbeat) mais le timer
+>    d'idle expire quand même → kick. Seul P1 fausse l'input pour le reset.
+>    La présence de la branche `WarningForBeingIdle` dans le bundle preview
+>    prouve que le kick idle est réel (même SDK de session que le stable).
+> 5. **Cohérence avec le stable** : son keep-alive passe par
+>    `remotePlayKeepAlive` (patch de classe `onServerDisconnectMessage`), pas
+>    par `XcloudInterceptor` — le build preview reproduit exactement cette
+>    architecture (T5), il n'y a **pas** de régression de build sur ce point.
+
 ### P2 — Config overrides (vibration, mkb, touch, micro)
 
 Le `handleConfiguration` stable réécrit la réponse ; sur le preview, injecter
