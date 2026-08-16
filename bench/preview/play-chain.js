@@ -16,9 +16,12 @@
  * chaîne d'import GameStreamBootstrapper → StreamSessionRequest rompue.
  *
  * Usage :
- *   node bench/preview/play-chain.js [dir] [--print] [--write]
+ *   node bench/preview/play-chain.js [dir] [--print] [--write] [--soft]
  *     (défaut : /d/tmp/preview-player ; --print affiche le markdown,
- *      --write régénère bench/preview/play-chain.md)
+ *      --write régénère bench/preview/play-chain.md ; --soft = pas de bundle
+ *      trouvé du tout → warning + exit 0, pour les contextes sans capture
+ *      locale (CI, Étape 0 du protocole E2E) — un bundle présent mais des
+ *      ancres dérivées reste un échec).
  */
 "use strict";
 
@@ -72,19 +75,21 @@ function buildChain(dir) {
   const rows = [];
   let drift = 0;
   const bundles = {};
+  const foundBundles = new Set();
   for (const step of CHAIN) {
     if (!bundles[step.bundle]) {
       bundles[step.bundle] = findBundle(dir, step.bundle) ? fs.readFileSync(findBundle(dir, step.bundle), "utf8") : null;
     }
     const content = bundles[step.bundle];
     if (!content) { rows.push({ ...step, ok: false, count: 0, offset: -1, note: "bundle absent" }); drift++; continue; }
+    foundBundles.add(step.bundle);
     const count = countMatches(content, step.needle);
     const offset = firstOffset(content, step.needle);
     const ok = count >= step.min;
     if (!ok) drift++;
     rows.push({ ...step, ok, count, offset, note: ok ? "" : `attendu ≥ ${step.min}, trouvé ${count}` });
   }
-  return { rows, drift };
+  return { rows, drift, foundBundles: foundBundles.size };
 }
 
 function render(rows, drift) {
@@ -108,7 +113,8 @@ function render(rows, drift) {
 
 const argv = process.argv.slice(2);
 const dir = argv.find((a) => !a.startsWith("--")) || DEFAULT_DIR;
-const { rows, drift } = buildChain(dir);
+const soft = argv.includes("--soft");
+const { rows, drift, foundBundles } = buildChain(dir);
 const md = render(rows, drift);
 
 if (argv.includes("--print")) console.log(md);
@@ -121,5 +127,11 @@ else {
 if (argv.includes("--write")) {
   fs.writeFileSync(path.join(__dirname, "play-chain.md"), md, "utf8");
   console.log(`Référence écrite : bench/preview/play-chain.md`);
+}
+// --soft : aucun bundle trouvé → contexte sans capture locale (CI, Étape 0) :
+// warning, pas d'échec — un bundle présent avec des ancres dérivées reste un DRIFT.
+if (soft && foundBundles === 0) {
+  console.log(`⚠️ play-chain : aucun bundle dans ${dir} — chronologie non vérifiable (mode --soft), exit 0`);
+  process.exit(0);
 }
 process.exit(drift === 0 ? 0 : 1);

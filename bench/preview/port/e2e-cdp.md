@@ -23,6 +23,19 @@ l'onglet Network ET dans les logs de l'outil.
   réécriture). Le stream en cours confirme que le câblage réseau est vivant ;
   reste à valider P2 (`[P2]` après `[P3]`, C4) et P1 (idle) en réel.
 
+### Étape 0 — hors-navigateur (exécution 2, 16 août ~23:55 — gate D ajouté)
+
+| Gate | Résultat |
+|---|---|
+| A — document-start | **17/17 OK ✅** (exit 0) |
+| B — réécriture P2+P3 | **14/14 OK ✅** (exit 0) |
+| C — probe | `hookActif: false` (stream en cours, preview stock) |
+| D — chronologie play | **11/11 ancres stables ✅** (exit 0) — `node bench/preview/play-chain.js --soft` sur `D:/tmp/preview-player` |
+
+- **Lecture** : la logique (vm), le câblage (probe) et la chronologie (play-chain)
+  sont verts → les hypothèses de timing du Prérequis tiennent. Prêt pour le
+  Run 1 CDP (P2 reste à valider en réel).
+
 ### Run 1 — P3 validé ✅
 
 ```
@@ -69,10 +82,10 @@ build preview réel et les exécutent en vm (pas de dépendance à la session
 authentifiée ni aux bundles réseau) :
 
 En une commande (échoue si un gate est rouge ; probe informatif, navigateur
-injoignable → warning) :
+injoignable → warning ; gate D soft sans bundles capturés) :
 
 ```bash
-./bench/preview/port/run-e2e0.sh [--port=9222] [--skip-probe]
+./bench/preview/port/run-e2e0.sh [--port=9222] [--dir=/d/tmp/preview-player] [--skip-probe]
 ```
 
 Équivalent détaillé (les trois étapes séparées) :
@@ -90,10 +103,18 @@ node bench/preview/port/userscript-rewrite.test.js
 
 # C — hook userscript actif dans la page ? change la lecture de C1/C2 (soft)
 node bench/preview/probe-page.js 9222   # hookActif: true/false
+
+# D — anti-dérive de la chronologie requestConnection → play (le timing
+#     d'attache du CDP, Prérequis, repose dessus). Sans bundles capturés :
+#     warning (--soft, exit 0) ; un bundle présent mais des ancres dérivées :
+#     DRIFT = échec
+node bench/preview/play-chain.js --soft   # ou --dir=<capture>
 ```
 
-- **Sortie attendue** : les deux harnais en « OK ✅ » (exit 0). Sinon la
-  logique dérive (minifier, ancres) → corriger avant tout run réseau.
+- **Sortie attendue** : A/B/D en « OK ✅ » (exit 0). Sinon la logique dérive
+  (minifier, ancres) → corriger avant tout run réseau. D alerte si la
+  chronologie du play bouge — la fenêtre d'attache de l'outil (avant
+  l'ouverture de la page stream) deviendrait caduque.
 - **Probe C (recommandé, informatif)** : le résultat `hookActif` change la
   lecture des critères C1/C2 :
 

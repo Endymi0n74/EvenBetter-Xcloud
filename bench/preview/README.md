@@ -232,13 +232,16 @@ preview qui renomme/restructure casserait la capture et l'interception
 P2/P3, et ce script le signale avant qu'on mesure sur du faux.
 
 ```
-node bench/preview/play-chain.js [dir] [--print] [--write]
+node bench/preview/play-chain.js [dir] [--print] [--write] [--soft]
 node bench/preview/play-chain.test.js   # 11 assertions, exit 0 = stables
 ```
 
 - `dir` par défaut : `/d/tmp/preview-player` ; `--print` affiche le tableau
   markdown, `--write` régénère `bench/preview/play-chain.md` (référence).
 - Sortie : `OK — ancres stables` (exit 0) ou `DRIFT — N ancre(s)` (exit 1).
+- `--soft` : aucun bundle dans `dir` → warning + exit 0 (contextes sans
+  capture locale : CI, Étape 0 du protocole E2E) ; un bundle présent avec des
+  ancres dérivées reste un DRIFT. Intégré à `port/run-e2e0.sh` (gate D).
 
 ## Rejouabilité hors navigateur
 
