@@ -19,6 +19,9 @@
  *   - fetch (page)          — hook direct
  *   - XMLHttpRequest        — hook open/send + loadend (statut + responseText)
  *   - WebSocket             — hook constructeur (URL + état open/close)
+ *   - Workers / SW          — hook new Worker/SharedWorker + register() :
+ *     enregistre les workers créés (v3 — le preview enregistre un service
+ *     worker entry.worker.js, suspecté de porter le protocole gssv)
  *   - Resource timing       — dump performance.getEntriesByType('resource') :
  *     la trace réseau DU NAVIGATEUR lui-même, qui voit les requêtes faites par
  *     workers/iframes/WS même si les hooks les ratent.
@@ -67,8 +70,10 @@
     nav: [{ ts: Date.now(), href: location.href }],
     requests: [],          // { ts, url, method, status, endpoint, reqBody, resBody, via }
     counts: { fetch: 0, xhr: 0, ws: 0 },  // requêtes VUES par transport (toutes)
+    workers: [],           // { ts, kind: "worker"|"shared"|"sw", url }
     hooks: [],
   };
+  const recordWorker = (kind, url) => state.workers.push({ ts: Date.now(), kind, url: String(url).slice(0, 200) });
   const unHook = (fn) => state.hooks.push(fn);
 
   const esc = (s) => String(s).replace(/[|]/g, "\\|");
@@ -183,6 +188,47 @@
     unHook(() => { window.WebSocket = W; });
   }
 
+  // ---------- 1ter2. workers / service workers : où tourne le protocole ----------
+  function hookWorkers() {
+    // dedicated workers
+    const W = window.Worker;
+    if (typeof W === "function") {
+      function HookedWorker(url, opts) {
+        recordWorker("worker", url);
+        return new W(url, opts);
+      }
+      HookedWorker.prototype = W.prototype;
+      window.Worker = HookedWorker;
+      unHook(() => { window.Worker = W; });
+    }
+    // shared workers
+    const S = window.SharedWorker;
+    if (typeof S === "function") {
+      function HookedShared(url, opts) {
+        recordWorker("shared", url);
+        return new S(url, opts);
+      }
+      HookedShared.prototype = S.prototype;
+      window.SharedWorker = HookedShared;
+      unHook(() => { window.SharedWorker = S; });
+    }
+    // service worker registration
+    if (typeof navigator !== "undefined" && navigator.serviceWorker && typeof navigator.serviceWorker.register === "function") {
+      const orig = navigator.serviceWorker.register.bind(navigator.serviceWorker);
+      navigator.serviceWorker.register = (scriptURL, opts) => {
+        recordWorker("sw", scriptURL);
+        return orig(scriptURL, opts);
+      };
+      unHook(() => { navigator.serviceWorker.register = orig; });
+    }
+    // SW déjà actif (enregistré avant le collage) : le signaler quand même
+    try {
+      if (typeof navigator !== "undefined" && navigator.serviceWorker && navigator.serviceWorker.controller) {
+        recordWorker("sw-active", navigator.serviceWorker.controller.scriptURL || "?");
+      }
+    } catch (e) { /* non bloquant */ }
+  }
+
   // ---------- 1quater. resource timing : la trace réseau du navigateur ----------
   function resourceTiming() {
     const per = (typeof performance !== "undefined" && typeof performance.getEntriesByType === "function") ? performance : null;
@@ -237,7 +283,8 @@
     lines.push("- Nav : " + state.nav.map((n) => new Date(n.ts).toISOString().slice(11, 19) + " " + n.href).join(" | "));
     lines.push("- Requêtes capturées : " + state.requests.length);
     lines.push("- Vues par transport (toutes requêtes, même non-matchées) : fetch=" + state.counts.fetch + " · xhr=" + state.counts.xhr + " · ws=" + state.counts.ws);
-    lines.push("- Resource timing : " + (rt.available ? rt.total + " ressources chargées, " + rt.protocol.length + " protocolaires" : "API indisponible"));
+    lines.push("    - Resource timing : " + (rt.available ? rt.total + " ressources chargées, " + rt.protocol.length + " protocolaires" : "API indisponible"));
+    lines.push("- Workers / service workers vus : " + (state.workers.length ? state.workers.map((w) => w.kind + "(" + w.url.slice(0, 60) + ")").join(", ") : "aucun"));
     if (state.requests.length === 0 && state.counts.fetch + state.counts.xhr + state.counts.ws === 0 && (!rt.available || rt.protocol.length === 0)) {
       lines.push("");
       lines.push("⚠️ DIAGNOSTIC : aucune requête vue nulle part — soit la session n'a PAS démarré");
@@ -313,6 +360,7 @@
   hookFetch();
   hookXHR();
   hookWebSocket();
+  hookWorkers();
   hookNav();
 
   const api = { report, download, stop, diag, state };

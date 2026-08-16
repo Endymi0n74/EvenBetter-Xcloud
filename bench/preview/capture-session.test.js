@@ -70,6 +70,7 @@ const sandbox = {
   history: { pushState() {}, replaceState() {} },
   XMLHttpRequest: FakeXHR,
   WebSocket: FakeWS,
+  navigator: { serviceWorker: { controller: null, register: () => Promise.resolve({}) } },
   performance: {
     getEntriesByType: (t) => t === "resource" ? [
       { name: "https://westus.gssv-prod.xboxlive.com/v5/abc-def-123/play" },
@@ -174,6 +175,44 @@ check("API exposée (BX_SESSION_CAPTURE)", !!cap && typeof cap.report === "funct
   check("rapport : trace réseau protocolaire", report.includes("## Trace réseau protocolaire") && report.includes("gssv-prod.xboxlive.com"));
   check("rapport : ligne transports", report.includes("fetch=") && report.includes("xhr=") && report.includes("ws="));
 
+  // 10. workers / service workers : hooks new Worker/SharedWorker + register()
+  sandbox.Worker = function FakeWorker(url, opts) { this.url = url; };
+  sandbox.SharedWorker = function FakeShared(url, opts) { this.url = url; };
+  sandbox.navigator = {
+    serviceWorker: {
+      controller: null,
+      register: function (scriptURL, opts) { this._registered = scriptURL; return Promise.resolve({}); },
+    },
+  };
+  vm.runInContext("BX_SESSION_CAPTURE.stop()", sandbox);
+  // re-injecter v3 dans un sandbox neuf pour tester les hooks workers
+  const sandbox3 = {
+    console, URL, Blob, Request, Response,
+    location: { href: "https://play.xbox.com/stream/BWBP12345" },
+    history: { pushState() {}, replaceState() {} },
+    XMLHttpRequest: FakeXHR,
+    WebSocket: FakeWS,
+    Worker: function FakeWorker(url) { this.url = url; },
+    SharedWorker: function FakeShared(url) { this.url = url; },
+    navigator: { serviceWorker: { controller: { scriptURL: "https://play.xbox.com/entry.worker.js?v=3" }, register: function (u) { this._reg = u; return Promise.resolve({}); } } },
+    performance: { getEntriesByType: () => [] },
+  };
+  sandbox3.window = sandbox3;
+  sandbox3.addEventListener = () => {};
+  sandbox3.removeEventListener = () => {};
+  sandbox3.fetch = (input) => Promise.resolve(new Response("{}", { status: 200 }));
+  vm.createContext(sandbox3);
+  vm.runInContext(SRC, sandbox3);
+  const cap3 = sandbox3.BX_SESSION_CAPTURE;
+  new sandbox3.Worker("/assets/stream-worker.js");
+  new sandbox3.SharedWorker("/assets/shared.js");
+  sandbox3.navigator.serviceWorker.register("/entry.worker.js");
+  check("workers : new Worker capturé", cap3.state.workers.some((w) => w.kind === "worker" && w.url.includes("stream-worker")));
+  check("workers : SharedWorker capturé", cap3.state.workers.some((w) => w.kind === "shared" && w.url.includes("shared")));
+  check("workers : register() capturé (sw)", cap3.state.workers.some((w) => w.kind === "sw" && w.url.includes("entry.worker")));
+  check("workers : SW déjà actif signalé (sw-active)", cap3.state.workers.some((w) => w.kind === "sw-active" && w.url.includes("entry.worker")));
+  check("rapport : ligne workers visible", cap3.report().includes("Workers / service workers vus"));
+
   // ---- scénario réel : v1 déjà active dans la page → la v2 doit la remplacer ----
   const sandbox2 = {
     console, URL, Blob, Request, Response,
@@ -186,6 +225,7 @@ check("API exposée (BX_SESSION_CAPTURE)", !!cap && typeof cap.report === "funct
   sandbox2.window = sandbox2;
   sandbox2.addEventListener = () => {};
   sandbox2.removeEventListener = () => {};
+  sandbox2.navigator = { serviceWorker: { controller: null, register: () => Promise.resolve({}) } };
   sandbox2.fetch = (input) => Promise.resolve(new Response("{}", { status: 200 }));
   // fausse v1 : même NS mais SANS diag
   sandbox2.BX_SESSION_CAPTURE = { report() {}, download() {}, stop() { sandbox2._stopped = true; } };
