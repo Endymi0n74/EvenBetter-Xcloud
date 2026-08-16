@@ -42,6 +42,12 @@ jobs:
           echo "--- sortie (dernières lignes) ---"
           tail -20 "$RUNNER_TEMP/bench-out.txt"
 
+      - name: Tests du module de fusion du commentaire (pr-comment-merge)
+        # Cas limites du commentaire PR unique (édition manuelle, markers
+        # dupliqués, contenu vide, ordres de mise à jour) — échoue le job si
+        # la fusion casse. Lancement local : node bench/pr-comment-merge.test.js
+        run: node bench/pr-comment-merge.test.js
+
       - name: Vérifie les ratios des hot loops (seuils CI)
         run: |
           # le résumé markdown inclut la ligne de session (état haut/bas +

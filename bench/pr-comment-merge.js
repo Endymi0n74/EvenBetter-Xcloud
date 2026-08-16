@@ -15,7 +15,25 @@
  *
  * Chaque job met à jour SA section (contenu neuf après SON marker) en
  * préservant les autres. La fonction est pure (pas d'API GitHub) : testable
- * localement avec node.
+ * localement avec node (bench/pr-comment-merge.test.js).
+ *
+ * Robustesse — cas limites couverts (cf. tests) :
+ *   - l'ordre PHYSIQUE des markers n'importe pas : les sections sont
+ *     collectées par position, pas dans l'ordre canonique — une section
+ *     réordonnée à la main n'est pas perdue ;
+ *   - un marker dupliqué (édition manuelle, double post) : la DERNIÈRE
+ *     occurrence gagne (self-healing, retour au layout canonique) ;
+ *   - tout ce qui suit `<!-- bench-ratios -->` est ignoré (MAIN est la fin
+ *     canonique) ; un commentaire sans marker est adopté : son contenu
+ *     devient la section hot loops ;
+ *   - une section publiée VIDE supprime la section existante (purge des
+ *     données périmées — ex. protocole GPU relancé sans label) ;
+ *   - un `mode` inconnu lève une erreur (défaut de programmation : échoue le
+ *     step CI au lieu de perdre silencieusement le contenu) ;
+ *   - limitation inhérente au parsing par markers : si le CONTENU d'une
+ *     section contient lui-même un marker de section exact (ex.
+ *     `<!-- bench-gpu -->` dans le résumé GPU), le découpage est faussé —
+ *     ne jamais inclure de marker dans un résumé.
  *
  * Usage :
  *   const { mergeComment } = require('./bench/pr-comment-merge.js');
@@ -29,29 +47,49 @@ const SECTIONS = [
   { mode: "gpu", marker: "<!-- bench-gpu -->" },
 ];
 
+const MODES = ["hotloops", ...SECTIONS.map((s) => s.mode)];
+
 /**
  * Découpe un body existant : contenu hot loops + sections trouvées
- * (marker + contenu, dans l'ordre canonique).
+ * (marker + contenu). Indépendant de l'ordre physique des markers.
+ * @param {string} body
+ * @returns {{hot: string, sections: Array<{mode: string, marker: string, content: string}>}}
  */
 function parse(body) {
   const b = body || "";
   const res = { hot: "", sections: [] };
+
+  // Tous les markers (MAIN + sections), triés par position.
+  const events = [];
   const mainIdx = b.indexOf(MAIN);
-  const marks = SECTIONS.map((s) => ({ s, i: b.indexOf(s.marker) })).filter((x) => x.i !== -1);
-  const first = marks.length ? marks.reduce((a, x) => (x.i < a.i ? x : a)) : null;
-  const hotEnd = first ? first.i : mainIdx !== -1 ? mainIdx : b.length;
-  res.hot = b.slice(0, hotEnd).trim();
-  let pos = hotEnd;
+  if (mainIdx !== -1) events.push({ pos: mainIdx, kind: "main", marker: MAIN, mode: null });
   for (const s of SECTIONS) {
-    const i = b.indexOf(s.marker, pos);
-    if (i === -1) continue;
-    const nexts = SECTIONS.filter((s2) => s2.marker !== s.marker)
-      .map((s2) => b.indexOf(s2.marker, i))
-      .filter((x) => x !== -1);
-    let end = mainIdx !== -1 ? mainIdx : b.length;
-    if (nexts.length) end = Math.min(end, ...nexts);
-    res.sections.push({ mode: s.mode, marker: s.marker, content: b.slice(i + s.marker.length, end).trim() });
-    pos = end;
+    // TOUTES les occurrences (un marker dupliqué par édition manuelle ou
+    // double post doit être collecté — la dernière gagne au découpage).
+    let i = -1;
+    while ((i = b.indexOf(s.marker, i + 1)) !== -1) {
+      events.push({ pos: i, kind: "section", marker: s.marker, mode: s.mode });
+    }
+  }
+  events.sort((a, z) => a.pos - z.pos);
+
+  // Contenu hot loops : tout ce qui précède le 1er marker.
+  res.hot = b.slice(0, events.length ? events[0].pos : b.length).trim();
+
+  // Segments entre markers consécutifs : chaque section = contenu entre SON
+  // marker et le marker suivant (n'importe lequel). Doublon : la dernière
+  // occurrence gagne. Tout ce qui suit MAIN est non canonique → ignoré.
+  const byMode = new Map();
+  for (let i = 0; i < events.length; i++) {
+    const ev = events[i];
+    if (ev.kind === "main") break;
+    const end = i + 1 < events.length ? events[i + 1].pos : b.length;
+    byMode.set(ev.mode, b.slice(ev.pos + ev.marker.length, end).trim());
+  }
+  for (const s of SECTIONS) {
+    if (byMode.has(s.mode)) {
+      res.sections.push({ mode: s.mode, marker: s.marker, content: byMode.get(s.mode) });
+    }
   }
   return res;
 }
@@ -61,8 +99,12 @@ function parse(body) {
  * @param {string} body  body existant ('' si aucun commentaire)
  * @param {string} mode  'hotloops' | 'startup' | 'gpu'
  * @param {string} section  contenu markdown de la section à publier
+ * @throws si `mode` est inconnu
  */
 function mergeComment(body, mode, section) {
+  if (!MODES.includes(mode)) {
+    throw new Error(`mergeComment : mode inconnu « ${mode} » (attendu : ${MODES.join(", ")})`);
+  }
   const p = parse(body);
   const fresh = section.trim();
   const parts = [];

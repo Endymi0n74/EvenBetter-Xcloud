@@ -206,6 +206,12 @@ SA section en préservant les autres (layout canonique : [hot loops] [SEC]
 [startup] [GPU] [MAIN]). La logique de fusion est un **module committé**
 (`bench/pr-comment-merge.js`, fonction pure `mergeComment` testable
 localement) requis par les steps github-script des trois jobs — plus de copie
+**Harnais de test committé `bench/pr-comment-merge.test.js` (31 cas, lancé par
+tout run CI dans le job hotloops) : ordres de mise à jour (6 permutations),
+idempotence, édition manuelle (sections réordonnées — plus aucune perte,
+doublons de markers — dernière occurrence gagne, MAIN manquant/anticipé,
+contenu après MAIN ignoré), sections vides (purge), mode inconnu (throw),
+CRLF/whitespace, et vérification byte-identique sur le commentaire réel.**
 du script dans le workflow. Le job GPU étant dispatch-only (ou label-gated :
 label `bench-gpu` sur une PR interne), sa section ne se poste que dans un
 contexte PR (le step est inerte sur les dispatches, qui n'ont pas de PR à
