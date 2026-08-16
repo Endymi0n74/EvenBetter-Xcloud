@@ -22,7 +22,11 @@
  *     ~0,015) et draw ≤ --build-draw-max µs (défaut 25 — nominal ~10,2 ; couvre
  *     une régression de shader qui ralentirait les DEUX versions : le ratio
  *     draw reste ~1,0 et passerait sans cette borne). Calibrées sur le runner
- *     CI ; flags pour les sessions locales en état haut.
+ *     CI ; **comparables en état bas uniquement** — en état haut/transitionnel
+ *     le coût fixe de backpressure (~50-70 µs/upload) gonfle les absolus du
+ *     build (faux positifs observés en réel : émission 52 µs en état haut) :
+ *     les bornes passent alors en n/a non bloquant et la session est marquée
+ *     « — » (seuls les ratios comptent, doctrine README).
  *
  * `--markdown=<fichier>` : écrit aussi le résumé en tableau markdown (même en
  * cas d'échec, avant l'exit).
@@ -152,13 +156,19 @@ const totalCell = totalAgg ? `**${fmt(totalAgg.med)}** (${fmt(totalAgg.range[0])
 // Colonnes Borne/Statut (même principe que la table Sessions startup) : les
 // bornes absolues du build (émission ≤ 25 µs, wall ≤ 0,10 ms, draw ≤ 25 µs)
 // rapportées par session — ✅ si les 3 passent, ❌ + métrique fautive sinon.
+// Doctrine du projet : les absolus ne sont comparables qu'en état BAS
+// (émission pure) — en état haut/transitionnel, le coût fixe de backpressure
+// (~50-70 µs/upload) les gonfle et ils sont marqués « — » (non comparables :
+// seuls les ratios comptent — cf. README « Sessions GPU », les bornes sont
+// calibrées sur les sessions runner en état bas).
+const boundsComparable = etat === "bas";
 const boundsOk = upNew.med <= BUILD_UPLOAD_MAX && wallNew.med <= BUILD_WALL_MAX && drawNew.med <= BUILD_DRAW_MAX;
 const failingBound =
   upNew.med > BUILD_UPLOAD_MAX ? `émission ${fmt(upNew.med)} µs > ${fmt(BUILD_UPLOAD_MAX)}` :
   wallNew.med > BUILD_WALL_MAX ? `wall ${fmt(wallNew.med)} ms > ${fmt(BUILD_WALL_MAX)}` :
   `draw ${fmt(drawNew.med)} µs > ${fmt(BUILD_DRAW_MAX)}`;
-const borneCell = `émission ≤ ${fmt(BUILD_UPLOAD_MAX)} µs · wall ≤ ${fmt(BUILD_WALL_MAX)} ms · draw ≤ ${fmt(BUILD_DRAW_MAX)} µs`;
-const statutCell = boundsOk ? "✅" : `❌ ${failingBound}`;
+const borneCell = boundsComparable ? `émission ≤ ${fmt(BUILD_UPLOAD_MAX)} µs · wall ≤ ${fmt(BUILD_WALL_MAX)} ms · draw ≤ ${fmt(BUILD_DRAW_MAX)} µs` : "—";
+const statutCell = !boundsComparable ? "—" : boundsOk ? "✅" : `❌ ${failingBound}`;
 const readmeSessionLine =
   `| ${sessionLabel} | ${NEW} | ${fmt(upP10.med)} (${fmt(upP10.range[0])}–${fmt(upP10.range[1])}) | ` +
   `${fmt(upNew.med)} (${fmt(upNew.range[0])}–${fmt(upNew.range[1])}) | **×${fmt(upRatio)}** | ${etat} | ` +
@@ -173,9 +183,13 @@ add(`Chemin GL ${NEW} (compteurs/frame)`, `texImage2D=${cP10.texImage2D || 0}, t
 // Bornes absolues du build — complètent les ratios (qui peuvent passer même
 // si le build régresse quand perf10 régresse aussi) : le coût du build est
 // calibré sur le runner CI (émission ~10 µs, wall ~0,015 ms, draw ~10,2 µs).
-add("Upload build — émission (µs, abs.)", "—", `${fmt(upNew.med)} (${fmt(upNew.range[0])}–${fmt(upNew.range[1])})`, null, `≤ ${fmt(BUILD_UPLOAD_MAX)}`, upNew.med <= BUILD_UPLOAD_MAX);
-add("wallTotal build (ms, abs.)", "—", `${fmt(wallNew.med)} (${fmt(wallNew.range[0])}–${fmt(wallNew.range[1])})`, null, `≤ ${fmt(BUILD_WALL_MAX)}`, wallNew.med <= BUILD_WALL_MAX);
-add("Draw build (µs, abs.)", "—", `${fmt(drawNew.med)} (${fmt(drawNew.range[0])}–${fmt(drawNew.range[1])})`, null, `≤ ${fmt(BUILD_DRAW_MAX)}`, drawNew.med <= BUILD_DRAW_MAX);
+// En état haut/transitionnel elles sont non bloquantes (ok: true) : les
+// absolus y sont gonflés par la backpressure, une alerte serait un faux
+// positif — les ratios restent les seuls garants dans ces états.
+add("Upload build — émission (µs, abs.)", "—", `${fmt(upNew.med)} (${fmt(upNew.range[0])}–${fmt(upNew.range[1])})`, null, boundsComparable ? `≤ ${fmt(BUILD_UPLOAD_MAX)}` : "n/a", boundsComparable ? upNew.med <= BUILD_UPLOAD_MAX : true);
+add("wallTotal build (ms, abs.)", "—", `${fmt(wallNew.med)} (${fmt(wallNew.range[0])}–${fmt(wallNew.range[1])})`, null, boundsComparable ? `≤ ${fmt(BUILD_WALL_MAX)}` : "n/a", boundsComparable ? wallNew.med <= BUILD_WALL_MAX : true);
+add("Draw build (µs, abs.)", "—", `${fmt(drawNew.med)} (${fmt(drawNew.range[0])}–${fmt(drawNew.range[1])})`, null, boundsComparable ? `≤ ${fmt(BUILD_DRAW_MAX)}` : "n/a", boundsComparable ? drawNew.med <= BUILD_DRAW_MAX : true);
+if (!boundsComparable) console.log(`  Bornes absolues du build non comparables (état ${etat}) — les absolus sont gonflés par la backpressure, seuls les ratios comptent.`);
 
 for (const r of rows) {
   const ratio = r.ratio != null ? fmt(r.ratio) : "—";

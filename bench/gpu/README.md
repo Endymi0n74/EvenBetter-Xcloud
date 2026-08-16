@@ -265,7 +265,13 @@ nominal ~10 sur le runner CI), wallTotal ≤ `--build-wall-max` (défaut
 **0,10 ms** — nominal ~0,015) et draw ≤ `--build-draw-max` (défaut **25 µs** —
 nominal ~10,2 ; couvre une régression de shader qui ralentirait les DEUX
 versions : le ratio draw resterait ~1,0 et passerait sans cette borne). Calibrées sur le runner CI ; les flags
-permettent de les élargir pour une session locale en état haut. Le résumé
+permettent de les élargir pour une session locale en état haut. **Comparables
+en état bas uniquement** (doctrine du projet, validé en réel le 16 août) : en
+état haut/transitionnel, le coût fixe de backpressure (~50-70 µs/upload)
+gonfle les absolus du build — l'émission mesurée 52 µs (ratio ×1,63, haut)
+déclenchait un faux positif. Les bornes passent alors en **n/a non bloquant**
+(seuil « n/a », session marquée `— | —` pour Borne/Statut) : les ratios
+restent les seuls garants dans ces états. Le résumé
 markdown (`--markdown=`) contient en plus la **ligne de session** — date
 (capture `state-s<seed>.before.json` du 1er seed, sinon date courante), plages
 upload, ratio, **état** (bas ≥ ×4 / haut ≤ ×2,5 / transitionnel, mêmes seuils

@@ -256,6 +256,9 @@ jobs:
   gpu-upload:
     if: (github.event_name == 'workflow_dispatch' && github.event.inputs.gpu == 'true') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'bench-gpu'))
     runs-on: [self-hosted, windows, gpu]
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - name: Checkout (historique complet — la baseline perf10 055d3a0 est requise)
         uses: actions/checkout@v4
