@@ -157,13 +157,14 @@ GPU, un coût fixe d'environnement (charge CPU, clocks, contention) gonfle les
 deux versions et écrase l'avantage du build — le ratio IDLE est le plus
 sensible, le relâchement Home l'est moins (voir colonne). **Attribut de
 session, pas du build** : le même code mesure ×9,5 en état haut et ×11,2 en
-état bas. Données encore minces (2 sessions) — la capture d'état machine
+état bas. Données encore minces (3 sessions) — la capture d'état machine
 alimentera la classification.
 
 | Session | perf10 IDLE (ns/poll) | build IDLE (ns/poll) | Ratio IDLE | État | Relâchement Home (perf10 → build) |
 |---|---|---|---|---|---|
 | Re-mesure v1.4.0 (3 seeds) | 368 (352–398) | 39 (36–41) | **×9,5** | haut | 1427 → 163 (−89 %) |
 | v1.6.0 (3 seeds, release) | ~333 (303–335) | ~29,8 (30–38) | **×11,2** | bas | ~1224 → ~152 (−87,6 %) |
+| CI 2026-08-16 (hotloops, dispatch GPU) | 487,50 (458,00–487,80) | 49,70 (48,00–50,20) | **×9,81** | transitionnel | 1374,20 → 205,60 (−85 %) |
 
 Notes :
 
