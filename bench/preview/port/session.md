@@ -212,6 +212,53 @@ device-info), désormais mesurables par la capture.
 > l'onglet **Network de DevTools** (le worker y apparaît) → filtrer `play` →
 > onglet Payload/Response.
 
+> **Forme `deviceInformation` capturée (play request réel, 16 août)** :
+> wire-compatible avec le stable (mêmes clés `body.settings.*`).
+>
+> ```json
+> {
+>   "nanoVersion": "V3;WebrtcTransport.dll",
+>   "enableTextToSpeech": false,
+>   "highContrast": 0,
+>   "locale": "fr-FR",
+>   "useIceConnection": false,
+>   "timezoneOffsetMinutes": 120,
+>   "sdkType": "web",
+>   "osName": "windows",
+>   "enableOptionalDataCollection": false
+> }
+> ```
+>
+> **Analyse du build du body (StreamSessionRequest, offset 84276)** :
+>
+> ```js
+> let t = this.playService.deviceInformation,   // ← osName vient d'ICI
+>     n = { nanoVersion: k(this.streamType),
+>           enableTextToSpeech: this.configuration.options.enableNarrator,
+>           magnifier: this.configuration.options.enableMagnifier,
+>           highContrast: this.configuration.options.highContrastMode,
+>           locale: this.locale,
+>           useIceConnection: !1,
+>           timezoneOffsetMinutes: this.configuration.options.timezoneOffsetMinutes,
+>           sdkType: `web`,
+>           osName: E(t),                         // E = module osName
+>           enableOptionalDataCollection: this.configuration.options.enableOptionalDataCollection }
+> ```
+>
+> Conséquence pour P3 : la plupart des champs sont pilotables par
+> `configuration.options.*` (donc par flags URL / overrides client), mais
+> **`osName` est dérivé de `playService.deviceInformation`**, PAS des options
+> — le trick résolution (osName windows/tizen/android → résolution servie)
+> ne se pilote pas par une option native. Et comme le play request part du
+> **worker**, le hook fetch de page du stable (`handlePlay` réécrit
+> `body.settings.osName` + header `x-ms-device-info`) n'est pas portable tel
+> quel. Voies possibles pour P3 : (a) interception réseau CDP
+> (`Fetch.requestPaused` → `continueRequest` avec body/headers réécrits,
+> fonctionne page ET worker), (b) hook du module `playServiceAdaptor`/`te`
+> (deviceInformation) si le module s'exécute dans la page, (c) confirmé par
+> le mapping flags de GameStreamBootstrapper : aucune flag URL `osName`/
+> `resolution` n'existe (flags = video/audio/devkit uniquement).
+
 1. **Endpoint de provisioning** du preview — **CONFIRMÉ runtime 16 août** :
    `uks.core.gssv-play-prod.xboxlive.com/v5/sessions/cloud/play` (base gssv
    v5 identique au stable, région `uks`).
@@ -221,11 +268,12 @@ device-info), désormais mesurables par la capture.
    devtools ?
 4. **Événement `qe`** (WarningForBeingIdle) : qui l'écoute, et un keep-alive
    envoyé reset-il bien le compteur serveur ?
-5. **`deviceInformation`** : sa forme exacte et le calcul d'`osName` — pour le
-   portage résolution. L'endpoint play est confirmé ; il reste à capturer le
-   **body** (le trafic part d'un worker → hooks de page inopérants sur les
-   bodies) : onglet **Network** de DevTools → filtrer `play` → onglet
-   Payload/Response du play request.
+5. **`deviceInformation`** — **FORME CONFIRMÉE 16 août** (body play request
+   capturé, wire-compatible stable). `osName` est dérivé de
+   `playService.deviceInformation` (pas des options) → P3 exige une
+   interception réseau CDP ou un hook du module `playServiceAdaptor`/`te`
+   (deviceInformation) si le module vit dans la page — la voie « flags URL »
+   est exclue (aucune flag osName/resolution dans GameStreamBootstrapper).
 6. **Login/région** : `auth-hooks` + sélection de région du preview
    (l'équivalent `handleLogin`).
 
