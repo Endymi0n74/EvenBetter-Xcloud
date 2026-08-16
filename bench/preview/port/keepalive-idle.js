@@ -98,7 +98,6 @@ function installKeepAliveIdle() {
   }
 
   // 2) api d'instance : wrapper onServerDisconnectMessage sur la session.
-  //    À brancher dès que la session est localisée (capture runtime / hook React).
   window.PreviewKeepAliveIdle = {
     patched: function () { return _patched; },
     wrapSession: function (session) {
@@ -117,6 +116,56 @@ function installKeepAliveIdle() {
       return true;
     }
   };
+
+  // 3) LOCALISATION AUTOMATIQUE de la session au runtime (validée en réel 17 août) :
+  //    la session du SDK est tenue dans l'état d'un composant React du stream —
+  //    fibre .Connection → chaîne d'état (memoizedState.next…) → memoizedState.data._session
+  //    (objet avec sendKeepAlive + onServerDisconnectMessage). Le walk est par
+  //    FORME (sendKeepAlive), pas par nom de composant (minifié/instable).
+  function locateSession() {
+    try {
+      var root = document.getElementById("root");
+      if (!root) return null;
+      var fiberKey = null;
+      var keys = Object.keys(root);
+      for (var i = 0; i < keys.length; i++) if (keys[i].indexOf("__reactFiber$") === 0) { fiberKey = keys[i]; break; }
+      if (!fiberKey) return null;
+      var queue = [root[fiberKey]];
+      var guard = 0;
+      while (queue.length && guard++ < 20000) {
+        var f = queue.shift();
+        if (!f) continue;
+        var st = f.memoizedState;
+        var steps = 0;
+        while (st && steps++ < 10) {
+          var ms = st.memoizedState;
+          if (ms && ms.data && ms.data._session && typeof ms.data._session.sendKeepAlive === "function") {
+            return ms.data._session;
+          }
+          st = st.next;
+        }
+        if (f.child) queue.push(f.child);
+        if (f.sibling) queue.push(f.sibling);
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  // watcher : wrap la session dès qu'elle apparaît (montage du stream), et
+  // re-wrap si une NOUVELLE session est créée (relance / reconnexion — la
+  // garde _bxKeepAliveWrapped rend le wrap idempotent par instance).
+  function watchSession() {
+    var s = locateSession();
+    if (s && !s._bxKeepAliveWrapped) {
+      try {
+        if (window.PreviewKeepAliveIdle.wrapSession(s)) {
+          BxLogger && BxLogger.info("PreviewKeepAliveIdle", "session wrapper (fibers)");
+        }
+      } catch (e) {}
+    }
+  }
+  if (typeof window.setInterval === "function") window.setInterval(watchSession, 3000);
+  watchSession();
 }
 
 module.exports = { KEEPALIVE_OLD, KEEPALIVE_NEW, patchStreamSessionRequestSource, installKeepAliveIdle };

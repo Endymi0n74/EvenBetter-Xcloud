@@ -25,11 +25,17 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
   Réponse `/configuration` : fusion `enableVibration`/mkb/mic dans
   `clientStreamingConfigOverrides` (schéma Zod validé — p2-schema.test.js).
 - **P1 keep-alive idle** : `keepalive-idle.js` (T5). **Verdict 16 août** : le
-  module StreamSessionRequest est chargé en **ESM natif** (import statique via
-  GameStreamBootstrapper) → le hook fetch du module ne peut pas se brancher ;
-  **wrapSession est la seule voie runtime** (localiser l'instance de session
-  restant à faire). Le heartbeat natif /keepalive (60 s) est complémentaire
-  (connexion), pas un substitut (timer d'idle = inactivité utilisateur).
+  module StreamSessionRequest est chargé en **ESM natif** → le hook fetch ne
+  peut pas se brancher ; **wrapSession est la seule voie runtime**.
+  **Localisation résolue 17 août** : la session est dans l'état React du
+  stream (fibre `.Connection` → chaîne `memoizedState.next…` →
+  `memoizedState.data._session`, objet avec sendKeepAlive +
+  onServerDisconnectMessage) — outils find/dump/hunt-session.js + **locator
+  auto dans le build** (walk par forme, wrap dès montage, 16/16 tests).
+  `session.stream` null si stream fermé (le gate getInputChannel() de
+  sendKeepAlive ne s'applique qu'en stream actif). Le heartbeat natif
+  /keepalive (60 s) est complémentaire (connexion), pas un substitut
+  (timer d'idle = inactivité utilisateur).
 - **hookActif en réel (edge-cdp)** : le profil NE PEUT PAS exécuter d'userscript
   (Tampermonkey MV3 exige le mode développeur d'Edge, inactivable en CDP).
   Solution : mini-extension `.edge-inject/` (`content_scripts` +
@@ -71,7 +77,12 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
 
 ## En attente / prochaines étapes
 
-1. Run 1 CDP : valider `[P2]` réel (C4) — stream requis (session utilisateur).
-2. Valider P1 AFK (monitor-idle) avec hook actif.
-3. Brancher `run-e2e0.sh` au step preview de bench.yml (CI).
-4. Localiser l'instance de session au runtime pour brancher wrapSession (P1).
+1. Run 1 CDP : valider `[P2]` réel (C4) — stream requis. Prêt : bug `--sw`
+   corrigé (double tiret) + attache SW par **CDP brut** (Playwright ne sait
+   pas newCDPSession sur un Worker) — `intercept-session.js --sw`.
+2. P1-B AFK : fenêtre longue (1800 s) — exécution 1 témoin journalisée
+   (600 s : 11 heartbeats, aucun warning → seuil d'idle preview > 10 min).
+   Le locator wrappera la session automatiquement au prochain stream.
+3. ✅ Fait — `run-e2e0.sh` au CI (step preview, `--skip-probe`) +
+   `--strict-probe` (hookActif:true exigé) + chemin d'échec testé.
+4. ✅ Fait — localisation de la session au runtime + locator auto (voir P1).

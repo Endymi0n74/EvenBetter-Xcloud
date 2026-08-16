@@ -114,14 +114,13 @@ Implémentation livrée (`bench/preview/port/keepalive-idle.js`, source unique) 
      le charge via fetch — à confirmer en session) ;
   2. api `window.PreviewKeepAliveIdle.wrapSession(session)` — wrapper
      `onServerDisconnectMessage` interceptant `WarningForBeingIdle` →
-     `sendKeepAlive()`, à brancher dès que la session est localisée
-     (capture runtime / hook React).
+     `sendKeepAlive()` ; depuis le 17 août, la session est **localisée
+     automatiquement** (locator fibers intégré, voir verdict ci-dessous).
 
 Risque : faible (ancre identique, `sendKeepAlive` existe, méthode gardée
-`if(!this.stream?.getInputChannel())`). Reste à valider en session : la voie
-réelle de chargement du module (fetch vs ESM natif → le hook fetch serait
-inactif, le wrapSession reste la voie principale), et que l'input virtuel
-`sendKeepAlive` reset bien le timer d'idle serveur.
+`if(!this.stream?.getInputChannel())`). Reste à valider en session : que
+l'input virtuel `sendKeepAlive` reset bien le timer d'idle serveur (fenêtre
+AFK P1-B, monitor-idle.js).
 
 > **Verdict 16 août — voie de chargement du module : ESM NATIF prouvé, le hook
 > fetch ne peut pas se brancher, wrapSession = SEULE voie runtime.** La chaîne
@@ -145,10 +144,24 @@ inactif, le wrapSession reste la voie principale), et que l'input virtuel
 > module) est **morte**, conservée en fallback inoffensif (bascule future du
 > preview vers un chargement par fetch) ; la voie 2
 > `window.PreviewKeepAliveIdle.wrapSession(session)` est la **voie
-> principale**. Le point ouvert restant n'est plus le transport du module mais
-> la **localisation de l'instance de session au runtime** (hook React /
-> capture) pour la wrapper — et la validation AFK en réel (monitor-idle.js,
-> que `sendKeepAlive` reset bien le timer).
+> principale**.
+
+> **Verdict 17 août — localisation de la session AU RUNTIME résolue (le
+> prérequis du run P1-B).** La session du SDK est tenue dans l'état d'un
+> composant React du stream — fibre `.Connection` → chaîne d'état
+> (`memoizedState.next…`) → `memoizedState.data._session` (objet avec
+> `sendKeepAlive` + `onServerDisconnectMessage`, instance de la classe du
+> module StreamSessionRequest — vérifié en réel : wrapSession accepte,
+> `sendKeepAlive` présent, `sourceManagedInputSink.sendKeepAliveGamepadInput`
+> présent ; `session.stream` est null quand le stream est fermé — le gate
+> `getInputChannel()` ne s'applique qu'en stream actif). Outils de découverte
+> : `bench/preview/find-session.js` (fiber walk + heuristiques structurelles),
+> `dump-session.js` (prototype/getters sans les déclencher),
+> `hunt-session.js` (recherche par forme `sendKeepAlive`). Le build embarque
+> désormais un **locator automatique** (walk par forme, pas par nom de
+> composant) qui wrapper la session dès qu'elle apparaît — 16/16 tests.
+> Reste : la validation AFK P1-B en réel (que `sendKeepAlive` reset le timer
+> d'idle serveur).
 
 > **Verdict étude 16 août — le hook fetch ne couvre PAS le keep-alive, P1
 > reste nécessaire** :

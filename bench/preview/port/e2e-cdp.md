@@ -219,10 +219,10 @@ But : prouver que l'outil réécrit les deux cibles sans casser le flux.
 
 But : prouver que la preview T6 intercepte le `WarningForBeingIdle` et empêche
 le kick d'idle serveur pendant une fenêtre AFK (aucun input utilisateur).
-**État au 17 août** : le runtime P1 expose `wrapSession` mais ne la branche
-encore sur aucune session (localisation de l'instance = pièce manquante) →
-les runs actuels sont des **témoins** : ils confirment que le kick idle est
-réel sur le preview et en figent le timing.
+**État au 17 août** : `wrapSession` est branchée **automatiquement** (locator
+fibers intégré au build, voir session.md) → le run P1-B peut valider le kick
+en réel. Le run P1-A (témoin, exécution 1) a montré un seuil d'idle du preview
+> 10 min : il faut une fenêtre longue pour voir le warning.
 
 ### Les 3 mécanismes (étude session.md — à ne pas confondre)
 
@@ -257,9 +257,12 @@ la fenêtre (preuve de l'indépendance des deux mécanismes).
 
 ### Run P1-B — T6 (wrapSession branchée sur la session réelle)
 
-1. Même protocole, mais `hookActif: true` **et** `wrapSession` branchée
-   (localisation de l'instance de session au runtime : capture / hook React —
-   pièce manquante, voir session.md).
+1. Même protocole, `hookActif: true` — `wrapSession` est branchée
+   **automatiquement** par le locator du build (17 août : la session est
+   localisée dans les fibers React, fibre `.Connection` → `data._session`,
+   et wrapper au montage — détail dans session.md). Vérifiable en direct :
+   `session._bxKeepAliveWrapped === true` sur l'objet trouvé par
+   `bench/preview/hunt-session.js`.
 2. Signaux attendus : `BX keep-alive: idle warning intercepted (secondsUntilKick:…)`
    puis **session vivante à la fin** (`survived:true`) — `sendKeepAlive` a
    reset le timer à chaque warning.

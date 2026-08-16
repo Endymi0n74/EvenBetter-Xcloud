@@ -147,8 +147,53 @@ console.log("\n== 3. Runtime (installKeepAliveIdle en vm) ==");
         wsOut.wrapped === true && wsOut.afterWarning.keepAlives === 1 && wsOut.afterWarning.orgCalled === 0, ws);
       check("wrapSession : raison non-idle → handler d'origine conservé", wsOut.afterKick.orgCalled === 1, ws);
       check("wrapSession : re-wrap idempotent", wsOut.rewrap === true, ws);
+
+      // --- 4. Locator runtime (fibers React simulées) ---
+      // faux DOM : #root porte une fiber dont la chaîne d'état expose
+      // memoizedState.data._session (forme réelle validée : .Connection →
+      // état → data._session). Le locator doit wrapper la session auto.
+      console.log("\n== 4. Locator runtime (fibers React simulées) ==");
+      const fakeSession = {
+        sendKeepAlive: function () {},
+        onServerDisconnectMessage: function (e) {},
+      };
+      const fakeFiber = {
+        memoizedState: {
+          memoizedState: { data: { _session: fakeSession, _sessionRequest: {} } },
+          next: { memoizedState: {}, next: null },
+        },
+        child: null,
+        sibling: null,
+      };
+      const rootEl = {};
+      rootEl["__reactFiber$locator"] = fakeFiber;
+      const sandbox2 = {
+        console,
+        window: null,
+        Response,
+        Blob,
+        BxLogger: { info: () => {} },
+        document: { getElementById: (id) => (id === "root" ? rootEl : null) },
+      };
+      sandbox2.window = sandbox2;
+      sandbox2.fetch = () => Promise.resolve(new Response(KEEPALIVE_OLD, { status: 200, headers: {} }));
+      vm.createContext(sandbox2);
+      vm.runInContext("(" + installKeepAliveIdle.toString() + ")();", sandbox2);
+
+      check("locator : la session de la fiber est wrapée automatiquement", fakeSession._bxKeepAliveWrapped === true);
+      const loc = vm.runInContext(
+        `(function () {
+           var n = 0;
+           var s = { sendKeepAlive: function () { n++; }, onServerDisconnectMessage: function (e) {} };
+           window.PreviewKeepAliveIdle.wrapSession(s);
+           s.onServerDisconnectMessage(JSON.stringify({ reason: "WarningForBeingIdle", secondsUntilKick: 30 }));
+           return JSON.stringify(n);
+         })()`,
+        sandbox2
+      );
+      check("locator : le wrapper intercepte bien WarningForBeingIdle", loc === "1", loc);
+
+      console.log(failures === 0 ? "\nTous les tests passent ✅" : `\n${failures} échec(s) ❌`);
+      process.exit(failures === 0 ? 0 : 1);
     });
 }
-
-console.log(failures === 0 ? "\nTous les tests passent ✅" : `\n${failures} échec(s) ❌`);
-process.exit(failures === 0 ? 0 : 1);
