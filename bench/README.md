@@ -199,10 +199,17 @@ en artefact (`actions/upload-artifact`, `if: failure()`), et sur les PR le
 tableau des ratios est posté en commentaire (`actions/github-script`,
 marqueur `<!-- bench-ratios -->` → mis à jour au run suivant, pas de doublon).
 Nécessite la permission `pull-requests: write` sur le job.
-**Un seul commentaire pour les deux jobs** : le job `startup-cold` rejoint le
-même commentaire avec sa section (marqueur `<!-- bench-startup -->`, placé
-AVANT son contenu), chaque job mettant à jour sa section en préservant l'autre
-(layout canonique : [hot loops] [SEC] [startup] [MAIN]).
+**Un seul commentaire pour les trois jobs** : les sections hot loops, startup
+et GPU (marqueurs `<!-- bench-startup -->` / `<!-- bench-gpu -->`, placés
+AVANT leur contenu) vivent dans le même commentaire, chaque job mettant à jour
+SA section en préservant les autres (layout canonique : [hot loops] [SEC]
+[startup] [GPU] [MAIN]). La logique de fusion est un **module committé**
+(`bench/pr-comment-merge.js`, fonction pure `mergeComment` testable
+localement) requis par les steps github-script des trois jobs — plus de copie
+du script dans le workflow. Le job GPU étant dispatch-only (ou label-gated :
+label `bench-gpu` sur une PR interne), sa section ne se poste que dans un
+contexte PR (le step est inerte sur les dispatches, qui n'ont pas de PR à
+commenter).
 
 **Job GPU optionnel** (`workflow_dispatch` + input `gpu`) : le workflow
 contient aussi `gpu-upload`, qui rejoue le protocole 6 seeds de `bench/gpu/`

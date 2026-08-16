@@ -75,25 +75,14 @@ jobs:
         with:
           script: |
             const fs = require('fs');
+            const { mergeComment } = require(process.env.GITHUB_WORKSPACE + '/bench/pr-comment-merge.js');
             const mode = process.env.PR_COMMENT_MODE;
             const section = fs.readFileSync(process.env.PR_COMMENT_SECTION, 'utf8').trimEnd();
             const MAIN = '<!-- bench-ratios -->';
-            const SEC = '<!-- bench-startup -->';
             const opts = { owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number };
             const { data: comments } = await github.rest.issues.listComments({ ...opts, per_page: 100 });
             const existing = comments.find((c) => c.body.includes(MAIN));
-            const body = existing ? existing.body : '';
-            const mIdx = body.indexOf(MAIN);
-            const sIdx = body.indexOf(SEC);
-            const hotPart = !body ? '' : sIdx !== -1 ? body.slice(0, sIdx) : mIdx !== -1 ? body.slice(0, mIdx) : body;
-            const startPart = sIdx !== -1 ? body.slice(sIdx, mIdx !== -1 ? mIdx : body.length) : '';
-            let newBody;
-            if (mode === 'hotloops') {
-              newBody = section + '\n' + (startPart ? startPart + '\n' : '') + MAIN;
-            } else {
-              const head = hotPart.trim();
-              newBody = (head ? head + '\n\n' : '') + SEC + '\n' + section + '\n' + MAIN;
-            }
+            const newBody = mergeComment(existing ? existing.body : '', mode, section);
             if (existing) {
               await github.rest.issues.updateComment({ ...opts, comment_id: existing.id, body: newBody });
             } else {
@@ -164,25 +153,14 @@ jobs:
         with:
           script: |
             const fs = require('fs');
+            const { mergeComment } = require(process.env.GITHUB_WORKSPACE + '/bench/pr-comment-merge.js');
             const mode = process.env.PR_COMMENT_MODE;
             const section = fs.readFileSync(process.env.PR_COMMENT_SECTION, 'utf8').trimEnd();
             const MAIN = '<!-- bench-ratios -->';
-            const SEC = '<!-- bench-startup -->';
             const opts = { owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number };
             const { data: comments } = await github.rest.issues.listComments({ ...opts, per_page: 100 });
             const existing = comments.find((c) => c.body.includes(MAIN));
-            const body = existing ? existing.body : '';
-            const mIdx = body.indexOf(MAIN);
-            const sIdx = body.indexOf(SEC);
-            const hotPart = !body ? '' : sIdx !== -1 ? body.slice(0, sIdx) : mIdx !== -1 ? body.slice(0, mIdx) : body;
-            const startPart = sIdx !== -1 ? body.slice(sIdx, mIdx !== -1 ? mIdx : body.length) : '';
-            let newBody;
-            if (mode === 'hotloops') {
-              newBody = section + '\n' + (startPart ? startPart + '\n' : '') + MAIN;
-            } else {
-              const head = hotPart.trim();
-              newBody = (head ? head + '\n\n' : '') + SEC + '\n' + section + '\n' + MAIN;
-            }
+            const newBody = mergeComment(existing ? existing.body : '', mode, section);
             if (existing) {
               await github.rest.issues.updateComment({ ...opts, comment_id: existing.id, body: newBody });
             } else {
@@ -261,15 +239,18 @@ jobs:
           path: ${{ runner.temp }}/cold-eval-fork.txt
           if-no-files-found: error
 
-  # Optionnel (workflow_dispatch + input « gpu ») : protocole GPU 6 seeds sur
-  # un runner SELF-HOSTED avec GPU (les runners GitHub hébergés n'en ont pas).
-  # Machine de référence : Windows (RTX 3070) — canal msedge (GPU via
-  # ANGLE/D3D11), le même stack que les tables GPU du README. Les seuils de
-  # check-gpu.js sont volontairement bas (machine/driver) — le vrai signal est
-  # le ratio upload perf10/build (≥ 1,3) et les compteurs GL (chemin
-  # fonctionnel). Runner : labels self-hosted, Windows, X64, gpu.
+  # Optionnel (workflow_dispatch + input « gpu », ou PR interne labelisée
+  # « bench-gpu ») : protocole GPU 6 seeds sur un runner SELF-HOSTED avec GPU
+  # (les runners GitHub hébergés n'en ont pas). Machine de référence : Windows
+  # (RTX 3070) — canal msedge (GPU via ANGLE/D3D11), le même stack que les
+  # tables GPU du README. Les seuils de check-gpu.js sont volontairement bas
+  # (machine/driver) — le vrai signal est le ratio upload perf10/build (≥ 1,3)
+  # et les compteurs GL (chemin fonctionnel). Runner : labels self-hosted,
+  # Windows, X64, gpu. Le trigger PR (label « bench-gpu », PR internes
+  # uniquement — les forks ne peuvent pas utiliser les runners self-hosted)
+  # permet au protocole de rejoindre le récapitulatif PR via le commentaire.
   gpu-upload:
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.gpu == 'true'
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.gpu == 'true') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'bench-gpu'))
     runs-on: [self-hosted, windows, gpu]
     steps:
       - name: Checkout (historique complet — la baseline perf10 055d3a0 est requise)
@@ -321,6 +302,35 @@ jobs:
           name: gpu-summary-${{ github.sha }}
           path: ${{ runner.temp }}/gpu-summary.md
           if-no-files-found: error
+
+      - name: Commente la PR — section GPU (fusion dans le commentaire hot loops)
+        # Même script partagé que les jobs hotloops/startup (PR_COMMENT_MODE=gpu,
+        # marker <!-- bench-gpu -->). Le job GPU est dispatch-only ou label-gated :
+        # ce step ne s'active que sur pull_request (un dispatch n'a pas de PR à
+        # commenter) — le protocole 6 seeds rejoint le récapitulatif unique quand
+        # il tourne dans un contexte PR (label « bench-gpu » sur une PR interne).
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && always()
+        uses: actions/github-script@v7
+        env:
+          PR_COMMENT_MODE: gpu
+          PR_COMMENT_SECTION: ${{ runner.temp }}/gpu-summary.md
+        with:
+          script: |
+            const fs = require('fs');
+            const { mergeComment } = require(process.env.GITHUB_WORKSPACE + '/bench/pr-comment-merge.js');
+            const mode = process.env.PR_COMMENT_MODE;
+            const section = fs.readFileSync(process.env.PR_COMMENT_SECTION, 'utf8').trimEnd();
+            const MAIN = '<!-- bench-ratios -->';
+            const opts = { owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number };
+            const { data: comments } = await github.rest.issues.listComments({ ...opts, per_page: 100 });
+            const existing = comments.find((c) => c.body.includes(MAIN));
+            const newBody = mergeComment(existing ? existing.body : '', mode, section);
+            if (existing) {
+              await github.rest.issues.updateComment({ ...opts, comment_id: existing.id, body: newBody });
+            } else {
+              await github.rest.issues.createComment({ ...opts, body: newBody });
+            }
+            console.log((existing ? 'commentaire mis à jour' : 'commentaire créé') + ' (' + mode + ')');
 
       - name: Upload des runs GPU (en cas d'échec uniquement)
         if: failure()
