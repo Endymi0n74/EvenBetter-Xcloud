@@ -258,16 +258,18 @@ session, pas du build** : le même code mesure ×1,8-2,1 en état haut et
 ×4,3-6,6 en état bas — comparer deux sessions = comparer les ratios et le
 draw, jamais les absolus.
 
-| Session | Version | Upload perf10 (µs) | Upload build — émission (µs) | Ratio upload | État | Sync build (µs) | Total build (µs) | Draw (µs) |
-|---|---|---|---|---|---|---|---|---|
-| Origine (sans stabilisation) | v1.3.0 | 200–235 | 64–66 | ×3,3 | transitionnel | — | — | — |
-| Session 1 (6 seeds stabilisés) | v1.4.0 | 80,5–93 | 43,8–50,3 | **×1,8** | haut | — | — | 10,2 |
-| Session 2 (protocole figé) | v1.4.0 | 98,5–150,7 | 54,7–74,5 | **×2,1** | haut | — | — | 10,2 |
-| Matin 15 août (6 seeds) | v1.5.0 | 61,8–137 | 10,3–76,8 | **×1,7** (s300 : ×6,0) | mixte | — | — | 10,2 |
-| Soir 15 août (6 seeds) | v1.6.0 | 48,2–61,3 | 8,5–11,3 | **×4,86** | bas | — | — | 10,2 |
-| Soir 15 août — re-mesure (6 seeds + état machine) | v1.6.0 | 42,2–77,7 | 7,7–11,8 | **×5,47** | bas | 24,5 (19,5–75) | **33,3** (29–83,8) | 10,2 vs 9,2 |
-| Nuit 15 août — phase capturée (6 seeds) | v1.6.0 | 57,25 (51,25–60,50) | 11,00 (9,00–11,75) | **×5,20** | bas | 16,75 (15,00–26,25) | **26,25** (25,25–34,25) | 11,26 vs 10,24 |
-| CI 15 août (6 seeds, runner self-hosted Windows/GPU) | v1.6.0 | 47,50 (45,50–52,50) | 10,00 (8,25–11,75) | **×4,75** | bas | 17,25 (14,75–25,25) | **26,75** (24,25–35,50) | 10,24 vs 10,24 |
+| Session | Version | Upload perf10 (µs) | Upload build — émission (µs) | Ratio upload | État | Sync build (µs) | Total build (µs) | Draw (µs) | Borne | Statut |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Origine (sans stabilisation) | v1.3.0 | 200–235 | 64–66 | ×3,3 | transitionnel | — | — | — | — | — |
+| Session 1 (6 seeds stabilisés) | v1.4.0 | 80,5–93 | 43,8–50,3 | **×1,8** | haut | — | — | 10,2 | — | — |
+| Session 2 (protocole figé) | v1.4.0 | 98,5–150,7 | 54,7–74,5 | **×2,1** | haut | — | — | 10,2 | — | — |
+| Matin 15 août (6 seeds) | v1.5.0 | 61,8–137 | 10,3–76,8 | **×1,7** (s300 : ×6,0) | mixte | — | — | 10,2 | — | — |
+| Soir 15 août (6 seeds) | v1.6.0 | 48,2–61,3 | 8,5–11,3 | **×4,86** | bas | — | — | 10,2 | émission ≤ 25,00 µs · wall ≤ 0,10 ms · draw ≤ 25,00 µs | ✅ |
+| Soir 15 août — re-mesure (6 seeds + état machine) | v1.6.0 | 42,2–77,7 | 7,7–11,8 | **×5,47** | bas | 24,5 (19,5–75) | **33,3** (29–83,8) | 10,2 vs 9,2 | émission ≤ 25,00 µs · wall ≤ 0,10 ms · draw ≤ 25,00 µs | ✅ |
+| Nuit 15 août — phase capturée (6 seeds) | v1.6.0 | 57,25 (51,25–60,50) | 11,00 (9,00–11,75) | **×5,20** | bas | 16,75 (15,00–26,25) | **26,25** (25,25–34,25) | 11,26 vs 10,24 | émission ≤ 25,00 µs · wall ≤ 0,10 ms · draw ≤ 25,00 µs | ✅ |
+| CI 15 août (6 seeds, runner self-hosted Windows/GPU) | v1.6.0 | 47,50 (45,50–52,50) | 10,00 (8,25–11,75) | **×4,75** | bas | 17,25 (14,75–25,25) | **26,75** (24,25–35,50) | 10,24 vs 10,24 | émission ≤ 25,00 µs · wall ≤ 0,10 ms · draw ≤ 25,00 µs | ✅ |
+
+_Colonnes **Borne**/**Statut** : bornes absolues du build (émission ≤ 25 µs, wall ≤ 0,10 ms, draw ≤ 25 µs — calibrées sur le runner CI). Les sessions antérieures au split émission/sync ou en état haut/mixte (absolus non comparables, « seuls les ratios comptent ») sont marquées « — ». Générées par `check-gpu.js` (`--update-readme`)._
 
 _Split émission/sync (readback `readPixels`, cf. bench/gpu/README.md) mesuré
 seulement depuis la re-mesure du soir (gpu-runner.js v2) — les sessions

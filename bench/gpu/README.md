@@ -269,7 +269,9 @@ permettent de les élargir pour une session locale en état haut. Le résumé
 markdown (`--markdown=`) contient en plus la **ligne de session** — date
 (capture `state-s<seed>.before.json` du 1er seed, sinon date courante), plages
 upload, ratio, **état** (bas ≥ ×4 / haut ≤ ×2,5 / transitionnel, mêmes seuils
-que le README) et draw — prête à coller telle quelle dans le tableau « Sessions
+que le README), draw et les colonnes **Borne**/**Statut** (les 3 bornes
+absolues du build et leur résultat ✅/❌ — même principe que la table
+Sessions startup) — prête à coller telle quelle dans le tableau « Sessions
 GPU » du README. Le workflow capture l'état machine avant/après chaque seed et
 upload `gpu-summary.md` en artefact (`gpu-summary-<sha>`) en plus des
 `run-s*.json` en cas d'échec. Les seuils sont ajustables au premier run sur une

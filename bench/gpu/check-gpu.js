@@ -149,10 +149,20 @@ const sessionLabel = sessionLabelArg || `${process.env.GITHUB_ACTIONS ? "CI " : 
 // le résumé markdown ET par l'insertion automatique (--update-readme).
 const syncCell = syncAgg ? `${fmt(syncAgg.med)} (${fmt(syncAgg.range[0])}–${fmt(syncAgg.range[1])})` : "—";
 const totalCell = totalAgg ? `**${fmt(totalAgg.med)}** (${fmt(totalAgg.range[0])}–${fmt(totalAgg.range[1])})` : "—";
+// Colonnes Borne/Statut (même principe que la table Sessions startup) : les
+// bornes absolues du build (émission ≤ 25 µs, wall ≤ 0,10 ms, draw ≤ 25 µs)
+// rapportées par session — ✅ si les 3 passent, ❌ + métrique fautive sinon.
+const boundsOk = upNew.med <= BUILD_UPLOAD_MAX && wallNew.med <= BUILD_WALL_MAX && drawNew.med <= BUILD_DRAW_MAX;
+const failingBound =
+  upNew.med > BUILD_UPLOAD_MAX ? `émission ${fmt(upNew.med)} µs > ${fmt(BUILD_UPLOAD_MAX)}` :
+  wallNew.med > BUILD_WALL_MAX ? `wall ${fmt(wallNew.med)} ms > ${fmt(BUILD_WALL_MAX)}` :
+  `draw ${fmt(drawNew.med)} µs > ${fmt(BUILD_DRAW_MAX)}`;
+const borneCell = `émission ≤ ${fmt(BUILD_UPLOAD_MAX)} µs · wall ≤ ${fmt(BUILD_WALL_MAX)} ms · draw ≤ ${fmt(BUILD_DRAW_MAX)} µs`;
+const statutCell = boundsOk ? "✅" : `❌ ${failingBound}`;
 const readmeSessionLine =
   `| ${sessionLabel} | ${NEW} | ${fmt(upP10.med)} (${fmt(upP10.range[0])}–${fmt(upP10.range[1])}) | ` +
   `${fmt(upNew.med)} (${fmt(upNew.range[0])}–${fmt(upNew.range[1])}) | **×${fmt(upRatio)}** | ${etat} | ` +
-  `${syncCell} | ${totalCell} | ${fmt(drawP10.med)} vs ${fmt(drawNew.med)} |`;
+  `${syncCell} | ${totalCell} | ${fmt(drawP10.med)} vs ${fmt(drawNew.med)} | ${borneCell} | ${statutCell} |`;
 
 console.log(`=== Bench GPU — vérification des ratios (${P10} vs ${NEW}, ${seeds.length} seeds) ===`);
 add("Upload vidéo (µs)", `${fmt(upP10.med)} (${fmt(upP10.range[0])}–${fmt(upP10.range[1])})`, `${fmt(upNew.med)} (${fmt(upNew.range[0])}–${fmt(upNew.range[1])})`, upRatio, `≥ ${fmt(UPLOAD_MIN)}`, upRatio >= UPLOAD_MIN);
