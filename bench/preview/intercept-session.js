@@ -156,7 +156,8 @@ async function installInterceptor(cdp, prefs, onLog) {
           const osName = getOsNameFromResolution(prefs.resolution);
           let headers = toHeaderArray(request.headers);
           headers = setHeader(headers, "x-ms-device-info", JSON.stringify(generateMsDeviceInfo(osName, new URL(url).host)));
-          await cdp.send("Fetch.continueRequest", { requestId, postData: JSON.stringify(rewritten), headers });
+          // CDP : postData est encodé en base64 quand il passe par JSON (doc Fetch.continueRequest)
+          await cdp.send("Fetch.continueRequest", { requestId, postData: Buffer.from(JSON.stringify(rewritten), "utf8").toString("base64"), headers });
           log(`[P3] play réécrit → settings.osName=${osName} + x-ms-device-info (${url.slice(0, 90)})`);
           return;
         }

@@ -138,7 +138,8 @@ function fakeCdp() {
     });
     const cont = cdp.calls.find((c) => c.method === "Fetch.continueRequest" && c.params.requestId === "req-play-1");
     check("P3 : continueRequest envoyé pour le play", !!cont);
-    const contBody = cont && JSON.parse(cont.params.postData);
+    // CDP : postData est base64 quand il passe par JSON (décodage avant vérification)
+    const contBody = cont && JSON.parse(Buffer.from(cont.params.postData, "base64").toString("utf8"));
     check("P3 : postData réécrit (settings.osName=tizen)", contBody && contBody.settings.osName === "tizen");
     const deviceInfoHeader = cont && cont.params.headers.find((h) => h.name.toLowerCase() === "x-ms-device-info");
     check("P3 : header x-ms-device-info ajouté", deviceInfoHeader && JSON.parse(deviceInfoHeader.value).dev.os.name === "tizen");
@@ -239,7 +240,7 @@ function fakeCdp() {
       },
     });
     const swCont = swCdp.calls.find((c) => c.method === "Fetch.continueRequest" && c.params.requestId === "req-sw-play");
-    check("P3 depuis le SW : play réécrit (osName=tizen)", swCont && JSON.parse(swCont.params.postData).settings.osName === "tizen");
+    check("P3 depuis le SW : play réécrit (osName=tizen)", swCont && JSON.parse(Buffer.from(swCont.params.postData, "base64").toString("utf8")).settings.osName === "tizen");
 
     // P2 depuis le SW : réponse configuration → session SW
     swCdp.send = async (method, params) => {
