@@ -228,6 +228,54 @@ device-info), désormais mesurables par la capture.
 > devient de nouveau possible (comme le stable) et l'interception CDP reste
 > la voie robuste (page ET worker).
 
+> **Paradoxe résolu — capture décisive 16 août (20:45, harnais v5 collé sur
+> la HOME avant l'ouverture de la page stream)** : le timing était parfait
+> (collage 20:45:01 sur home, page stream ouverte 20:45:32) et pourtant :
+>
+> ```
+> Requêtes capturées : 0
+> Vues par transport : fetch=3 (dont keepalive=3) · xhr=0 · ws=0 · beacon=0
+> Resource timing : 250 ressources chargées, 1 protocolaires
+> → /v2/login/user (cloudgaming.gssv-play-prod.xboxlive.com)
+> ⚠️ DIAGNOSTIC : resource timing VOIT 1 requêtes protocolaires mais les hooks
+>    page ne les ont pas capturées — transport non couvert
+> ```
+>
+> **La cause, prouvée statiquement** (`entry.client`, offsets 777849/780497) :
+> le SDK preview construit ses clients HTTP avec une **référence `fetch`
+> capturée au chargement du bundle** :
+>
+> ```js
+> ub=class{constructor(e,t=[],n=[],r=[],i=fetch){ … this._baseFetchImpl=i … }}
+> …
+> this.httpClient=new ub(void 0,[i])        // ← fetch capturé ICI
+> this.signedHttpClient=kM(n,r).requestInterceptor(i).build()  // build() → new ub(…) → fetch par défaut
+> ```
+>
+> `entry.client` étant chargé **dès la home**, la référence `fetch` d'origine
+> est figée AVANT qu'un harnais collé en console (après chargement) puisse la
+> remplacer. Toutes les requêtes du protocole (login/play/state/…) passent par
+> cette référence → invisibles pour `window.fetch` hooké, quel que soit le
+> timing du collage. **Le paradoxe des « hooks muets » est définitivement
+> expliqué : ce n'était ni le timing, ni un worker — c'est la référence
+> `fetch` capturée au bootstrap.**
+>
+> Conséquences :
+> - **Les hooks JS de page sont impuissants sur le preview** (contrairement au
+>   stable qui appelle `window.fetch` à chaud). La capture en console ne peut
+>   PAS voir le protocole — elle ne voit que le resource timing (niveau
+>   navigateur) et la télémétrie.
+> - **CDP reste la voie unique côté page** : `Fetch.requestPaused` travaille au
+>   niveau navigateur, avant que la référence `fetch` du SDK ne soit utilisée
+>   → c'est pourquoi la validation P3 réelle a fonctionné (`[P3#1] play
+>   réécrit → osName=tizen (original:windows)`), et pourquoi `--sw` n'est pas
+>   nécessaire (le protocole est bien en page, pas dans le SW — seulement
+>   invisible aux hooks JS).
+> - Alternative d'injection pour le build preview : hooker la référence
+>   capturée n'est pas possible, mais le userscript peut s'exécuter **avant**
+>   entry.client (`@run-at document-start`) et wrapper `fetch` avant que le
+>   SDK ne le capture — à étudier pour P2/P3 côté build.
+
 > **Chronologie du play (analyse statique 16 août)** — la chaîne complète du
 > play request, dans l'ordre du lancement :
 >
@@ -375,6 +423,10 @@ device-info), désormais mesurables par la capture.
    interception réseau CDP ou un hook du module `playServiceAdaptor`/`te`
    (deviceInformation) si le module vit dans la page — la voie « flags URL »
    est exclue (aucune flag osName/resolution dans GameStreamBootstrapper).
+   **Le hook du module est lui-même compromis** : la référence `fetch` du SDK
+   est capturée au chargement d'entry.client (voir « Paradoxe résolu ») —
+   seule l'interception CDP (déjà validée P3 en réel) ou l'injection
+   document-start avant entry.client restent viables.
 6. **Login/région** : `auth-hooks` + sélection de région du preview
    (l'équivalent `handleLogin`).
 
