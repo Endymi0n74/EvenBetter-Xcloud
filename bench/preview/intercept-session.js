@@ -134,6 +134,9 @@ const CONFIG_RE = /\/v5\/.*\/configuration(\?|$)/;
  */
 async function installInterceptor(cdp, prefs, onLog) {
   const log = onLog || (() => {});
+  let p3Count = 0;
+  let p2Count = 0;
+  const ts = () => new Date().toISOString().slice(11, 19);
   // play : stage Request (réécriture du POST avant envoi)
   // configuration : stage Response (réécriture de la réponse)
   await cdp.send("Fetch.enable", {
@@ -168,7 +171,8 @@ async function installInterceptor(cdp, prefs, onLog) {
           headers = setHeader(headers, "x-ms-device-info", JSON.stringify(generateMsDeviceInfo(osName, new URL(url).host)));
           // CDP : postData est encodé en base64 quand il passe par JSON (doc Fetch.continueRequest)
           await cdp.send("Fetch.continueRequest", { requestId, postData: Buffer.from(JSON.stringify(rewritten), "utf8").toString("base64"), headers });
-          log(`[P3] play réécrit → settings.osName=${osName} + x-ms-device-info (${url.slice(0, 90)})`);
+          p3Count++;
+          log(`[P3#${p3Count} ${ts()}] play réécrit → osName=${osName} (original:${body.settings && body.settings.osName || "?"}) + x-ms-device-info (${url.slice(0, 90)})`);
           return;
         }
       }
@@ -191,7 +195,8 @@ async function installInterceptor(cdp, prefs, onLog) {
               body: newBody,
             });
             const overrides = JSON.parse(rewritten.clientStreamingConfigOverrides || "{}");
-            log(`[P2] /configuration réécrite → ${Object.keys(overrides).join(",")} (${url.slice(0, 90)})`);
+            p2Count++;
+            log(`[P2#${p2Count} ${ts()}] /configuration réécrite → ${Object.keys(overrides).join(",")} (${url.slice(0, 90)})`);
             return;
           }
         }
