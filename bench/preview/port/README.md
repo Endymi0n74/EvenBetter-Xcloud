@@ -53,7 +53,8 @@ qui rend le build v1.7.0 sûr et utilisable sur play.xbox.com.
 | `keepalive-idle.js` + `.test.js` | **P1 implémenté** : interception du `WarningForBeingIdle` (transform source du bundle + runtime userscript : hook fetch du module + `wrapSession`) — 14/14 tests, embarqué par le build (T5) |
 | `fetch-early.js` + `.test.js` | **Mesure document-start (P2/P3 côté userscript)** : prouve que le build preview (`@run-at document-start`) pose `window.fetch` AVANT entry.client, et que la classe `ub` du SDK capture NOTRE hook (`_baseFetchImpl === window.fetch`) — 17/17 tests. Rend P2/P3 possibles sans CDP (voir session.md) |
 | `userscript-rewrite.js` + `.test.js` | **Mesure réécriture userscript P2+P3 (14/14)** : `XcloudInterceptor` extrait du build preview réel, exécuté en vm — play → `osName=tizen` + `x-ms-device-info`, réponse `/configuration` → overrides fusionnés, sans CDP (voir session.md) |
-| `e2e-cdp.md` | **protocole de validation E2E** de l'interception CDP P3+P2 : deux runs comparés (témoin vs intercepté), 8 critères de succès (Network + logs outil), pièges de timing |
+| `e2e-cdp.md` | **protocole de validation E2E** de l'interception CDP P3+P2 : deux runs comparés (témoin vs intercepté), 8 critères de succès (Network + logs outil), pièges de timing. Commence par l'**Étape 0** hors-navigateur |
+| `run-e2e0.sh` | **Étape 0 en une commande** : enchaîne fetch-early + userscript-rewrite (gates, échec si rouge) + probe-page (informatif) — à lancer avant chaque session CDP |
 
 ## L'overlay (T1-T6)
 

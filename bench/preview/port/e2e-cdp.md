@@ -68,6 +68,15 @@ run réel échoue. Les deux harnais extraient `XcloudInterceptor` + helpers du
 build preview réel et les exécutent en vm (pas de dépendance à la session
 authentifiée ni aux bundles réseau) :
 
+En une commande (échoue si un gate est rouge ; probe informatif, navigateur
+injoignable → warning) :
+
+```bash
+./bench/preview/port/run-e2e0.sh [--port=9222] [--skip-probe]
+```
+
+Équivalent détaillé (les trois étapes séparées) :
+
 ```bash
 # A — document-start viable (T6 garde neutralisé, hook posé avant entry.client,
 #     SDK preview capture NOTRE hook : classe ub, i=fetch) — 17/17
@@ -78,17 +87,15 @@ node bench/preview/port/fetch-early.test.js
 #     P2 : réponse /configuration → overrides fusionnés (enableVibration, mkb,
 #          mic) par-dessus les overrides serveur, champs racine intacts
 node bench/preview/port/userscript-rewrite.test.js
+
+# C — hook userscript actif dans la page ? change la lecture de C1/C2 (soft)
+node bench/preview/probe-page.js 9222   # hookActif: true/false
 ```
 
 - **Sortie attendue** : les deux harnais en « OK ✅ » (exit 0). Sinon la
   logique dérive (minifier, ancres) → corriger avant tout run réseau.
-- **Optionnel mais recommandé** (navigateur ouvert, 5 s) : vérifier si le
-  hook userscript est actif dans la page — il change la lecture des critères
-  C1/C2 :
-
-```bash
-node bench/preview/probe-page.js 9222   # hookActif: true/false
-```
+- **Probe C (recommandé, informatif)** : le résultat `hookActif` change la
+  lecture des critères C1/C2 :
 
   - `hookActif: false` → le run CDP voit le play **original**
     (`original:windows`), interprétation directe des critères.
