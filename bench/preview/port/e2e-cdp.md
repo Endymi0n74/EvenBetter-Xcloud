@@ -36,6 +36,51 @@ l'onglet Network ET dans les logs de l'outil.
   sont verts → les hypothèses de timing du Prérequis tiennent. Prêt pour le
   Run 1 CDP (P2 reste à valider en réel).
 
+### Étape 0 — hors-navigateur (exécution 3, 17 août ~00:20 — hookActif:true)
+
+| Gate | Résultat |
+|---|---|
+| A — document-start | **17/17 OK ✅** |
+| B — réécriture P2+P3 | **14/14 OK ✅** |
+| C — probe | **`hookActif: true` ✅** — `BX_FETCH: function`, `BX_EXPOSED: object`, `BX_FLAGS: object`, `BX_STREAM_SETTINGS: object`, `BX_CE: function` ; `fetchEstEnveloppe: true` (window.fetch = hook T5 chaîné sur BX_FETCH — normal après main()) |
+| D — chronologie play | **ancres stables ✅** |
+
+- **Le passage à `hookActif:true` a exigé un détour d'installation** (voir ci-dessous) :
+  le profil edge-cdp ne peut pas exécuter d'userscript classique, la preview est
+  injectée via une **mini-extension `content_scripts` + `world: "MAIN"`**
+  (`.edge-inject/`, équivalent Tampermonkey `@grant none`).
+- **Lecture** : la logique (vm), le câblage (probe avec hook actif) et la
+  chronologie sont verts → prêt pour le Run 1 CDP (P2 reste à valider en réel).
+
+### Installation dans le profil edge-cdp (le détour du 16/17 août)
+
+Le profil edge-cdp ne peut pas exécuter d'userscript de façon classique :
+
+1. **Pas de gestionnaire** : la détection (bench/preview/detect-userscript-mgr.js)
+   a trouvé Tampermonkey BETA (`fcmfnp…`, installé) mais **MV3 + API
+   userScripts → exige le mode développeur d'Edge**.
+2. **Dev mode non activable** : l'UI edge://extensions ne se rend pas en CDP
+   (shadow DOM vide), et Edge ne persiste pas `extensions.ui.developer_mode`
+   dans Preferences (clé réécrite). Tampermonkey affiche « Please enable
+   developer mode to allow userscript injection » et n'injecte rien.
+3. **L'injection CDP directe échoue sur le realm** : `addInitScript` Playwright
+   ET `Page.addScriptToEvaluateOnNewDocument` (sans worldName) s'exécutent dans
+   un monde dont les wrappers DOM ne sont pas compatibles — le preview crash en
+   « MutationObserver: parameter 1 is not of type Node » (cross-realm,
+   reproductible avec un micro-script). `worldName:'main'` crée un monde nommé,
+   pas le monde principal.
+4. **Solution retenue** : mini-extension unpacked `.edge-inject/` avec
+   `content_scripts: [{ matches: ["https://play.xbox.com/*"], js: ["preview.js"],
+   run_at: "document_start", world: "MAIN" }]` (MV3, Chromium 111+) — monde
+   principal, DOM compatible, globaux visibles de la page, hook fetch capturé
+   par le SDK (chaîne T5 → BX_FETCH → NATIVE_FETCH).
+
+Régénérer `preview.js` (entête userscript retirée) : `node` (extraction du
+header `// ==UserScript== … ==/UserScript==` depuis better-xcloud-preview.user.js)
+— et relancer Edge avec `--load-extension=…\.edge-inject` (plus TM unpacked).
+Le harnais `bench/preview/inject-preview.js` (CDP) reste documenté mais n'est
+pas la voie retenue (realm).
+
 ### Run 1 — P3 validé ✅
 
 ```

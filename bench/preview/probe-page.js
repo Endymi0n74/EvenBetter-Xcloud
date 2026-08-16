@@ -25,8 +25,13 @@ const { chromium } = require("playwright");
       out.BX_FLAGS = typeof window.BX_FLAGS;
       out.BX_STREAM_SETTINGS = typeof window.BX_STREAM_SETTINGS;
       out.BX_CE = typeof window.BX_CE;
-      // hook actif ? le build pose window.fetch = window.BX_FETCH (même référence)
-      out.hookActif = typeof window.BX_FETCH === "function" && window.fetch === window.BX_FETCH;
+      // hook actif ? BX_FETCH = hook XcloudInterceptor posé (document-start). La
+      // page peut ensuite ré-envelopper window.fetch (T5 keep-alive chaîné sur
+      // BX_FETCH, ou wrapper du site) → ne PAS exiger window.fetch === BX_FETCH :
+      // le signal fiable est la présence de BX_FETCH (le hook a été installé et
+      // la chaîne fetch du SDK le traverse).
+      out.hookActif = typeof window.BX_FETCH === "function";
+      out.fetchEstEnveloppe = typeof window.fetch === "function" && window.fetch !== window.BX_FETCH;
       // état de session (best-effort)
       out.video = document.querySelector("video") ? { paused: document.querySelector("video").paused, readyState: document.querySelector("video").readyState } : null;
       out.headerClass = document.querySelector("header") ? document.querySelector("header").className : null;

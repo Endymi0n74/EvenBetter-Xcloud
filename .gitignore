@@ -42,3 +42,5 @@ bench/preview/.cdp-profile/
 # Artefacts locaux (système)
 .DS_Store
 Thumbs.db
+.edge-tm/
+.edge-inject/
