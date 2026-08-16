@@ -89,6 +89,7 @@ if (!fs.existsSync(readmePath)) {
 let c = fs.readFileSync(readmePath, "utf-8");
 const CRLF = c.includes("\r\n");
 const E = CRLF ? "\r\n" : "\n";
+const endsWithNewline = /\r?\n$/.test(c); // préserver l'EOF exact (pas de ligne vide ajoutée)
 const lines = c.split(/\r?\n/);
 
 const hdrIdx = lines.findIndex((l) => l.includes("| perf10 éval (ms) |") && l.includes("build éval"));
@@ -107,5 +108,5 @@ if (existing >= 0) {
   lines.splice(endIdx, 0, row);
   console.log(`Ligne insérée : ${row}`);
 }
-fs.writeFileSync(readmePath, lines.join(E) + E);
+fs.writeFileSync(readmePath, lines.join(E) + (endsWithNewline ? "" : E));
 console.log(`README mis à jour : ${readmePath}`);
