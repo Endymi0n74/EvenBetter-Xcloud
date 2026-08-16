@@ -16,22 +16,50 @@
 # sinon. À lancer AVANT chaque session CDP réelle.
 #
 # Usage : ./bench/preview/port/run-e2e0.sh [--port=9222] [--dir=/d/tmp/preview-player]
-#                                        [--skip-probe] [--strict-probe]
+#                                        [--skip-probe] [--strict-probe] [--self-test]
 cd "$(dirname "$0")/../../.."
 
 PORT=9222
 DIR=""
 SKIP_PROBE=0
 STRICT_PROBE=0
+SELF_TEST=0
 for a in "$@"; do
   case "$a" in
     --port=*) PORT="${a#--port=}" ;;
     --dir=*) DIR="${a#--dir=}" ;;
     --skip-probe) SKIP_PROBE=1 ;;
     --strict-probe) STRICT_PROBE=1 ;;
-    *) echo "option inconnue : $a (usage : --port=9222, --dir=<bundles>, --skip-probe, --strict-probe)" >&2; exit 2 ;;
+    --self-test) SELF_TEST=1 ;;
+    *) echo "option inconnue : $a (usage : --port=9222, --dir=<bundles>, --skip-probe, --strict-probe, --self-test)" >&2; exit 2 ;;
   esac
 done
+
+# --self-test : rejoue le chemin d'échec (gate rouge) sur une COPIE corrompue
+# du build, sans toucher au fichier réel. Lance l'Étape 0 complète contre la
+# copie via BX_PREVIEW_BUILD (fetch-early + userscript-rewrite la lisent) :
+# exit 1 attendu. Vérifie que le CI échouerait bien si la logique dérivait.
+if [ "$SELF_TEST" = "1" ]; then
+  if [ ! -f better-xcloud-preview.user.js ]; then
+    echo "  ❌ SELF-TEST : build preview introuvable (lance d'abord node bench/preview/port/build-preview.js)"
+    exit 1
+  fi
+  echo "== SELF-TEST — chemin d'échec : gate rouge sur build corrompu (copie) =="
+  TMPD=$(mktemp -d 2>/dev/null || printf '/tmp/bx-selftest.%s' "$$")
+  cp better-xcloud-preview.user.js "$TMPD/corrupted.user.js"
+  head -c 2000 "$TMPD/corrupted.user.js" > "$TMPD/corrupted.trunc" && mv "$TMPD/corrupted.trunc" "$TMPD/corrupted.user.js"
+  BX_PREVIEW_BUILD="$TMPD/corrupted.user.js" bash "$0" --skip-probe > "$TMPD/out.log" 2>&1
+  RC=$?
+  echo "  (Étape 0 sur la copie corrompue : exit $RC)"
+  grep -E "❌ GATE|Étape 0 :" "$TMPD/out.log" 2>/dev/null | sed 's/^/    /'
+  rm -rf "$TMPD"
+  if [ "$RC" = "1" ]; then
+    echo "SELF-TEST : OK ✅ — gate rouge → exit 1 (copie supprimée, build réel intact)"
+    exit 0
+  fi
+  echo "  ❌ SELF-TEST ROUGE : exit $RC attendu 1 — le chemin d'échec ne fonctionne plus (gate rouge ne fait plus échouer)"
+  exit 1
+fi
 
 FAIL=0
 

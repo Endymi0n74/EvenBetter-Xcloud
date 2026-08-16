@@ -13,7 +13,9 @@ const path = require("path");
 const { extractFromBuild, measureP3, measureP2 } = require("./userscript-rewrite.js");
 
 const ROOT = path.resolve(__dirname, "..", "..", "..");
-const BUILD = path.join(ROOT, "better-xcloud-preview.user.js");
+// surcharge par env (mode --self-test de run-e2e0.sh : gate sur une COPIE
+// corrompue sans toucher au build réel)
+const BUILD = process.env.BX_PREVIEW_BUILD || path.join(ROOT, "better-xcloud-preview.user.js");
 
 let failures = 0;
 function check(label, cond, extra) {

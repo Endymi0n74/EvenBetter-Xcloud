@@ -132,8 +132,14 @@ sans bundles capturés ; `--strict-probe` rend le gate C dur : hookActif:true
 exigé) :
 
 ```bash
-./bench/preview/port/run-e2e0.sh [--port=9222] [--dir=/d/tmp/preview-player] [--skip-probe|--strict-probe]
+./bench/preview/port/run-e2e0.sh [--port=9222] [--dir=/d/tmp/preview-player] [--skip-probe|--strict-probe] [--self-test]
 ```
+
+`--self-test` rejoue le **chemin d'échec** sans toucher au build réel : il
+corrompt une **copie** du build (tronquée à 2 Ko) et relance l'Étape 0 contre
+elle via `BX_PREVIEW_BUILD` (surcharge lue par fetch-early + userscript-rewrite)
+— exit 1 attendu avec `GATE A/B ROUGE`. Vérifie que le CI échouerait bien si
+la logique dérivait ; build réel vérifié intact (copie supprimée).
 
 Équivalent détaillé (les trois étapes séparées) :
 
