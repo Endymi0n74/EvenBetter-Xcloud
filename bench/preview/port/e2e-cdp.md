@@ -7,15 +7,86 @@ et **P2** (réponse `/configuration` → fusion des overrides du stable dans
 interception) vs **intercepté** (avec l'outil), critères vérifiables dans
 l'onglet Network ET dans les logs de l'outil.
 
+## Résultats réels (session Edge, 16 août 2026)
+
+### Run 1 — P3 validé ✅
+
+```
+[intercept] attaché à https://play.xbox.com/products/9N683TDT5M7R/halo-campaign-evolved
+[P3#1 20:33:07] play réécrit → osName=tizen (original:windows) + x-ms-device-info
+  (https://uks.core.gssv-play-prod.xboxlive.com/v5/sessions/cloud/play)
+```
+
+- **C1+C2 verts** : le play request est intercepté au stage Request, `osName`
+  réécrit `windows → tizen`, header `x-ms-device-info` ajouté, requête
+  continuée sans erreur CDP.
+- **Piège d'affichage constaté** : le panneau Network de DevTools montre le
+  payload **original** (`osName: "windows"`) pour les requêtes réécrites par
+  `Fetch.continueRequest` — la preuve fiable est le log `[P3#N]` de l'outil
+  (osName réécrit + original), pas le panneau.
+- **Fixes débloqués en réel** : (1) `postData` de `continueRequest` doit être
+  **base64** (erreur « Invalid parameters » au 1er run) ; (2) la réponse
+  `/configuration` exige l'interception en 2 temps (`interceptResponse:true`
+  au stage Request pour que le stage Response se déclenche).
+
+### Run 1 — P2 (résultat à compléter)
+
+Le `[P2#N]` doit apparaître après le `[P3#N]` (provisioning). Si absent : la
+réponse `/configuration` part du worker ou le stage Response ne se déclenche
+pas — relancer avec `--sw` et vérifier la réponse dans Network
+(`clientStreamingConfigOverrides` doit contenir `enableVibration:true`).
+
 ## Prérequis
 
 - Session authentifiée play.xbox.com (compte Insider, Preview Features).
 - Navigateur avec **remote debugging** : `chrome.exe --remote-debugging-port=9222`
   (mode connect) — ou mode launch de l'outil (profil persistant dédié).
-- L'outil à jour : `node bench/preview/intercept-session.js` (self-test 45/45).
+- L'outil à jour : `node bench/preview/intercept-session.js` (self-test 51/51).
 - **Chronologie du play connue** (session.md) : le play part peu après
   l'ouverture de la page stream (éligibilité → token → connect). L'interception
   doit donc être **active avant** d'ouvrir la page stream.
+
+## Étape 0 — hors-navigateur (avant les runs CDP)
+
+But : valider la logique de réécriture et l'hypothèse document-start **sans
+session ni navigateur**, pour isoler « logique » vs « câblage réseau » si un
+run réel échoue. Les deux harnais extraient `XcloudInterceptor` + helpers du
+build preview réel et les exécutent en vm (pas de dépendance à la session
+authentifiée ni aux bundles réseau) :
+
+```bash
+# A — document-start viable (T6 garde neutralisé, hook posé avant entry.client,
+#     SDK preview capture NOTRE hook : classe ub, i=fetch) — 17/17
+node bench/preview/port/fetch-early.test.js
+
+# B — réécriture P2+P3 en vm sur le build réel — 14/14
+#     P3 : play → osName=tizen + x-ms-device-info (URL sans GUID)
+#     P2 : réponse /configuration → overrides fusionnés (enableVibration, mkb,
+#          mic) par-dessus les overrides serveur, champs racine intacts
+node bench/preview/port/userscript-rewrite.test.js
+```
+
+- **Sortie attendue** : les deux harnais en « OK ✅ » (exit 0). Sinon la
+  logique dérive (minifier, ancres) → corriger avant tout run réseau.
+- **Optionnel mais recommandé** (navigateur ouvert, 5 s) : vérifier si le
+  hook userscript est actif dans la page — il change la lecture des critères
+  C1/C2 :
+
+```bash
+node bench/preview/probe-page.js 9222   # hookActif: true/false
+```
+
+  - `hookActif: false` → le run CDP voit le play **original**
+    (`original:windows`), interprétation directe des critères.
+  - `hookActif: true` → le hook a déjà réécrit le play **au niveau page**
+    avant le réseau → l'outil logue `original:tizen` et Network montre
+    `tizen` même sans CDP : C1/C2 sont « verts » pour la mauvaise raison.
+    Pour valider le CDP proprement : désactiver le userscript (ou profil sans
+    script), OU lire les logs `[P3] original:` qui tranchent la cause.
+  - La réécriture de la **réponse** `/configuration` (P2) reste page-level →
+    **invisible dans Network** ; seul le `[P2]` CDP (`fulfillRequest`) ou le
+    ressenti en jeu prouvent la voie userscript. C4 ne se lit que sur le run
+    intercepté.
 
 ## Run 0 — témoin (sans interception)
 
@@ -92,11 +163,24 @@ est chirurgicale. C6/C8 = l'outil a bien vu le flux dans l'ordre attendu.
    sans `clientStreamingConfigOverrides` — le serveur en envoie toujours
    (le preview merge `ae()` après filtre `ie`). C4 vérifie l'ajout de NOS
    clés, pas la création de l'objet.
+5. **Double réécriture (hook userscript actif)** : si T6 tourne dans la page
+   (Étape 0, probe-page), le play part déjà `osName=tizen` → l'outil logue
+   `[P3] original:tizen` (pas `windows`) et Network montre `tizen` sans CDP.
+   Lire les logs `[P3] original:` pour distinguer la cause.
+6. **Réponse invisible côté userscript** : la fusion P2 du hook mute le
+   `Response` au niveau page → jamais visible dans Network. Si le run
+   intercepté montre `enableVibration` dans Network, c'est forcément le
+   `fulfillRequest` CDP (C4 = preuve CDP, pas userscript).
 
 ## Rejouabilité
 
 Le protocole est manuel (2 runs × ~2 min) tant que la session est
 authentifiée. L'outil et ses self-tests sont rejouables :
-`node bench/preview/intercept-session.test.js` (45/45) — la logique de
+`node bench/preview/intercept-session.test.js` (51/51) — la logique de
 réécriture est couverte sans navigateur ; ce protocole valide la partie
 réseau réelle (patterns CDP, SW éventuel, corps réels).
+
+Les étapes **hors-navigateur** (Étape 0) sont rejouables sans session et
+sans navigateur : `fetch-early.test.js` (17/17) + `userscript-rewrite.test.js`
+(14/14) — elles doivent être vertes avant chaque session CDP (garde la
+logique, les runs réels gardent le câblage réseau).
