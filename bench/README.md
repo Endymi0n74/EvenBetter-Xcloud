@@ -211,6 +211,19 @@ label `bench-gpu` sur une PR interne), sa section ne se poste que dans un
 contexte PR (le step est inerte sur les dispatches, qui n'ont pas de PR à
 commenter).
 
+**Trigger label-gated — piège du type `labeled` (vérifié en réel, 16 août) :**
+le trigger `pull_request` inclut le type `labeled` (nécessaire pour démarrer
+sur l'ajout du label), mais GitHub **ne livre pas toujours l'événement**
+`labeled` à Actions : 4 poses du label sur la PR #13 enregistrées dans la
+timeline, 0 run créé — alors que `opened`/`synchronize`/`reopened`
+fonctionnent systématiquement. Le `labeled` est conservé dans le workflow
+(harmless — si GitHub corrige la livraison, l'ajout du label déclenchera
+directement). **Flux fiable documenté** : poser le label `bench-gpu`, puis
+déclencher un run PR par un push sur la branche (synchronize) ou un
+close/reopen (reopened) — le job gpu-upload s'active dès que le label est
+présent (gate vérifié en réel : run 31935334373, job `in_progress` sur le
+label seul).
+
 **Job GPU optionnel** (`workflow_dispatch` + input `gpu`) : le workflow
 contient aussi `gpu-upload`, qui rejoue le protocole 6 seeds de `bench/gpu/`
 sur un **runner self-hosted avec GPU** (labels `self-hosted, linux, gpu`) et
