@@ -443,10 +443,24 @@ device-info), désormais mesurables par la capture.
    — flag URL `session.configuration.options.ignoreServiceConfiguration`
    probable, à confirmer)
 
-> **P2 : wire-viabilité CONFIRMÉE 16 août** — la réponse `/configuration`
-> réelle contient déjà `clientStreamingConfigOverrides` (merge requis, pas
-> remplacement), et le filtre client-exclusif `ie` ne couvre que les clés
-> racine — les sous-clés du stable passent.
+> **P2 : wire-viabilité CONFIRMÉE machine 16 août** — le schéma réel du
+> module `StreamSessionConfiguration-n19hnhqy.js` (capturé, 5 Ko — la source
+> du `validateClientStreamingConfigOverrides` Zod) vérifie :
+> - **liste `v` (client-exclusives)** = `options`, `systemUiHandler`,
+>   `touchControlHandler`, `nexusButtonHandler`, `clientDeviceCapabilities`,
+>   `pollingConfiguration` — exactement la liste `ie` documentée ;
+> - **toutes les clés P2 existent dans le schéma** : `enableVibration`,
+>   `useUnreliableInput`, `enableMouseInput`, `enableKeyboardInput`,
+>   `enableTouchInput`, `maxTouchPoints` (inputConfiguration) et
+>   `enableMicrophone` (audioConfiguration) ;
+> - **aucune clé P2 dans la liste client-exclusive** → le filtre `ie` ne les
+>   retire pas avant le merge `ae()`.
+>
+> → **`bench/preview/p2-schema.test.js` (15/15)** : chaque clé injectée par
+> `p2-inject.js` est comparée au schéma extrait du bundle réel (rejouable à
+> chaque re-capture — si Microsoft ajoute/renomme une clé, le test échoue
+> avant de laisser P2 injecter une clé que le Zod `throwErrors:true`
+> rejetterait).
 
 > **Point d'injection CHOISI : interception CDP** (`bench/preview/intercept-session.js`,
 > livré avec self-test 38/38) — le trafic partant d'un worker, les hooks de
