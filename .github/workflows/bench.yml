@@ -3,6 +3,10 @@ name: bench
 on:
   push:
   pull_request:
+    # « labeled » requis : sans lui, poser le label « bench-gpu » sur une PR
+    # n'émet aucun événement (défauts : opened/synchronize/reopened) et le
+    # trigger label-gated du job gpu-upload reste inerte.
+    types: [opened, synchronize, reopened, labeled]
   workflow_dispatch:
     inputs:
       gpu:
