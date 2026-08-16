@@ -271,11 +271,59 @@ check("API exposée (BX_SESSION_CAPTURE)", !!cap && typeof cap.report === "funct
   sandbox2.BX_SESSION_CAPTURE = { report() {}, download() {}, stop() { sandbox2._stopped = true; } };
   vm.createContext(sandbox2);
   vm.runInContext(SRC, sandbox2);
-  check("v1 présente → la v4 la remplace (VERSION=4)", sandbox2.BX_SESSION_CAPTURE.VERSION === 4);
+  check("v1 présente → la v5 la remplace (VERSION=5)", sandbox2.BX_SESSION_CAPTURE.VERSION === 5);
   check("v1 présente → stop() appelé avant remplacement", sandbox2._stopped === true);
   const cap2 = sandbox2.BX_SESSION_CAPTURE;
   cap2.diag(); // ne doit pas thrower
-  check("v4 remplaçante : diag() fonctionne sans erreur", true);
+  check("v5 remplaçante : diag() fonctionne sans erreur", true);
+
+  // ---- scénario réel observé en console : objet présent mais API incomplète ----
+  // (collage tronqué d'une version précédente → "BX_SESSION_CAPTURE.diag is not a function")
+  const sandbox6 = {
+    console, URL, Blob, Request, Response,
+    location: { href: "https://play.xbox.com/stream/BWBP12345" },
+    history: { pushState() {}, replaceState() {} },
+    XMLHttpRequest: FakeXHR,
+    WebSocket: FakeWS,
+    navigator: { serviceWorker: { controller: null, register: () => Promise.resolve({}) } },
+    performance: { getEntriesByType: () => [] },
+  };
+  sandbox6.window = sandbox6;
+  sandbox6.addEventListener = () => {};
+  sandbox6.removeEventListener = () => {};
+  sandbox6.fetch = (input) => Promise.resolve(new Response("{}", { status: 200 }));
+  // objet corrompu : VERSION 4 (donc la garde v4 le laisserait passer) mais SANS diag/report
+  sandbox6.BX_SESSION_CAPTURE = { VERSION: 4, stop() { sandbox6._stopped = true; } };
+  vm.createContext(sandbox6);
+  vm.runInContext(SRC, sandbox6);
+  const cap6 = sandbox6.BX_SESSION_CAPTURE;
+  check("objet corrompu (VERSION 4 sans diag) → remplacé (VERSION=5)", cap6 && cap6.VERSION === 5);
+  check("objet corrompu : stop() appelé avant remplacement", sandbox6._stopped === true);
+  check("objet corrompu : diag() fonctionne après réparation", typeof cap6.diag === "function" && typeof cap6.report === "function");
+  cap6.diag(); // ne doit pas thrower
+  check("objet corrompu : diag() appelable sans erreur", true);
+
+  // re-paste de la v5 sur une v5 saine → la garde d'intégrité la laisse telle quelle
+  const sandbox7 = {
+    console, URL, Blob, Request, Response,
+    location: { href: "https://play.xbox.com/stream/BWBP12345" },
+    history: { pushState() {}, replaceState() {} },
+    XMLHttpRequest: FakeXHR,
+    WebSocket: FakeWS,
+    navigator: { serviceWorker: { controller: null, register: () => Promise.resolve({}) } },
+    performance: { getEntriesByType: () => [] },
+  };
+  sandbox7.window = sandbox7;
+  sandbox7.addEventListener = () => {};
+  sandbox7.removeEventListener = () => {};
+  sandbox7.fetch = (input) => Promise.resolve(new Response("{}", { status: 200 }));
+  vm.createContext(sandbox7);
+  vm.runInContext(SRC, sandbox7);
+  const cap7 = sandbox7.BX_SESSION_CAPTURE;
+  const hooks7 = cap7.state.hooks.length;
+  vm.runInContext(SRC, sandbox7); // re-paste immédiat
+  check("re-paste v5 sur v5 saine : pas de double hook (hooks identiques)", sandbox7.BX_SESSION_CAPTURE.state.hooks.length === hooks7);
+  check("re-paste v5 sur v5 saine : API intacte", typeof sandbox7.BX_SESSION_CAPTURE.diag === "function" && sandbox7.BX_SESSION_CAPTURE === cap7);
 
   // fausse v2 (VERSION=2) → la v3 doit aussi la remplacer (workers hooks)
   const sandbox4 = {
@@ -295,7 +343,7 @@ check("API exposée (BX_SESSION_CAPTURE)", !!cap && typeof cap.report === "funct
   sandbox4.BX_SESSION_CAPTURE = { VERSION: 2, diag() {}, report() {}, download() {}, stop() { sandbox4._stopped = true; } };
   vm.createContext(sandbox4);
   vm.runInContext(SRC, sandbox4);
-  check("v2 présente → la v4 la remplace (VERSION=4)", sandbox4.BX_SESSION_CAPTURE.VERSION === 4);
+  check("v2 présente → la v5 la remplace (VERSION=5)", sandbox4.BX_SESSION_CAPTURE.VERSION === 5);
   check("v2 présente → stop() appelé avant remplacement", sandbox4._stopped === true);
   new sandbox4.Worker("/assets/stream-worker.js");
   check("v3 après v2 : hook worker actif", sandbox4.BX_SESSION_CAPTURE.state.workers.some((w) => w.kind === "worker" && w.url.includes("stream-worker")));

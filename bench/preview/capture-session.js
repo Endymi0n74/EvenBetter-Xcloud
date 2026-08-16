@@ -42,16 +42,18 @@
   "use strict";
 
   const NS = "BX_SESSION_CAPTURE";
-  const VERSION = 4; // v1 = fetch seul · v2 = +xhr/ws/resource timing · v3 = +workers/SW · v4 = +sendBeacon/keepalive
-  if (window[NS] && (window[NS].VERSION || 1) >= VERSION) {
-    // version courante (ou plus récente) déjà active — ne pas re-hooker
-    console.warn(`[BX-SESSION-CAPTURE] v${window[NS].VERSION || 1} déjà injectée (courante v${VERSION}) — API existante sur window.` + NS);
+  const VERSION = 5; // v1 = fetch seul · v2 = +xhr/ws/resource timing · v3 = +workers/SW · v4 = +sendBeacon/keepalive · v5 = garde d'intégrité API
+  const apiIntact = (o) => o && typeof o.diag === "function" && typeof o.report === "function" && typeof o.stop === "function";
+  if (apiIntact(window[NS]) && (window[NS].VERSION || 1) >= VERSION) {
+    // version courante (ou plus récente) déjà active et API complète — ne pas re-hooker
+    console.warn(`[BX-SESSION-CAPTURE] v${window[NS].VERSION || 1} déjà injectée (courante v${VERSION}) — API existante sur window.${NS}`);
     return window[NS];
   }
   if (window[NS]) {
-    // version antérieure encore active : la remplacer proprement (stop + delete) —
-    // évite le reload de page quand on recolle par-dessus l'ancienne version.
-    console.warn(`[BX-SESSION-CAPTURE] v${window[NS].VERSION || 1} détectée — remplacement par la v${VERSION} (hooks relancés)`);
+    // objet présent mais API incomplète (collage tronqué) OU version antérieure :
+    // remplacer proprement (stop + delete) — évite le reload de page quand on recolle.
+    const etat = apiIntact(window[NS]) ? `v${window[NS].VERSION || 1} détectée` : "objet BX_SESSION_CAPTURE présent mais API incomplète (collage tronqué ?)";
+    console.warn(`[BX-SESSION-CAPTURE] ${etat} — remplacement par la v${VERSION} (hooks relancés)`);
     try { window[NS].stop(); } catch (e) {}
     delete window[NS];
   }
@@ -397,7 +399,7 @@
   const api = { report, download, stop, diag, state, VERSION };
   window[NS] = api;
   console.log(
-    "[BX-SESSION-CAPTURE] actif (fetch + xhr + ws + beacon + resource timing) — lance le stream puis :\n" +
+    "[BX-SESSION-CAPTURE v" + VERSION + "] actif (fetch + xhr + ws + beacon + resource timing) — lance le stream puis :\n" +
     "  BX_SESSION_CAPTURE.diag()       (état live : vues vs matchées)\n" +
     "  BX_SESSION_CAPTURE.report()     (colle-le ici)\n" +
     "  BX_SESSION_CAPTURE.download()   (rapport JSON)\n" +
