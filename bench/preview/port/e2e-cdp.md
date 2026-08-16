@@ -287,6 +287,28 @@ seuil : jeu qui « bouge » tout seul, session trop courte) → allonger
 - Chaque run coûte ~10 min d'AFK → faire P1-A d'abord (données de contrôle et
   timing), puis P1-B quand `wrapSession` sera branchée.
 
+### Exécutions P1
+
+#### Exécution 1 — P1-A témoin, 600 s (17 août, ~00:31-00:41)
+
+- Contexte : profil edge-cdp, `hookActif:true`, stream Halo Campaign en cours
+  (`play.xbox.com/stream/9N683TDT5M7R/halo-campaign-evolved`), fenêtre
+  `monitor-idle.js --duration=600`, zéro input pendant toute la fenêtre.
+- **Heartbeat natif `/keepalive` : 11 requêtes, toutes les 60 s**
+  (00:31:49 → 00:40:49) — la connexion de session n'a jamais bronché sans le
+  moindre input : indépendance heartbeat/idle **confirmée en réel**.
+- **Warning d'idle : aucun** — ni `Warning for being idle;` (natif) ni
+  `BX keep-alive: idle warning intercepted` (P1 — N/A de toute façon,
+  wrapSession non branchée).
+- Vidéo : `readyState 4, paused:false` constant ; **session vivante à la fin**
+  (vérifiée par probe après la fenêtre : toujours en stream).
+- **Verdict : run témoin NON concluant pour le kick** — le warning n'a pas
+  atteint son seuil dans 10 min d'AFK totale → **seuil d'idle du preview
+  > 10 min** (ou pas de kick sur cette session/ce jeu). Donnée utile pour
+  P1-B : rien à intercepter avant ~10 min.
+- Prochaine : fenêtre **1800 s** pour rattraper le warning natif et figer le
+  timing du kick ; P1-B après branchement de `wrapSession`.
+
 ## Critères de succès
 
 | # | Où | Run 0 (témoin) | Run 1 (intercepté) | Statut |
