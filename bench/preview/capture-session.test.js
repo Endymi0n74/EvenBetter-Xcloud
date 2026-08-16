@@ -174,6 +174,29 @@ check("API exposée (BX_SESSION_CAPTURE)", !!cap && typeof cap.report === "funct
   check("rapport : trace réseau protocolaire", report.includes("## Trace réseau protocolaire") && report.includes("gssv-prod.xboxlive.com"));
   check("rapport : ligne transports", report.includes("fetch=") && report.includes("xhr=") && report.includes("ws="));
 
+  // ---- scénario réel : v1 déjà active dans la page → la v2 doit la remplacer ----
+  const sandbox2 = {
+    console, URL, Blob, Request, Response,
+    location: { href: "https://play.xbox.com/stream/BWBP12345" },
+    history: { pushState() {}, replaceState() {} },
+    XMLHttpRequest: FakeXHR,
+    WebSocket: FakeWS,
+    performance: { getEntriesByType: () => [] },
+  };
+  sandbox2.window = sandbox2;
+  sandbox2.addEventListener = () => {};
+  sandbox2.removeEventListener = () => {};
+  sandbox2.fetch = (input) => Promise.resolve(new Response("{}", { status: 200 }));
+  // fausse v1 : même NS mais SANS diag
+  sandbox2.BX_SESSION_CAPTURE = { report() {}, download() {}, stop() { sandbox2._stopped = true; } };
+  vm.createContext(sandbox2);
+  vm.runInContext(SRC, sandbox2);
+  check("v1 présente → la v2 la remplace (diag existe maintenant)", typeof sandbox2.BX_SESSION_CAPTURE.diag === "function");
+  check("v1 présente → stop() appelé avant remplacement", sandbox2._stopped === true);
+  const cap2 = sandbox2.BX_SESSION_CAPTURE;
+  cap2.diag(); // ne doit pas thrower
+  check("v2 remplaçante : diag() fonctionne sans erreur", true);
+
   console.log(failures === 0 ? "\nSmoke test capture-session : OK ✅" : `\n${failures} échec(s) ❌`);
   process.exit(failures === 0 ? 0 : 1);
 })();

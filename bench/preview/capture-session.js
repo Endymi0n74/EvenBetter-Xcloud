@@ -37,9 +37,17 @@
   "use strict";
 
   const NS = "BX_SESSION_CAPTURE";
-  if (window[NS]) {
-    console.warn("[BX-SESSION-CAPTURE] déjà injecté — API existante sur window." + NS);
+  if (window[NS] && window[NS].diag) {
+    // v2 déjà active (elle seule expose diag) — ne pas re-hooker
+    console.warn("[BX-SESSION-CAPTURE] v2 déjà injectée — API existante sur window." + NS);
     return window[NS];
+  }
+  if (window[NS]) {
+    // v1 (sans diag) encore active : la remplacer proprement (stop + delete) —
+    // évite le reload de page quand on recolle par-dessus l'ancienne version.
+    console.warn("[BX-SESSION-CAPTURE] v1 détectée — remplacement par la v2 (hooks relancés)");
+    try { window[NS].stop(); } catch (e) {}
+    delete window[NS];
   }
 
   // Patterns endpoint prédits des statics (StreamSessionRequest / entry.client) :
