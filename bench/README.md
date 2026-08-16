@@ -4,9 +4,10 @@ Mesures **perf10 (baseline `055d3a0`)** vs **build courant** (`better-xcloud.use
 à la racine du repo). Tout se lance d'un coup :
 
 ```bash
-./bench/run-all.sh                    # les 4 harnais
-./bench/run-all.sh --skip-page-eval  # sans Playwright/Edge (pas de page-eval ni de profil)
+./bench/run-all.sh                     # les 5 harnais
+./bench/run-all.sh --skip-page-eval   # sans Playwright/Edge (pas de page-eval, de profil ni de cold-getcap)
 ./bench/run-all.sh --skip-startup-profile # sans le profil CDP du startup
+./bench/run-all.sh --skip-cold-getcap # sans la mesure one-shot de getCapabilities
 ```
 
 Prérequis : Node. Pour l'éval page : Playwright + Edge (canal `msedge`) — installer
@@ -18,6 +19,7 @@ avec `npm i -D playwright` ou pointer `NODE_PATH` vers un install existant.
 | `hotloops.js` | Hot loops injectés ~60 Hz (controller, poll_gamepad, updateFrame, updateCanvas) | Node V8 |
 | `page-eval.js` | Éval complète de page, injection au document-start, 20 runs | Edge headless + Playwright |
 | `startup-profile.js` | Profil CPU du startup : **self time par fonction** sur le eval document-start (CDP Profiler, échantillonnage 100 µs, 5 runs) — perf10 vs build | Edge headless + Playwright + CDP |
+| `cold-getcap.js` | Coût one-shot isolé de `getCapabilities` : navigateur neuf par run, 1er appel (pile RTC froide) vs 2e + eval document-start à froid perf10 vs build (5 runs × 2 versions) | Edge headless + Playwright |
 | `freeze.sh` | Rejoue le protocole figé (3 seeds × 3 passes), capture l'état machine par seed hotloops et formate les tableaux markdown du README | Node V8 (+ Edge si `--with-page-eval`) |
 | `check-ratios.js` | CI : parse la sortie de `run-all.sh --skip-page-eval` et échoue si un ratio de hot loop régresse au-delà de son seuil | Node V8 (workflow `.github/workflows/bench.yml`) |
 
@@ -43,6 +45,7 @@ node --expose-gc bench/parse.js  <perf10.js> <build.js> [--passes=N] [--seed=N] 
 
 ```bash
 node bench/startup-profile.js <perf10.js> <build.js> [--runs=N] [--top=N] [--channel=msedge|chromium]
+node bench/cold-getcap.js <perf10.js> <build.js> [--runs=N] [--channel=msedge|chromium]
 ```
 
 `parse.js` chronomètre par itération en `process.hrtime.bigint()` (résolution
@@ -76,6 +79,19 @@ Pièges :
   voulu : le vrai coût du 1er chargement.
 - bruit exclu du classement : `(idle)`, `(program)`, `(garbage collector)`,
   `tryRun`/`InjectedScript`/`UtilityScript` (harnais + DevTools).
+
+## Coût one-shot de getCapabilities (Edge à froid)
+
+`cold-getcap.js` quantifie le coût one-shot de `RTCRtpReceiver.getCapabilities("video")` — la fonction qui monopolisait le startup avant la v1.7.0 — avec un **navigateur neuf par run** (process distinct → pile RTC froide) :
+
+- **one-shot isolé** (indépendant du script, mesuré pour les 2 versions) : chrono in-page du 1er appel (~640 ms sur Edge froid : la pile RTC s'initialise intégralement dedans), du 2e et d'`audio` (~0,1 ms), plus une baseline vide (0,0 ms → zéro bruit de mesure).
+- **eval document-start à froid** (perf10 vs build, même protocole que `page-eval.js`) : l'écart perf10/build = exactement le one-shot — perf10 572 ms vs v1.7.0 31 ms (**−94,5 %**).
+
+Pièges :
+
+- `about:blank` (origine opaque) fait échouer le userscript (localStorage) → l'éval passe par une page HTTP servie localement ; la partie isolée n'injecte aucun script et reste sur about:blank.
+- l'éval exige un navigateur **neuf** : dans un process partagé la pile RTC survit d'un run à l'autre et le one-shot disparaît (le warm ne voit que −8,7 %, le froid −95 %).
+- écart isolé/in-eval (~100 ms) : variance d'environnement de la même init native (540–670 ms), même ordre, même lecture.
 
 ## Protocole figé (tables du README principal)
 
