@@ -1,6 +1,6 @@
 # Patches perf11 — portage sélectif
 
-Les patches produisent le build `better-xcloud-perf-v1.6.0` (`@version 1.6.0`,
+Les patches produisent le build `better-xcloud-perf-v1.7.0` (`@version 1.7.0`,
 série d'optimisations perf11 + perf13 + fix RGB8 + cache uniforms + flag dirty).
 
 21 patches individuels, chacun **vérifié applicable seul** sur la baseline
@@ -20,7 +20,7 @@ l'application — conversion LF→CRLF du contexte).
 
 | Patch | Optimisation | Zone |
 |---|---|---|
-| `01-version-header.patch` | Bump `6.7.12-perf10` → `1.6.0` + header (version, optis, `@updateURL` → `better-xcloud.meta.js`) | global |
+| `01-version-header.patch` | Bump `6.7.12-perf10` → `1.7.0` + header (version, optis, `@updateURL` → `better-xcloud.meta.js`) | global |
 | `02-allprefs-set.patch` | `ALL_PREFS` → `Set`, lookups O(1) | settings |
 | `03-settings-validatevalue-filter.patch` | `validateValue` : `filter` + `Set` (fin du saut d'index splice) | settings |
 | `04-settings-deletesettings-batch.patch` | `deleteSettings` batch + `getGameSettings` mono-`saveSettings` | settings |
