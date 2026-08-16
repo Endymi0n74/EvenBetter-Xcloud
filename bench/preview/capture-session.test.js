@@ -277,6 +277,42 @@ check("API exposée (BX_SESSION_CAPTURE)", !!cap && typeof cap.report === "funct
   cap2.diag(); // ne doit pas thrower
   check("v5 remplaçante : diag() fonctionne sans erreur", true);
 
+  // ---- diagnostics report() : « stream jamais démarré » vs « transport non couvert » ----
+  const mkSandbox = (rtEntries) => {
+    const sb = {
+      console, URL, Blob, Request, Response,
+      location: { href: "https://play.xbox.com/stream/BWBP12345" },
+      history: { pushState() {}, replaceState() {} },
+      XMLHttpRequest: FakeXHR,
+      WebSocket: FakeWS,
+      navigator: { serviceWorker: { controller: null, register: () => Promise.resolve({}) } },
+      performance: { getEntriesByType: (t) => (t === "resource" ? rtEntries : []) },
+    };
+    sb.window = sb;
+    sb.addEventListener = () => {};
+    sb.removeEventListener = () => {};
+    sb.fetch = (input, init) => {
+      const url = typeof input === "string" ? input : input.url;
+      if (url.includes("keepalive-telemetry")) return Promise.resolve(new Response("ok", { status: 200 }));
+      return Promise.resolve(new Response("{}", { status: 200 }));
+    };
+    return sb;
+  };
+  // cas A : RT vide + bruit télémétrie (fetch keepalive non-endpoint) → « PAS démarré »
+  const sbA = mkSandbox([]);
+  vm.createContext(sbA);
+  vm.runInContext(SRC, sbA);
+  sbA.fetch("https://browser.events.data.microsoft.com/keepalive-telemetry", { method: "POST", keepalive: true });
+  const repA = sbA.BX_SESSION_CAPTURE.report();
+  check("diagnostic A : bruit télémétrie sans protocole → « stream PAS démarré »", repA.includes("PAS démarré") && repA.includes("re-appelle report()"), repA.match(/⚠️ DIAGNOSTIC[\s\S]*?re-appelle report\(\)/));
+  check("diagnostic A : le bruit télémétrie n'est pas compté comme protocole", !repA.includes("Requêtes capturées : 1") && repA.includes("Requêtes capturées : 0"));
+  // cas B : RT VOIT le protocole mais hooks muets → « transport non couvert »
+  const sbB = mkSandbox([{ name: "https://uks.core.gssv-play-prod.xboxlive.com/v5/sessions/cloud/ABC/state" }]);
+  vm.createContext(sbB);
+  vm.runInContext(SRC, sbB);
+  const repB = sbB.BX_SESSION_CAPTURE.report();
+  check("diagnostic B : RT voit le protocole mais hooks muets → « transport non couvert »", repB.includes("transport non") && repB.includes("1 requêtes protocolaires"), repB.match(/⚠️ DIAGNOSTIC[\s\S]*?transport non/));
+
   // ---- scénario réel observé en console : objet présent mais API incomplète ----
   // (collage tronqué d'une version précédente → "BX_SESSION_CAPTURE.diag is not a function")
   const sandbox6 = {

@@ -317,11 +317,20 @@
     lines.push("- Vues par transport (toutes requêtes, même non-matchées) : fetch=" + state.counts.fetch + " (dont keepalive=" + state.counts.keepalive + ") · xhr=" + state.counts.xhr + " · ws=" + state.counts.ws + " · beacon=" + state.counts.beacon);
     lines.push("    - Resource timing : " + (rt.available ? rt.total + " ressources chargées, " + rt.protocol.length + " protocolaires" : "API indisponible"));
     lines.push("- Workers / service workers vus : " + (state.workers.length ? state.workers.map((w) => w.kind + "(" + w.url.slice(0, 60) + ")").join(", ") : "aucun"));
-    if (state.requests.length === 0 && state.counts.fetch + state.counts.xhr + state.counts.ws + state.counts.beacon === 0 && (!rt.available || rt.protocol.length === 0)) {
+    if (state.requests.length === 0 && rt.available && rt.protocol.length === 0) {
+      // Aucun échange protocole, même dans resource timing (le témoin du navigateur lui-même).
+      // Indépendant du bruit de télémétrie (counts > 0 possibles, ex. keepalive bloqués).
       lines.push("");
-      lines.push("⚠️ DIAGNOSTIC : aucune requête vue nulle part — soit la session n'a PAS démarré");
-      lines.push("  (page /stream ouverte sans lancer le jeu), soit tout le trafic passe par un");
-      lines.push("  worker/iframe isolé. Réessaie avec le stream en cours (image du jeu visible).");
+      lines.push("⚠️ DIAGNOSTIC : aucun échange protocole (0 requête matchée, 0 trace protocolaire");
+      lines.push("  dans resource timing) — le stream n'a probablement PAS démarré : page /stream");
+      lines.push("  ouverte sans lancement effectif, ou report() appelé avant la fin du lancement.");
+      lines.push("  Relance le jeu jusqu'à voir l'image, attends ~30 s, puis re-appelle report().");
+    } else if (state.requests.length === 0 && rt.available && rt.protocol.length > 0) {
+      // Les hooks de page ont raté le protocole mais le navigateur l'a vu : transport non couvert.
+      lines.push("");
+      lines.push("⚠️ DIAGNOSTIC : resource timing VOIT " + rt.protocol.length + " requêtes protocolaires mais les");
+      lines.push("  hooks page ne les ont pas capturées — le protocole passe par un transport non");
+      lines.push("  couvert (worker isolé, iframe, ou émis avant le collage du harnais).");
     }
     lines.push("");
     lines.push("## Endpoints");
