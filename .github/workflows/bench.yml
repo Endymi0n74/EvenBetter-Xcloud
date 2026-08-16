@@ -59,6 +59,12 @@ jobs:
         run: |
           node bench/preview/port/build-preview.js
           node bench/preview/port/keepalive-idle.test.js
+          # p2-schema : alerte si une clé P2 dérive du schéma Zod réel (un
+          # bundle StreamSessionConfiguration-*.js capturé doit être présent,
+          # sinon le test passe en mode « schéma non vérifiable » — warn +
+          # cohérence interne de p2-inject.js, exit 0). En local, lancer avec
+          # le répertoire de capture : node bench/preview/p2-schema.test.js
+          node bench/preview/p2-schema.test.js
 
       - name: Vérifie les ratios des hot loops (seuils CI)
         run: |
