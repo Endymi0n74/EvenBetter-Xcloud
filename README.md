@@ -117,6 +117,7 @@ absolue mais la comparaison relative entre les deux builds.
 | CI 16 août (PR #6) | 594,4 (551,2–717,4) | 29,9 (24,3–40,6) | −95,0 % | bas | ✅ |
 | CI 16 août (PR #7) | 650,5 (604,0–838,7) | 36,6 (27,9–54,5) | −94,4 % | haut | ✅ |
 | CI 16 août (dispatch validation) | 609,9 (553,1–824,5) | 29,3 (22,8–41,3) | −95,2 % | bas | ✅ |
+| CI 16 août (dispatch, après merge) | 576,0 (528,9–639,0) | 27,1 (22,8–34,8) | −95,3 % | bas | ✅ |
 
 La série perf11 (re-mesurée sur le build v1.6.0 officiel) visait le **runtime**
 (hot loops, GPU, caches), pas le chargement — confirmé v1.6.0 : coût de démarrage identique.
