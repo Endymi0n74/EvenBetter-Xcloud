@@ -83,7 +83,10 @@
 
   function endpointOf(url) {
     const m = ENDPOINT_RE.exec(url);
-    return m ? m[0] : null;
+    if (!m) return null;
+    if (m[0] !== "gssv") return m[0]; // pattern path explicite
+    // match par domaine : retourner le pathname (label plus lisible)
+    try { return new URL(url).pathname.slice(0, 48) || "gssv"; } catch (e) { return "gssv"; }
   }
 
   // ---------- 1. hook fetch : capture des requêtes du protocole ----------

@@ -183,13 +183,38 @@ device-info), désormais mesurables par la capture.
 > XHR, ni WebSocket, ni le trafic d'un éventuel worker/iframe, et ne pouvait
 > pas distinguer « session jamais démarrée ». Le harnais v2 couvre
 > fetch+XHR+WS+resource timing avec compteurs vues/matchées (`diag()`)
-> pour trancher ces cas. Résultat à re-confirmer : soit le protocole preview
-> passe par un transport non-fetch (WS/worker), soit la session n'avait pas
-> démarré (page ouverte sans lancement du jeu).
+> pour trancher ces cas.
 
-1. **Endpoint de provisioning** du preview (équivalent `/sessions/cloud/play`
-   et `/configuration`) — pour l'interception fetch si les hooks internes ne
-   suffisent pas.
+> **Validation runtime 16 août (P3, 2e essai)** — trace resource timing du
+> navigateur (le protocole passe par un **worker** : fetch=1, xhr=0, ws=0
+> mais 224 ressources dont 11 protocolaires) :
+>
+> | Endpoint réel (session 8A7F6A20-…) | Rôle |
+> |---|---|
+> | `cloudgaming.gssv-play-prod.xboxlive.com/v2/login/user` | login cloud |
+> | `uks.core.gssv-play-prod.xboxlive.com/v5/sessions/cloud/play` | **provisioning** (P3) |
+> | `…/v5/sessions/cloud/{id}/state` (×3) | polling état |
+> | `…/v5/sessions/cloud/{id}/configuration` | config serveur |
+> | `…/v5/sessions/cloud/{id}/sdp` (×2) | négociation WebRTC |
+> | `…/v5/sessions/cloud/{id}/ice` (×2) | ICE |
+> | `…/v5/sessions/cloud/{id}/keepalive` | **heartbeat HTTP natif** (P1) |
+>
+> Le protocole est le **même gssv v5 que le stable** (la prédiction
+> `v5/.../play` était juste) — seule diffère la base d'URL
+> (`uks.core.gssv-play-prod` vs `westus.gssv-prod` du stable, région
+> `uks` = UK South). Le preview a aussi un **endpoint keepalive HTTP dédié**
+> en plus du heartbeat `keepAlivePulseInSeconds` : P1 (interception
+> `WarningForBeingIdle` → `sendKeepAlive`) reste complémentaire.
+>
+> **Le trafic part d'un worker** → les hooks fetch/xhr/ws de la page ne
+> voient pas les BODIES : seul le resource timing (URLs) est accessible côté
+> page. Pour la forme `deviceInformation` (body du play request), la voie est
+> l'onglet **Network de DevTools** (le worker y apparaît) → filtrer `play` →
+> onglet Payload/Response.
+
+1. **Endpoint de provisioning** du preview — **CONFIRMÉ runtime 16 août** :
+   `uks.core.gssv-play-prod.xboxlive.com/v5/sessions/cloud/play` (base gssv
+   v5 identique au stable, région `uks`).
 2. **Mécanisme flags URL réel** : `setGateValue`/`session.configuration.*` —
    s'applique-t-il avant la construction de `StreamSessionRequest` ?
 3. **`ignoreServiceConfiguration`** : accessible en flag public ou réservé
@@ -197,7 +222,10 @@ device-info), désormais mesurables par la capture.
 4. **Événement `qe`** (WarningForBeingIdle) : qui l'écoute, et un keep-alive
    envoyé reset-il bien le compteur serveur ?
 5. **`deviceInformation`** : sa forme exacte et le calcul d'`osName` — pour le
-   portage résolution.
+   portage résolution. L'endpoint play est confirmé ; il reste à capturer le
+   **body** (le trafic part d'un worker → hooks de page inopérants sur les
+   bodies) : onglet **Network** de DevTools → filtrer `play` → onglet
+   Payload/Response du play request.
 6. **Login/région** : `auth-hooks` + sélection de région du preview
    (l'équivalent `handleLogin`).
 

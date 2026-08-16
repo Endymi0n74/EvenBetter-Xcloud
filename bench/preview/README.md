@@ -123,15 +123,29 @@ les ratent. Un compteur global « vues vs matchées » par transport (`diag()`)
 distingue trois cas : hooks morts (0 vue), patterns faux (vues ≫ matchées),
 session jamais démarrée (tout = 0 + rien dans le resource timing).
 
+### Constat runtime (16 août — 2e essai)
+
+La trace resource timing du navigateur (pas les hooks) a confirmé le
+protocole : **même gssv v5 que le stable**, base `uks.core.gssv-play-prod.xboxlive.com`
+(région `uks`), endpoints `v2/login/user` → `v5/sessions/cloud/play`
+(provisioning) → `state`/`configuration`/`sdp`/`ice`/`keepalive`. Le trafic
+passe par un **worker** (fetch=1, xhr=0, ws=0 mais 224 ressources dont 11
+protocolaires) → les hooks de la page ne voient **que les URLs** (via le
+resource timing), jamais les bodies.
+
 ### Ce que le rapport confirme pour P3
 
 - **Endpoint(s) exact(s)** de provisioning (URL complète + méthode) — le
   pattern `v5/.../play` réel, et s'il y a un `/configuration` séparé.
 - **Forme de deviceInformation** : le body du play request (osName, locale,
-  timezoneOffsetMinutes, sdkType…) — à comparer au `generateMsDeviceInfo`/
-  `getOsNameFromResolution` du stable pour re-dériver le trick résolution.
+  timezoneOffsetMinutes, sdkType…) — **non capturable par les hooks de page**
+  (trafic worker) → onglet **Network de DevTools** (le worker y apparaît),
+  filtrer `play`, lire les onglets Payload (request) et Response. À comparer
+  au `generateMsDeviceInfo`/`getOsNameFromResolution` du stable pour
+  re-dériver le trick résolution.
 - **Réponse de provisioning** : `clientStreamingConfigOverrides` réel (P2),
-  `keepAlivePulseInSeconds` (P1), `serverDetails` (région).
+  `keepAlivePulseInSeconds` (P1), `serverDetails` (région) — même voie
+  Network.
 
 ### Rejouabilité
 
