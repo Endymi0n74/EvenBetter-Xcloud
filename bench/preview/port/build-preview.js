@@ -34,7 +34,9 @@ const SRC = path.join(ROOT, "better-xcloud.user.js");
 const OUT = path.join(ROOT, "better-xcloud-preview.user.js");
 const META_OUT = path.join(ROOT, "better-xcloud-preview.meta.js");
 
-const EOL = "\r\n"; // le build perf est en CRLF
+// EOL des ancres : la source peut être CRLF (working tree Windows, autocrlf)
+// ou LF (checkout CI) — on normalise l'entrée en LF, la sortie en CRLF.
+const EOL = "\n";
 
 // ---- contrat « deux versions » : identité DISTINCTE du build preview ----
 const PREVIEW_VERSION = "1.7.0-preview1";
@@ -48,7 +50,7 @@ function must(src, needle, label) {
 }
 
 function build() {
-  let s = fs.readFileSync(SRC, "utf8");
+  let s = fs.readFileSync(SRC, "utf8").replace(/\r\n/g, "\n"); // entrée normalisée en LF
 
   /* ---------- T1 : header — identité DISTINCTE (contrat deux versions) ----------
      Le preview ne doit JAMAIS partager l'identité du stable : même @name =
@@ -177,6 +179,9 @@ ${entryAnchor}`;
 /* Invariants « deux versions » — le build échoue si la séparation casse.
    (appelés après écriture du fichier, sur le contenu réel) */
 function checkTwoVersionInvariants(stableSrc, previewSrc) {
+  // EOL-insensible (working tree Windows CRLF / checkout CI LF)
+  stableSrc = stableSrc.replace(/\r\n/g, "\n");
+  previewSrc = previewSrc.replace(/\r\n/g, "\n");
   const fail = (msg) => { console.error("[build-preview] CONTRAT DEUX VERSIONS VIOLÉ : " + msg); process.exit(1); };
   // 1. identité distincte
   if (previewSrc.includes("// @name         Better xCloud" + EOL)) fail("@name du preview = celui du stable (conflit Tampermonkey)");
@@ -214,7 +219,7 @@ checkTwoVersionInvariants(fs.readFileSync(SRC, "utf8"), out);
 
 fs.writeFileSync(OUT, out);
 console.log(`[build-preview] ecrit ${path.relative(ROOT, OUT)} (${out.length} octets)`);
-fs.writeFileSync(META_OUT, extractMeta(out));
+fs.writeFileSync(META_OUT, extractMeta(out).replace(/\r?\n/g, "\r\n"));
 console.log(`[build-preview] ecrit ${path.relative(ROOT, META_OUT)}`);
 
 // validation syntaxe
