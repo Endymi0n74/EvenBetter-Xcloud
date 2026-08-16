@@ -22,7 +22,7 @@ avec `npm i -D playwright` ou pointer `NODE_PATH` vers un install existant.
 | `startup-profile.js` | Profil CPU du startup : **self time par fonction** sur le eval document-start (CDP Profiler, échantillonnage 100 µs, 5 runs) — perf10 vs build | Edge headless + Playwright + CDP |
 | `cold-getcap.js` | Coût one-shot isolé de `getCapabilities` : navigateur neuf par run, 1er appel (pile RTC froide) vs 2e + eval document-start à froid perf10 vs build (5 runs × 2 versions) | Edge headless + Playwright |
 | `freeze.sh` | Rejoue le protocole figé (3 seeds × 3 passes), capture l'état machine par seed hotloops et formate les tableaux markdown du README | Node V8 (+ Edge si `--with-page-eval`) |
-| `check-ratios.js` | CI : parse la sortie de `run-all.sh --skip-page-eval` et échoue si un ratio de hot loop régresse au-delà de son seuil | Node V8 (workflow `.github/workflows/bench.yml`) |
+| `check-ratios.js` | CI : parse la sortie de `run-all.sh --skip-page-eval` (ratios hot loops) — `--startup-only` : borne de startup sur la sortie de `page-eval.js --cold` (build ≤ 50 ms, perf10 300–1200 ms) | Node V8 (workflow `.github/workflows/bench.yml`) |
 
 `hotloops.js` et `parse.js` sont stabilisés (même recette que le harnais GPU) :
 
@@ -94,6 +94,10 @@ Pièges :
 - `about:blank` (origine opaque) fait échouer le userscript (localStorage) → l'éval passe par une page HTTP servie localement ; la partie isolée n'injecte aucun script et reste sur about:blank.
 - l'éval exige un navigateur **neuf** : dans un process partagé la pile RTC survit d'un run à l'autre et le one-shot disparaît (le warm ne voit que −8,7 %, le froid −95 %).
 - écart isolé/in-eval (~100 ms) : variance d'environnement de la même init native (540–670 ms), même ordre, même lecture.
+
+## CI — job `startup-cold` (workflow bench.yml, workflow_dispatch)
+
+Le job hotloops (ubuntu-latest) n'a ni Playwright ni la pile RTC Edge/Windows : les bornes mesurées (build ~30 ms, perf10 550–660 ms) ne s'y appliquent pas. Le job `startup-cold` tourne donc sur le **runner self-hosted Windows** (labels `self-hosted, windows, gpu`, même machine que le protocole GPU) : `page-eval.js --cold` (20 runs, navigateur neuf par run) puis `check-ratios.js --startup-only` — échec si le build dépasse **50 ms** (un coût one-shot est revenu au chargement), notice si perf10 sort de [300, 1200] ms (dérive d'environnement). Artefacts : `startup-summary-<sha>` (tableau markdown), `cold-eval-<sha>` (sortie complète, en cas d'échec). Dispatch-only (le runner est partagé avec le job GPU).
 
 ## Protocole figé (tables du README principal)
 

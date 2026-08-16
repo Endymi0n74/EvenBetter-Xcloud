@@ -17,6 +17,12 @@
  * Usage : node bench/check-ratios.js <sortie-de-run-all.sh> [--markdown=out.md]
  *   bash bench/run-all.sh --skip-page-eval > bench-out.txt
  *   node bench/check-ratios.js bench-out.txt --markdown=bench-summary.md
+ *
+ * Variante startup seul : `--startup-only` — parse la sortie de
+ *   `page-eval.js --cold` (éval à froid, navigateur neuf par run) et vérifie
+ *   la borne de startup du build (~30 ms mesuré ; échec > 50 ms = coût
+ *   one-shot revenu au chargement).
+ *   node bench/check-ratios.js cold-eval.txt --startup-only --markdown=startup-summary.md
  */
 "use strict";
 
@@ -31,6 +37,12 @@ if (!file) {
 const markdownArg = process.argv.find((a) => a.startsWith("--markdown="));
 const markdownFile = markdownArg ? markdownArg.split("=").slice(1).join("=") : null;
 const text = fs.readFileSync(file, "utf-8");
+const STARTUP_ONLY = process.argv.includes("--startup-only");
+// compteurs structurel (updateCanvas) et startup — déclarés ici pour être
+// visibles dans le markdown même en mode --startup-only (le bloc hotloops
+// est sauté, pas exécuté)
+let structuralFail = 0;
+let startupFail = 0;
 
 // ---------- seuils (ratio perf10/build) ----------
 // Planchers larges : les ratios mesurés sont ~7-9,5× (IDLE) et ~7-9×
@@ -75,6 +87,28 @@ for (const line of text.split(/\r?\n/)) {
   });
 }
 
+// ---------- startup : éval page (bornes ~30 ms / 550-660 ms) ----------
+// Bornes stables mesurées (Windows/Edge, protocole froid = navigateur neuf
+// par run, 4 sessions) : build v1.7.0 ~30 ms (max observé 44,4) ; perf10
+// ~550-660 ms (531-778). Le build ne doit pas régresser : un coût one-shot
+// revenu au chargement (getCapabilities & co) = 100+ ms. perf10 est la
+// baseline fixe : hors [300,1200] ms = dérive d'environnement (machine/
+// browser), signalée en notice, pas en échec.
+const STARTUP_BUILD_MAX_MS = 50;
+const STARTUP_P10_MIN_MS = 300;
+const STARTUP_P10_MAX_MS = 1200;
+const startup = { present: false, cold: false, perf10: null, build: null };
+for (const line of text.split(/\r?\n/)) {
+  if (line.startsWith("=== Éval complète de page")) {
+    startup.present = true;
+    startup.cold = line.includes("à froid");
+    continue;
+  }
+  const m = line.match(/^(perf10|build)\s*:\s*médiane ([0-9.]+) ms \| p95 ([0-9.]+) ms \| min ([0-9.]+) ms(?: \| max ([0-9.]+) ms)?/);
+  if (!m) continue;
+  startup[m[1]] = { med: +m[2], p95: +m[3], min: +m[4], max: m[5] ? +m[5] : null };
+}
+
 // ---------- vérification ----------
 const fmt = (n) => n.toFixed(2).replace(".", ",");
 const fmtTh = (th) => (th.max >= 20 ? `≥ ${fmt(th.min)}` : `${fmt(th.min)}–${fmt(th.max)}`);
@@ -85,6 +119,7 @@ const ann = (level, msg) => {
 
 const rows = []; // { sc, p10, build, ratio, th, ok }
 let failures = 0;
+if (!STARTUP_ONLY) {
 console.log("=== Hot loops — vérification des ratios (perf10/build) ===");
 for (const sc of ORDER) {
   const data = meds[sc];
@@ -118,7 +153,6 @@ for (const line of text.split(/\r?\n/)) {
   const m = line.match(/^(perf10|build)\s*:.*uniform1f=(\d+)/);
   if (m) counts[m[1]] = +m[2];
 }
-let structuralFail = 0;
 if (counts.build != null && counts.perf10 != null) {
   if (counts.build > 20) {
     ann("error", `updateCanvas : le build émet encore ${counts.build} gl.uniform1f (attendu ≤ 20 — flag dirty inactif ?)`);
@@ -189,7 +223,7 @@ if (markdownFile) {
     const bld = r.build != null ? `${fmt(r.build)} ns` : "n/a";
     lines.push(`| ${r.sc} | ${med} | ${bld} | ${ratio} | ${fmtTh(r.th)} | ${statut} |`);
   }
-  const totalFail = failures + structuralFail;
+  const totalFail = failures + structuralFail + startupFail;
   const verdict = totalFail === 0 ? "✅ PASS (6/6)" : `❌ ÉCHEC (${totalFail} vérification(s) en échec)`;
   lines.push("", "**Session — ligne prête à insérer dans le tableau « Sessions hot loops » du README :**");
   lines.push("", "| Session | perf10 IDLE (ns/poll) | build IDLE (ns/poll) | Ratio IDLE | État | Relâchement Home (perf10 → build) |");
@@ -200,13 +234,75 @@ if (markdownFile) {
   if (structuralFail > 0) {
     lines.push("", "_Vérification structurelle updateCanvas (compteurs `gl.uniform1f` : build ≤ 20, perf10 ≥ 1000) en échec._");
   }
+  if (startup.present) {
+    const b = startup.build;
+    const bOk = b ? b.med <= STARTUP_BUILD_MAX_MS : false;
+    const sCell = b ? `${b.med.toFixed(1)} ms` : "n/a";
+    lines.push("", `**Startup (éval page) : build ${sCell} (borne ≤ ${STARTUP_BUILD_MAX_MS} ms, ~30 ms attendu) — ${bOk ? "✅" : "❌"}**`);
+  }
   lines.push("", "_Régression = ratio perf10/build hors seuil (plancher ×4 pour IDLE/relâchement, ×12 pour updateCanvas avec le flag dirty v1.6.0, fourchette 0,5–2,0 pour les scénarios équivalents) ou compteurs GL anormaux. Sortie complète du harnais dans l'artefact `bench-out.txt` du workflow._");
   fs.writeFileSync(markdownFile, lines.join("\n") + "\n");
   console.log(`Résumé markdown écrit : ${markdownFile}`);
 }
+}
+
+// ---------- vérification startup ----------
+console.log("=== Startup — vérification de l’éval page (perf10/build) ===");
+if (!startup.present) {
+  console.log("  startup non mesuré (pas d'éval page dans la sortie — Playwright absent ?) : ignoré");
+} else {
+  console.log(`  mode : ${startup.cold ? "à froid (navigateur neuf par run)" : "warm (process partagé)"}`);
+  for (const k of ["perf10", "build"]) {
+    if (!startup[k]) {
+      ann("error", `startup : ligne « ${k} » manquante dans l’éval page`);
+      startupFail++;
+      continue;
+    }
+    const s = startup[k];
+    const range = s.max != null ? `${s.min.toFixed(1)}–${s.max.toFixed(1)}` : `${s.min.toFixed(1)}`;
+    console.log(`  ${k.padEnd(7)} médiane ${s.med.toFixed(1)} ms (${range})`);
+  }
+  const b = startup.build;
+  if (b && b.med > STARTUP_BUILD_MAX_MS) {
+    ann("error", `RÉGRESSION DÉTECTÉE : startup build ${b.med.toFixed(1)} ms > ${STARTUP_BUILD_MAX_MS} ms (attendu ~30 ms — un coût one-shot est revenu au chargement ?)`);
+    startupFail++;
+  } else if (b) {
+    console.log(`  ✓ build ${b.med.toFixed(1)} ms ≤ ${STARTUP_BUILD_MAX_MS} ms (borne ~30 ms)`);
+  }
+  if (startup.cold && startup.perf10) {
+    const p = startup.perf10.med;
+    if (p < STARTUP_P10_MIN_MS || p > STARTUP_P10_MAX_MS) {
+      ann("notice", `startup perf10 ${p.toFixed(1)} ms hors [${STARTUP_P10_MIN_MS}, ${STARTUP_P10_MAX_MS}] ms — dérive d’environnement (machine/browser), pas un échec du build`);
+    } else {
+      console.log(`  perf10 ${p.toFixed(1)} ms dans [${STARTUP_P10_MIN_MS}, ${STARTUP_P10_MAX_MS}] ms (environnement nominal)`);
+    }
+  }
+  if (STARTUP_ONLY && markdownFile) {
+    const p = startup.perf10, b = startup.build;
+    const delta = p && b && p.med > 0 ? ((b.med / p.med - 1) * 100).toFixed(1) : null;
+    const lines = [
+      "### Startup — éval page à froid (bornes CI)",
+      "",
+      "| Version | Éval (ms) | Borne | Statut |",
+      "|---|---|---|---|",
+    ];
+    const pCell = p ? `${p.med.toFixed(1)} (${p.min.toFixed(1)}–${(p.max ?? p.p95).toFixed(1)})` : "n/a";
+    const pOk = p ? p.med >= STARTUP_P10_MIN_MS && p.med <= STARTUP_P10_MAX_MS : false;
+    lines.push(`| perf10 | ${pCell} | [${STARTUP_P10_MIN_MS}, ${STARTUP_P10_MAX_MS}] (environnement) | ${pOk ? "✅" : "⚠️"} |`);
+    if (b) {
+      const bOk = b.med <= STARTUP_BUILD_MAX_MS;
+      lines.push(`| build | ${b.med.toFixed(1)} (${b.min.toFixed(1)}–${(b.max ?? b.p95).toFixed(1)}) | ≤ ${STARTUP_BUILD_MAX_MS} ms (~30 ms attendu) | ${bOk ? "✅" : "❌"} |`);
+    }
+    lines.push("", `**Résultat : ${startupFail === 0 ? "✅ PASS" : `❌ ÉCHEC (${startupFail} vérification(s) en échec)`}**`);
+    if (delta != null) lines.push("", `_Écart perf10/build : ${delta} % (négatif = build plus rapide)._`);
+    lines.push("", "_Régression = build > 50 ms (un coût one-shot est revenu au chargement). Sortie complète dans l’artefact `cold-eval.txt` du workflow._");
+    fs.writeFileSync(markdownFile, lines.join("\n") + "\n");
+    console.log(`Résumé markdown startup écrit : ${markdownFile}`);
+  }
+}
 
 console.log();
-const totalFail = failures + structuralFail;
+const totalFail = failures + structuralFail + startupFail;
 if (totalFail === 0) {
   console.log("Résultat : PASS (6/6)");
   process.exit(0);
