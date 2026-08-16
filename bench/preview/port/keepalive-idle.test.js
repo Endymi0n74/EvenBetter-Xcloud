@@ -34,7 +34,9 @@ function check(label, cond, extra) {
 }
 
 const BUNDLE_DIR = "D:/tmp/preview-player";
-const bundle = fs.readdirSync(BUNDLE_DIR).find((f) => /^StreamSessionRequest-.*\.js$/.test(f));
+const bundle = fs.existsSync(BUNDLE_DIR)
+  ? fs.readdirSync(BUNDLE_DIR).find((f) => /^StreamSessionRequest-.*\.js$/.test(f))
+  : null;
 const bundlePath = bundle ? path.join(BUNDLE_DIR, bundle) : null;
 
 console.log("== 1. Transform sur le bundle capturé ==");
