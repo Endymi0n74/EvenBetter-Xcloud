@@ -212,6 +212,32 @@ device-info), désormais mesurables par la capture.
 > l'onglet **Network de DevTools** (le worker y apparaît) → filtrer `play` →
 > onglet Payload/Response.
 
+> **Réponse `/configuration` capturée (16 août, session réelle)** :
+>
+> ```json
+> {
+>   "keepAlivePulseInSeconds": 60,
+>   "timeoutForNoConnectionSeconds": 300,
+>   "serverDetails": { "ipAddress": "13.104.113.180", "port": 1059,
+>     "srtp": { "key": "…" }, "ipV4List": [{ "address": "…", "port": 1059,
+>     "rigPort": 1291, "routingPreference": "AZURE" }] },
+>   "clientStreamingConfigOverrides": "{\"inputConfiguration\":{\"useIntervalWorkerThreadForInput\":true,\"useUnreliableInput\":true},\"nqiConfiguration\":{\"consecutiveBadIntervalsForTrigger\":10,\"pingMsBadThreshold\":100},\"statisticsConfiguration\":{\"useQosChannel\":true},\"videoConfiguration\":{\"preferMainH264Profile\":true}}"
+> }
+> ```
+>
+> Confirmations pour P2/P1 : `keepAlivePulseInSeconds: 60` (P1, heartbeat
+> HTTP natif toutes les 60 s) ; `clientStreamingConfigOverrides` est **déjà
+> présent** (le serveur en envoie) → P2 doit **fusionner** ses overrides dans
+> ce JSON, pas le remplacer. Le handler client (StreamSessionRequest offset
+> 80925) filtre d'abord la liste **client-exclusive** `ie` (`options`,
+> `systemUiHandler`, `touchControlHandler`, `nexusButtonHandler`,
+> `clientDeviceCapabilities`, `pollingConfiguration` — clés RACINE du
+> module config, export `v`/`r`), puis merge `ae(configuration, overrides)`.
+> Les overrides du stable (sous-clés `inputConfiguration.enableVibration`/
+> `enableTouchInput`/`maxTouchPoints`/`enableMouseInput`/`enableKeyboardInput`,
+> `audioConfiguration.enableMicrophone`…) ne sont **pas** dans `ie` → P2 est
+> **wire-viable** : ils passent le filtre et sont mergés par `ae()`.
+
 > **Réponse de provisioning capturée (16 août, play request réel)** :
 >
 > ```json
@@ -283,7 +309,16 @@ device-info), désormais mesurables par la capture.
 2. **Mécanisme flags URL réel** : `setGateValue`/`session.configuration.*` —
    s'applique-t-il avant la construction de `StreamSessionRequest` ?
 3. **`ignoreServiceConfiguration`** : accessible en flag public ou réservé
-   devtools ?
+   devtools ? (le handler le lit via `configuration.options.ignoreServiceConfiguration`
+   — flag URL `session.configuration.options.ignoreServiceConfiguration`
+   probable, à confirmer)
+
+> **P2 : wire-viabilité CONFIRMÉE 16 août** — la réponse `/configuration`
+> réelle contient déjà `clientStreamingConfigOverrides` (merge requis, pas
+> remplacement), et le filtre client-exclusif `ie` ne couvre que les clés
+> racine — les sous-clés du stable passent. Reste à choisir le point
+> d'injection : interception CDP (`Fetch.fulfillRequest` sur la réponse
+> `/configuration`) ou réécriture si le module vit dans la page.
 4. **Événement `qe`** (WarningForBeingIdle) : qui l'écoute, et un keep-alive
    envoyé reset-il bien le compteur serveur ?
 5. **`deviceInformation`** — **FORME CONFIRMÉE 16 août** (body play request
