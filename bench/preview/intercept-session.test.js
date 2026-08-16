@@ -121,11 +121,12 @@ function fakeCdp() {
     const cdp = fakeCdp();
     await installInterceptor(cdp, PREFS, () => {});
     const enableCall = cdp.calls.find((c) => c.method === "Fetch.enable");
-    check("Fetch.enable appelé avec 2 patterns (Request play / Response configuration)", !!enableCall && enableCall.params.patterns.length === 2);
+    check("Fetch.enable appelé avec 3 patterns (Request play + Request/Response configuration)", !!enableCall && enableCall.params.patterns.length === 3);
     const playPattern = enableCall.params.patterns.find((p) => p.urlPattern.includes("play"));
-    const cfgPattern = enableCall.params.patterns.find((p) => p.urlPattern.includes("configuration"));
+    const cfgPatterns = enableCall.params.patterns.filter((p) => p.urlPattern.includes("configuration"));
     check("pattern play : requestStage Request", playPattern && playPattern.requestStage === "Request");
-    check("pattern configuration : requestStage Response", cfgPattern && cfgPattern.requestStage === "Response");
+    check("pattern configuration Request présent", cfgPatterns.some((p) => p.requestStage === "Request"));
+    check("pattern configuration Response présent", cfgPatterns.some((p) => p.requestStage === "Response"));
 
     await cdp.fire("Fetch.requestPaused", {
       requestId: "req-play-1",
@@ -146,7 +147,7 @@ function fakeCdp() {
     check("P3 : headers d'origine préservés (content-type)", cont && cont.params.headers.some((h) => h.name.toLowerCase() === "content-type" && h.value === "application/json"));
   }
 
-  // --- P2 : réponse /configuration interceptée et réécrite ---
+  // --- P2 : configuration interceptée en 2 temps (Request → interceptResponse, puis Response → fulfill) ---
   {
     const cdp = fakeCdp();
     cdp.send = async (method, params) => {
@@ -157,6 +158,25 @@ function fakeCdp() {
       return {};
     };
     await installInterceptor(cdp, PREFS, () => {});
+    const enableCall = cdp.calls.find((c) => c.method === "Fetch.enable");
+    const cfgPatterns = enableCall.params.patterns.filter((p) => p.urlPattern.includes("configuration"));
+    check("Fetch.enable : 3 patterns (play Request, config Request+Response)", enableCall.params.patterns.length === 3);
+    check("pattern configuration Request présent", cfgPatterns.some((p) => p.requestStage === "Request"));
+    check("pattern configuration Response présent", cfgPatterns.some((p) => p.requestStage === "Response"));
+
+    // étape 1 : stage Request → continuer avec interceptResponse (la réponse sera pausée)
+    await cdp.fire("Fetch.requestPaused", {
+      requestId: "req-cfg-1",
+      request: {
+        url: "https://uks.core.gssv-play-prod.xboxlive.com/v5/sessions/cloud/8A7F6A20-DA4A-4607-9B45-29180C93730B/configuration",
+        method: "GET",
+        headers: {},
+      },
+    });
+    const contReq = cdp.calls.find((c) => c.method === "Fetch.continueRequest" && c.params.requestId === "req-cfg-1");
+    check("P2 : stage Request → continueRequest avec interceptResponse:true", contReq && contReq.params.interceptResponse === true);
+
+    // étape 2 : stage Response → getResponseBody + fulfillRequest (réécriture)
     await cdp.fire("Fetch.requestPaused", {
       requestId: "req-cfg-1",
       request: {
@@ -242,12 +262,16 @@ function fakeCdp() {
     const swCont = swCdp.calls.find((c) => c.method === "Fetch.continueRequest" && c.params.requestId === "req-sw-play");
     check("P3 depuis le SW : play réécrit (osName=tizen)", swCont && JSON.parse(Buffer.from(swCont.params.postData, "base64").toString("utf8")).settings.osName === "tizen");
 
-    // P2 depuis le SW : réponse configuration → session SW
+    // P2 depuis le SW : requête configuration (stage Request → interceptResponse, puis Response → fulfill)
     swCdp.send = async (method, params) => {
       swCdp.calls.push({ method, params });
       if (method === "Fetch.getResponseBody") return { body: JSON.stringify(CONFIG_BODY), base64Encoded: false };
       return {};
     };
+    await swCdp.fire("Fetch.requestPaused", {
+      requestId: "req-sw-cfg",
+      request: { url: "https://uks.core.gssv-play-prod.xboxlive.com/v5/sessions/cloud/8A7F6A20-DA4A-4607-9B45-29180C93730B/configuration", method: "GET", headers: {} },
+    });
     await swCdp.fire("Fetch.requestPaused", {
       requestId: "req-sw-cfg",
       request: { url: "https://uks.core.gssv-play-prod.xboxlive.com/v5/sessions/cloud/8A7F6A20-DA4A-4607-9B45-29180C93730B/configuration", method: "GET", headers: {} },

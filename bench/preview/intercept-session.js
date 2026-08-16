@@ -139,6 +139,10 @@ async function installInterceptor(cdp, prefs, onLog) {
   await cdp.send("Fetch.enable", {
     patterns: [
       { urlPattern: "*xboxlive.com/v5/*/play*", requestStage: "Request" },
+      // la configuration doit être interceptée au Request AUSSI : Chrome ne
+      // pause le stage Response que pour les requêtes passées par le Request
+      // (avec interceptResponse) — sinon la réponse part non modifiée.
+      { urlPattern: "*xboxlive.com/v5/*/configuration*", requestStage: "Request" },
       { urlPattern: "*xboxlive.com/v5/*/configuration*", requestStage: "Response" },
     ],
   });
@@ -147,6 +151,12 @@ async function installInterceptor(cdp, prefs, onLog) {
     const url = request.url || "";
     const method = request.method || "GET";
     try {
+      // --- P2 : requête /configuration au stage Request : la continuer en
+      // demandant l'interception de la réponse (interceptResponse) ---
+      if (CONFIG_RE.test(url) && responseStatusCode === undefined) {
+        await cdp.send("Fetch.continueRequest", { requestId, interceptResponse: true });
+        return;
+      }
       // --- P3 : requête play (POST) ---
       if (method === "POST" && PLAY_RE.test(url) && prefs.resolution && prefs.resolution !== "auto") {
         let body = {};
