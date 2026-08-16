@@ -188,6 +188,29 @@ node bench/preview/play-chain.js --soft   # ou --dir=<capture>
     ressenti en jeu prouvent la voie userscript. C4 ne se lit que sur le run
     intercepté.
 
+## Critère de départ des runs CDP (hook T6 exigé)
+
+Tout run CDP qui exige la preview T6 **active dans la page** — Run 1
+(intercepté) et P1-B (AFK) — démarre obligatoirement par :
+
+```bash
+./bench/preview/port/run-e2e0.sh --strict-probe
+```
+
+**exit 0 requis** = gates **A+B+C+D** verts, avec le probe C en
+`hookActif:true` (vérifié en réel le 17 août, session active ou non — le hook
+est posé en document-start). Si l'Étape 0 échoue ou sort rouge :
+
+- **A/B/D rouges** → la logique dérive (ancres/minifier) : corriger avant tout
+  run — le résultat réseau serait ininterprétable.
+- **C rouge (strict)** → le hook n'est pas actif dans la page : le play partira
+  non réécrit au niveau page (lecture C1/C2 ambiguë) et P1 ne peut rien
+  intercepter. **Aucun run ne part sans hook vérifié.**
+
+Exception assumée : le **Run 0 (témoin)** veut au contraire l'absence de hook
+(probe `hookActif:false` acceptable) — la lecture des critères C1/C2 dépend de
+l'état vérifié au départ du run, consigné dans le journal.
+
 ## Run 0 — témoin (sans interception)
 
 But : figer la baseline non modifiée, à comparer au run 1.
@@ -208,6 +231,8 @@ But : figer la baseline non modifiée, à comparer au run 1.
 
 But : prouver que l'outil réécrit les deux cibles sans casser le flux.
 
+0. **Critère de départ** : Étape 0 en `--strict-probe` passée (exit 0,
+   A+B+C+D, `hookActif:true`) — voir « Critère de départ des runs CDP ».
 1. Lancer l'outil **avant d'ouvrir la page stream** :
    ```bash
    node bench/preview/intercept-session.js --connect=9222 --resolution=1080p-hq \
@@ -263,6 +288,9 @@ la fenêtre (preuve de l'indépendance des deux mécanismes).
 
 ### Run P1-B — T6 (wrapSession branchée sur la session réelle)
 
+0. **Critère de départ** : Étape 0 en `--strict-probe` passée (A+B+C+D,
+   `hookActif:true`) — sans elle, rien à intercepter (voir « Critère de
+   départ des runs CDP »).
 1. Même protocole, `hookActif: true` — `wrapSession` est branchée
    **automatiquement** par le locator du build (17 août : la session est
    localisée dans les fibers React, fibre `.Connection` → `data._session`,
