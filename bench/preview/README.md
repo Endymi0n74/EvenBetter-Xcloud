@@ -222,6 +222,24 @@ testé en isolation sur la réponse `/configuration` réelle capturée :
 `node bench/preview/p2-inject.test.js` — 25 assertions, overrides serveur
 existants préservés, cas limites (JSON invalide/vide, body null).
 
+## Garde anti-dérive de la chronologie du play (`play-chain.js`)
+
+Extrait la chaîne `requestConnection → play` des bundles statiques (la
+chronologie établie dans `port/session.md`) et **alerte si une ancre dérive**
+(11 ancres : mutation `requestConnection`, éligibilité, connect,
+`sendPlayCloud`, import statique du Bootstrapper…) — un nouveau build du
+preview qui renomme/restructure casserait la capture et l'interception
+P2/P3, et ce script le signale avant qu'on mesure sur du faux.
+
+```
+node bench/preview/play-chain.js [dir] [--print] [--write]
+node bench/preview/play-chain.test.js   # 11 assertions, exit 0 = stables
+```
+
+- `dir` par défaut : `/d/tmp/preview-player` ; `--print` affiche le tableau
+  markdown, `--write` régénère `bench/preview/play-chain.md` (référence).
+- Sortie : `OK — ancres stables` (exit 0) ou `DRIFT — N ancre(s)` (exit 1).
+
 ## Rejouabilité hors navigateur
 
 `node bench/preview/self-test.js` rejoue le **moteur de signatures** (extrait
