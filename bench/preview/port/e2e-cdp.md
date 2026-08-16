@@ -126,11 +126,13 @@ run réel échoue. Les deux harnais extraient `XcloudInterceptor` + helpers du
 build preview réel et les exécutent en vm (pas de dépendance à la session
 authentifiée ni aux bundles réseau) :
 
-En une commande (échoue si un gate est rouge ; probe informatif, navigateur
-injoignable → warning ; gate D soft sans bundles capturés) :
+En une commande (échoue si un gate est rouge ; probe informatif par défaut —
+navigateur injoignable ou hookActif:false → warning, pas d'échec ; gate D soft
+sans bundles capturés ; `--strict-probe` rend le gate C dur : hookActif:true
+exigé) :
 
 ```bash
-./bench/preview/port/run-e2e0.sh [--port=9222] [--dir=/d/tmp/preview-player] [--skip-probe]
+./bench/preview/port/run-e2e0.sh [--port=9222] [--dir=/d/tmp/preview-player] [--skip-probe|--strict-probe]
 ```
 
 Équivalent détaillé (les trois étapes séparées) :
@@ -156,12 +158,17 @@ node bench/preview/probe-page.js 9222   # hookActif: true/false
 node bench/preview/play-chain.js --soft   # ou --dir=<capture>
 ```
 
-- **Sortie attendue** : A/B/D en « OK ✅ » (exit 0). Sinon la logique dérive
+- **Sortie attendue** : A/B/D en « OK ✅ » (exit 0), + C en « OK ✅ » avec
+  `--strict-probe` (hookActif:true exigé). Sinon la logique dérive
   (minifier, ancres) → corriger avant tout run réseau. D alerte si la
   chronologie du play bouge — la fenêtre d'attache de l'outil (avant
   l'ouverture de la page stream) deviendrait caduque.
-- **Probe C (recommandé, informatif)** : le résultat `hookActif` change la
-  lecture des critères C1/C2 :
+- **Probe C (informatif par défaut, gate dur avec `--strict-probe`)** : le
+  résultat `hookActif` change la lecture des critères C1/C2. En mode strict,
+  navigateur injoignable, hookActif:false ou Playwright absent → GATE C ROUGE
+  (utile en session réelle quand on exige la preview T6 active avant un run).
+  En CI (step preview de bench.yml), le probe est ignoré (`--skip-probe` —
+  pas de navigateur CDP sur le runner) :
 
   - `hookActif: false` → le run CDP voit le play **original**
     (`original:windows`), interprétation directe des critères.
