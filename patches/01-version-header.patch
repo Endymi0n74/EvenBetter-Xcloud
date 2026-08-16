@@ -1,5 +1,5 @@
 diff --git a/better-xcloud.user.js b/better-xcloud.user.js
-index 4926cd2..2cd3244 100644
+index 4926cd2..d7cd207 100644
 --- a/better-xcloud.user.js
 +++ b/better-xcloud.user.js
 @@ -1,7 +1,7 @@
@@ -7,40 +7,17 @@ index 4926cd2..2cd3244 100644
  // @name         Better xCloud
  // @namespace    https://github.com/redphx
 -// @version      6.7.12-perf10
-+// @version      1.6.0
++// @version      1.7.0
  // @description  Improve Xbox Cloud Gaming (xCloud) experience
  // @author       redphx
  // @license      MIT
-@@ -10,10 +10,29 @@
- // @exclude      https://www.xbox.com/*/xbox-game-pass/play-day-one
- // @run-at       document-start
- // @grant        none
--// @updateURL    https://raw.githubusercontent.com/redphx/better-xcloud/typescript/dist/better-xcloud.meta.js
--// @downloadURL  https://github.com/redphx/better-xcloud/releases/latest/download/better-xcloud.user.js
-+// @updateURL    https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.meta.js
-+// @downloadURL  https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.user.js
+@@ -13,7 +13,8 @@
+ // @updateURL    https://raw.githubusercontent.com/redphx/better-xcloud/typescript/dist/better-xcloud.meta.js
+ // @downloadURL  https://github.com/redphx/better-xcloud/releases/latest/download/better-xcloud.user.js
  // ==/UserScript==
 -/* OPTIMISATIONS v6.7.12-perf10:
-+/* OPTIMISATIONS v1.6.0:
-+   - WebGL2: updateCanvas ne recalcule les 7 gl.uniform* que si les options/canvas ont change (flag dirty : chemin stable 60 Hz = 1 lecture + branche, au lieu de la comparaison complete de valeurs)
-+   - WebGL2: valeurs des uniforms mises en cache dans updateCanvas (7 gl.uniform* sautes par frame quand rien ne change, invalidation par comparaison de valeurs)
-+   - WebGL2: fix texStorage2D internal format gl.RGB -> gl.RGB8 (format non-sized = INVALID_ENUM, ecran noir WebGL2 corrige)
-+   - Controller customization: structuredClone -> reference directe au relachement Home (allocation supprimee)
-+   - WebGL2: bindTexture par frame supprime (texture deja liee, 60 appels GL/s en moins)
-+   - WebGL2: flag experimental WebGL2NoColorConversion (UNPACK_COLORSPACE_CONVERSION_WEBGL=NONE)
-+   - StreamStats: fix regression cache opacity/textSize (invalidation jamais faite)
-+   - StreamStats: throttle document.hidden 60s + setTimeout auto-rearme (plus de chevauchement)
-+   - StreamStatsCollector: collect() en un seul parcours du report
-+   - ALL_PREFS: Set O(1) pour isGlobalPref/isStreamPref
-+   - Settings: validateValue filter au lieu de splice (plus de saut d'index)
-+   - Settings: getGameSettings deleteSettings batch (une seule saveSettings)
-+   - CheckForUpdate: garde 2h avant le fetch (plus de requete a chaque chargement)
-+   - BxSelectElement: un seul MutationObserver delegue
-+   - Traductions: debugger dev retire de downloadTranslations
-+   - Controller customization: fix delete mapping.Share (binding conserve, plus de spam screenshot)
-+   - Controller customization: skip idle (zero allocation au repos)
-+   - WebGL2: texStorage2D + texSubImage2D (allocation GPU stable)
-+   - WebGL2: fix viewport drawingBufferHeight
++/* OPTIMISATIONS v1.7.0:
++   - Settings: codecProfile evalue paresseusement (RTCRtpReceiver.getCapabilities plus appele au chargement, ~15-20 ms de startup) - resultat memoise (constant par navigateur), options/unsupported/suggest calcules a la 1re lecture reelle (ouverture des settings / demarrage de session)
     - Patcher: Set O(1) au lieu de indexOf O(n)
     - Patcher: suppression du splice() redondant
     - Settings: debounce localStorage 100ms
