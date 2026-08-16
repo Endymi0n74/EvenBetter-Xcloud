@@ -212,6 +212,24 @@ device-info), désormais mesurables par la capture.
 > l'onglet **Network de DevTools** (le worker y apparaît) → filtrer `play` →
 > onglet Payload/Response.
 
+> **Réponse de provisioning capturée (16 août, play request réel)** :
+>
+> ```json
+> {
+>   "sessionPath": "v5/sessions/cloud/8A7F6A20-DA4A-4607-9B45-29180C93730B",
+>   "queueConfig": "5edc6781f2323dd74abd82dd2794e07026810ca25e8cb42ae63f6cf4eb8086a0"
+> }
+> ```
+>
+> `sessionPath` est la **base des endpoints subséquents** (state/configuration/
+> sdp/ice/keepalive) — le client le parse dans `setSessionPath` (regex GUID)
+> puis `triggerPlayRequest` log `sessionPath: ${t.sessionPath}` avant
+> `continueWithPolling()`. **Pas de `clientStreamingConfigOverrides` dans la
+> réponse play** : comme sur le stable, il arrive dans la réponse
+> `/configuration` (le `handleConfiguration` du stable réécrit cette réponse
+> — même route `…/configuration` côté preview) → P2 cible la réponse
+> `/configuration`, P3 cible la REQUÊTE play (osName + x-ms-device-info).
+
 > **Forme `deviceInformation` capturée (play request réel, 16 août)** :
 > wire-compatible avec le stable (mêmes clés `body.settings.*`).
 >
