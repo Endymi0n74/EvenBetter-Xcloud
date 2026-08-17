@@ -135,15 +135,22 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
 
 ## Releases & pipeline de publication
 
-- **v1.8.0 (stable)** — tag `better-xcloud-perf-v1.8.0`, **Latest**, assets
-  `better-xcloud.user.js` + `better-xcloud.meta.js`. Auto-update stable :
-  `releases/latest/download/*`.
-- **1.8.0-preview1 (preview)** — tag `better-xcloud-perf-1.8.0-preview1`,
-  **Pre-release**, assets `better-xcloud-preview.user.js` +
-  `better-xcloud-preview.meta.js`. Auto-update preview : **pinné sur son tag**
-  (jamais le latest — contrat deux versions). Un utilisateur d'une preview
-  ANCIENNE doit réinstaller manuellement (l'updateURL de l'ancienne pointe
-  l'ancien tag).
+- **État au 17 août ~23:30 (rétention appliquée)** : 12 anciennes releases
+  purgées (v1.0.0 → v1.7.0 stables, 1.7.0-preview1, 1.8.0-preview1/2/3).
+  Restent : **v1.8.0 (stable, Latest)** — tag `better-xcloud-perf-v1.8.0`,
+  assets `better-xcloud.user.js` + `better-xcloud.meta.js`, auto-update
+  `releases/latest/download/*` ; **1.8.0-preview4 (preview courant)** — tag
+  `better-xcloud-perf-1.8.0-preview4`, assets `better-xcloud-preview.*`,
+  auto-update preview **pinné sur SON tag** (jamais le latest — un utilisateur
+  d'une preview ANCIENNE réinstalle manuellement) ; **1.8.0-preview3**
+  conservée en cran de secours (recréée depuis le commit `6641bbd` — les
+  builds sont commités dans git, une release est toujours reconstruisible).
+- **Rétention automatisée** : `bench/release-prune.sh` — garde Latest + le
+  preview pinné par le `@updateURL` du build local (repli : prerelease la
+  plus récente — pas `publishedAt`, trompeur pour une release recréée),
+  purge le reste (release + tag, `--cleanup-tag`), vérifie les 4 liens
+  d'auto-update (GATE ROUGE si 404), `--dry-run` pour prévisualiser. À
+  lancer après chaque publication.
 - **Pipeline d'une release** (répéter à chaque bump) :
   1. Bump stable : `better-xcloud.user.js` (@version + header
      « OPTIMISATIONS v1.X.Y: ») ET `better-xcloud.meta.js` (@version).
@@ -286,3 +293,13 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
     exactement le fichier testé en réel (overlay + top bar + game bar
     settings en session). Journal : e2e-cdp.md « Validation preview4
     publiée ».
+11. ✅ **Fait (17 août ~23:30) — rétention des releases** : 12 anciennes
+    purgées (v1.0.0→v1.7.0, 1.7.0-preview1, 1.8.0-preview1/2/3 — release +
+    tag). Reste **v1.8.0 (Latest) + preview4 + preview3** (cette dernière
+    recréée depuis git sur demande, cran de secours). Script
+    `bench/release-prune.sh` commité (politique latest + dernier preview,
+    vérification des 4 liens d'auto-update). README + docs : README.en.md
+    (traduction complète, sélecteur 🇫🇷/🇬🇧), notes de release bilingues
+    FR/EN (5 releases), fix rendu GitHub (@name/@match backtiqués), badge CI
+    bench. 3 PR upstream ouvertes : #993 codecProfile lazy, #994 USM 4 taps,
+    #995 updateCanvas dirty flag — programme dans `upstream-prs/README.md`.

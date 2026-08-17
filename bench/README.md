@@ -26,6 +26,7 @@ avec `npm i -D playwright` ou pointer `NODE_PATH` vers un install existant.
 | `freeze.sh` | Rejoue le protocole figé (3 seeds × 3 passes), capture l'état machine par seed hotloops et formate les tableaux markdown du README | Node V8 (+ Edge si `--with-page-eval`) |
 | `check-ratios.js` | CI : parse la sortie de `run-all.sh --skip-page-eval` (ratios hot loops) — `--startup-only` : borne de startup sur la sortie de `page-eval.js --cold` (build ≤ 50 ms, perf10 300–1200 ms) | Node V8 (workflow `.github/workflows/bench.yml`) |
 | `update-startup-session.js` | Insère/remplace la ligne « Sessions startup » du README à partir d'un résumé `check-ratios.js --startup-only` (artefact `startup-summary-<sha>`) — dédup par libellé, CRLF préservé | Node V8 |
+| `release-prune.sh` | **Rétention des releases** : garde Latest + le preview pinné par le `@updateURL` du build local (repli : prerelease la plus récente), purge le reste (release + tag, `--cleanup-tag`), vérifie les 4 liens d'auto-update (exit 1 = GATE ROUGE) — `--dry-run` pour prévisualiser | bash + gh (à lancer après chaque publication) |
 
 `hotloops.js` et `parse.js` sont stabilisés (même recette que le harnais GPU) :
 
@@ -52,6 +53,9 @@ node bench/page-eval.js [--cold] <perf10.js> <build.js>   # --cold : 20 runs à 
 node bench/startup-profile.js <perf10.js> <build.js> [--runs=N] [--top=N] [--channel=msedge|chromium]
 node bench/cold-getcap.js <perf10.js> <build.js> [--runs=N] [--channel=msedge|chromium]
 node bench/update-startup-session.js startup-summary.md [--label=...] [--print-only] [--readme=...]
+
+./bench/release-prune.sh --dry-run   # prévisualiser la purge (ne supprime rien)
+./bench/release-prune.sh             # purge + vérifie les 4 liens d'auto-update
 ```
 
 `parse.js` chronomètre par itération en `process.hrtime.bigint()` (résolution
