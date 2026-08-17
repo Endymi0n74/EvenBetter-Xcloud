@@ -149,7 +149,14 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
   build local, purge le reste (release + tag, `--cleanup-tag`), vérifie les 4
   liens d'auto-update (GATE ROUGE si 404), `--dry-run` pour prévisualiser. À
   lancer après chaque publication (le workflow `release-prune` le fait
-  automatiquement sur `release: published`).
+  automatiquement sur `release: published`). **Testé en réel (17 août ~23:10,
+  release de contrôle preview10)** : le tri par VERSION choisit bien
+  preview10 (et non preview4 — piège lexicographique « 1 » < « 4 ») +
+  conserve le pinné preview4 ; le test a révélé que le bit exécutable du
+  script n'était PAS versionné (100644 → Permission denied sur le runner
+  Linux, workflow en échec) — corrigé (`git update-index --chmod=+x`,
+  commit `d7878e0`), workflow rejoué en success. Release de contrôle
+  supprimée, état revenu à v1.8.0 + preview4.
 - **Pipeline d'une release** (répéter à chaque bump) :
   1. Bump stable : `better-xcloud.user.js` (@version + header
      « OPTIMISATIONS v1.X.Y: ») ET `better-xcloud.meta.js` (@version).
