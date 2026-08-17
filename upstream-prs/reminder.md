@@ -12,6 +12,7 @@ Le mainteneur (redphx) répond en **semaines/mois** — pas en heures :
 | #996 texStorage/RGB8 | 17 août 20:46 UTC | idem |
 | #997 viewport + NoColor | 17 août 21:17 UTC | idem |
 | #998 hidden throttle | 17 août 21:23 UTC | idem |
+| #999 controller skip idle | 17 août 21:40 UTC | idem |
 
 Contexte : #468 (record) ouverte depuis **juillet 2024**, #851 depuis
 **décembre 2025**, #908 depuis **mars 2026** — toutes sans merge. Dernier
@@ -20,7 +21,7 @@ Un ping à +3-5 h serait perçu comme de l'impatience et contre-productif.
 
 **Décision** : ne PAS poster avant le 24 août. Si toujours aucun retour le
 24 août, poster UN commentaire sur **#993** (la plus ancienne) qui référence
-les 6 PR — un seul commentaire, pas 6.
+les 7 PR — un seul commentaire, pas 7.
 
 ## Commentaire groupé (prêt, en anglais)
 
@@ -42,6 +43,8 @@ les 6 PR — un seul commentaire, pas 6.
 >   default)
 > - **#998** perf(stream-stats): throttle the stats tick to 60 s when the tab
 >   is hidden (self-rearming setTimeout + visibilitychange refresh)
+> - **#999** perf(controller): skip the customization mapping work when no
+>   input is active (idle poll 327 ns → 34 ns, **×9.5**, zero allocation at rest)
 >
 > Happy to rebase, split further, or adjust anything you'd like — just say
 > the word.
