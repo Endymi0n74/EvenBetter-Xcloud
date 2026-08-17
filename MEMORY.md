@@ -315,5 +315,23 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
     d'auto-update). README + docs : README.en.md
     (traduction complète, sélecteur 🇫🇷/🇬🇧), notes de release bilingues
     FR/EN (5 releases), fix rendu GitHub (@name/@match backtiqués), badge CI
-    bench. 3 PR upstream ouvertes : #993 codecProfile lazy, #994 USM 4 taps,
-    #995 updateCanvas dirty flag — programme dans `upstream-prs/README.md`.
+    bench.
+12. ✅ **Fait (18 août ~00:40) — portage upstream complet, 12 PR ouvertes**
+    sur `redphx/better-xcloud:typescript` : #993 codecProfile lazy · #994 USM
+    4 taps · #995 dirty flag · #996 texStorage/RGB8 · #997 viewport/NoColor ·
+    #998 hidden throttle · #999 controller skip idle · #1000 structuredClone
+    → réf. · #1001 fix share-delete · #1002 settings Set · #1003 checkForUpdate
+    throttle · #1004 BxSelect observer délégué. Toutes OPEN/MERGEABLE, une
+    par sujet, builds amont exit 0, zéro fuite inter-PR. **Queue épuisée** :
+    plus rien à porter — #4 (uniform cache) subsumé par #995, patch 07
+    (opacity cache) **no-op amont** (le cache n'a jamais existé dans
+    l'historique upstream, `git log -S` vide), patch 09 exclu (négatif à 500
+    entrées). **Reste : fix #991 en branche locale prête**
+    (`feat/poll-gamepad-crash-guard`, commit `29f87b1`, garde
+    `currentGamepad.buttons?.[16]`, non ouverte — décision anti-empilement,
+    envoi immédiat au premier retour). Corps des PR avec mentions near-miss
+    (#10-12 : pref-keys.ts ↔ #908, translation.ts ↔ #908/#938/#468). Rappel
+    groupé préparé dans `upstream-prs/reminder.md` : **ne pas pinger avant le
+    24 août** (rythme mainteneur = semaines/mois, #468 attend depuis juillet
+    2024), un seul commentaire sur #993 référençant les 12. Programme détaillé
+    dans `upstream-prs/README.md`.
