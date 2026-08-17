@@ -31,6 +31,7 @@ chapitre Benchmarks du README principal.
 | `gpu-v170-usm-webgl2player.txt` | Classe extraite du **build v1.7.0 réel** (17 août, patch 22 appliqué) — re-mesure seed 42 : draw 10,24 → 7,17 µs (−30,0 %), identique au prototype sur les 3 passes |
 | `gpu-runner-webgpu.js` | Harnais **WebGPU** (`WebGPUPlayer`, Dawn/D3D12) : draw hors-écran en batch de N frames à 1080p, `onSubmittedWorkDone` comme barrière de complétion (timestamp queries mortes sur cet Edge), split émission/sync, passes croisées par seed |
 | `visual-diff.js` | **Validation visuelle du shader** : rend les variantes v1.6.0 (9 taps) / v1.7.0 (4 taps) / perf10 sur une vidéo de texte fin (4 cartes statiques), diff pixel à pixel (identité = 0, isolation/équivalence ±1/255), self-checks, exit code, **sortie images** (screenshots des variantes, diff mask, montage, heatmap → `shots/`) — section dédiée ci-dessous |
+| `report-html.js` | Générateur de **rapport HTML autonome** depuis `visual-diff.json` + `shots/` : banner de verdict, table de synthèse, stats gate/INFO et montages par cas (images embarquées en base64 → un seul fichier déplaçable, lightbox) → `visual-diff-report.html` (gitignoré) |
 | `gpu-webgpu-9tap.txt` | Classe `WebGPUPlayer` extraite de HEAD (USM 9 fetches) |
 | `gpu-webgpu-4tap.txt` | Variante expérimentale 4 taps bilinéaires — mesurée **PLUS LENTE** sur Dawn/D3D12, build reverté (voir section « USM WebGPU ») |
 | `gpu-v130-webgl2player.txt` | Classe v1.3.0 (historique, bug `gl.RGB` non corrigé) |
@@ -310,6 +311,11 @@ node bench/gpu/visual-diff.js --headed         # fenêtre visible (debug)
 node bench/gpu/visual-diff.js --keep-video     # réutilise test-text.webm
 node bench/gpu/visual-diff.js --no-images      # gate seul, sans PNG
 node bench/gpu/visual-diff.js --out-dir=/tmp/shots
+
+# rapport HTML autonome (banner + table de synthèse + montages par cas,
+# images embarquées en base64 → ouvrir dans n'importe quel navigateur) :
+node bench/gpu/report-html.js                   # → bench/gpu/visual-diff-report.html
+node bench/gpu/report-html.js --report=/tmp/vd.json --out=/tmp/report.html
 ```
 
 **Résultat 17 août (Edge 152, ANGLE/D3D11, RTX 3070) — GATE TOUT PASS** :

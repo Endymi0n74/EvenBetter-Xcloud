@@ -486,7 +486,7 @@ const CASES = [
   }
 
   if (IMAGES) fs.mkdirSync(OUT_DIR, { recursive: true });
-  const report = { size: `${W}x${H}`, renderer: raw.renderer, outDir: IMAGES ? OUT_DIR : null, cases: [] };
+  const report = { date: new Date().toISOString(), size: `${W}x${H}`, renderer: raw.renderer, outDir: IMAGES ? OUT_DIR : null, cases: [] };
   let allPass = true;
   const row = (id, kind, s, verdict) =>
     `${id.padEnd(22)} | ${kind.padEnd(10)} | ${String(s.maxAbs).padEnd(6)} | ${s.meanAbs.toFixed(4).padEnd(8)} | ` +

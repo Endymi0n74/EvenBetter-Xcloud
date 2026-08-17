@@ -35,6 +35,7 @@ bench/gpu/test-text.webm
 bench/gpu/run-s*.json
 bench/gpu/state-s*.json
 bench/gpu/visual-diff.json
+bench/gpu/visual-diff-report.html
 bench/gpu/shots/
 bench/state-cpu-s*.json
 bench/state-cpu-ci.*.json

@@ -355,6 +355,34 @@ jobs:
           path: ${{ runner.temp }}/gpu-summary.md
           if-no-files-found: error
 
+      - name: Validation visuelle du shader — gate USM 4 taps vs 9 taps (bloque si le rendu diverge)
+        # visual-diff.js rend v1.6.0 (9 taps) / v1.7.0 (4 taps) / perf10 sur
+        # une vidéo de texte fin (générée ici, test-text.webm gitignoré) dans le
+        # vrai backend msedge/ANGLE, et diff pixel à pixel : identité sharpness 0
+        # = maxAbs 0, isolation CAS + équivalence sharp 2/10 = ±1/255. Exit 0/1 :
+        # une régression de rendu qui passerait le protocole de performance
+        # (le ratio ne bouge pas, le rendu peut changer) échoue le job ICI.
+        run: node bench/gpu/visual-diff.js
+
+      - name: Génère le rapport HTML autonome (montages embarqués en base64)
+        # Toujours tourner (même gate rouge) pour garder les montages qui
+        # expliquent l'échec ; le rapport JSON + shots/ sont écrits avant le
+        # exit 1 de visual-diff.js.
+        if: always()
+        run: node bench/gpu/report-html.js
+
+      - name: Upload des artefacts visuels (rapport HTML + montages/heatmaps)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-diff-${{ github.sha }}
+          path: |
+            bench/gpu/visual-diff-report.html
+            bench/gpu/shots/
+          # warn (pas error) : si le harnais a crashé avant d'écrire le rapport,
+          # l'artefact est absent mais le job est déjà rouge.
+          if-no-files-found: warn
+
       - name: Commente la PR — section GPU (fusion dans le commentaire hot loops)
         # Même script partagé que les jobs hotloops/startup (PR_COMMENT_MODE=gpu,
         # marker <!-- bench-gpu -->). Le job GPU est dispatch-only ou label-gated :
