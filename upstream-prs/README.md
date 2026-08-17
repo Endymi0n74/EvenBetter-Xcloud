@@ -44,9 +44,9 @@ amont `redphx/better-xcloud` (branche `typescript`, baseline 6.7.12) via des
 | 7 | streamstats hidden throttle | 08 | 59/60 des getStats() supprimés en arrière-plan | ✅ **PR #998 ouverte** (commit `0c22be3`, `stream-stats.ts` seul +45/−21 — `INTERVAL_BACKGROUND` existait déjà dans le collector amont, inutilisé ; `_cachedColors` du bundle fork NON porté, hors sujet #7) |
 | 8 | controller skip idle | 12 | zéro allocation au repos | ✅ **PR #999 ouverte** (commit `311a31f`, `controller-customization.ts` seul +141/−117 — garde `anyInput` : 327 ns → 34 ns par poll IDLE (×9,5), corps citant l'issue #991) |
 | 9 | structuredClone → référence | 15 | zéro allocation relâchement | ✅ **PR #1000 ouverte** (commit `74556a9`, `poll-gamepad.ts` seul +5/−1 — le clone défensif retiré : état jamais muté entre lecture et `=null`, 1236 → 280 ns (−77 %), corps citant l'issue #991) |
-| 10 | settings Set + validateValue | 02/03 | lookups O(1) | 🟡 **branche prête non ouverte** `feat/settings-set-prefs` (commit `19122a1`, 3 fichiers : `pref-keys.ts` + `pref-utils.ts` + `base-settings-storage.ts`, build exit 0) |
-| 11 | checkForUpdate throttle 2 h | 05 | 1 fetch/2 h max (API GitHub) | 🟡 **branche prête non ouverte** `feat/checkforupdate-throttle` (commit `071bde7`, `utils.ts` seul — le fetch passe APRÈS le garde 2 h ; la baseline amont avait le garde mais fetchait quand même) |
-| 12 | BxSelect observer délégué + debugger | 06/10 | un seul MutationObserver | 🟡 **branche prête non ouverte** `feat/bxselect-delegated-observer` (commit `b6b49ac`, 2 fichiers : `bx-select.ts` observer global délégué + `translation.ts` debugger retiré, build exit 0) |
+| 10 | settings Set + validateValue | 02/03 | lookups O(1) | ✅ **PR #1002 ouverte** (commit `19122a1`, 3 fichiers : `pref-keys.ts` + `pref-utils.ts` + `base-settings-storage.ts`, corps avec near-miss pref-keys.ts ↔ #908) |
+| 11 | checkForUpdate throttle 2 h | 05 | 1 fetch/2 h max (API GitHub) | ✅ **PR #1003 ouverte** (commit `071bde7`, `utils.ts` seul — le fetch passe APRÈS le garde 2 h ; la baseline amont avait le garde mais fetchait quand même) |
+| 12 | BxSelect observer délégué + debugger | 06/10 | un seul MutationObserver | ✅ **PR #1004 ouverte** (commit `b6b49ac`, 2 fichiers : `bx-select.ts` observer global délégué + `translation.ts` debugger retiré, corps avec near-miss translation.ts ↔ #908/#938/#468) |
 | 13 | fix share-delete | 11 | bug fix | ✅ **PR #1001 ouverte** (commit `2eaa2ac`, `controller-customization.ts` seul +6/−2 — `delete mapping['Share']` retiré : `mapping` est une référence live vers les settings stockés, le delete détruisait la config Share de l'utilisateur au premier press) |
 | 13b | opacity cache fix | 07 | bug fix | **annulé — no-op amont** : `_cachedOpacity`/`_cachedTextSize` n'ont **jamais existé** dans l'historique amont (`git log -S` vide) — le cache était un ajout du fork, retiré par son propre patch 07 ; `refreshStyles()` amont lit déjà `getStreamPref` directement. Rien à porter (comme #4/#11) |
 
@@ -67,22 +67,20 @@ collect — mesuré ~7 % réaliste, négatif à 500 entrées), portage preview
 | #999 | controller skip idle | OPEN, mergeable, 1 commit — ouvert le 17 août ~23:40, aucun retour | idem |
 | #1000 | structuredClone → référence | OPEN, mergeable, 1 commit — ouvert le 17 août ~23:55, aucun retour | idem |
 | #1001 | fix share-delete | OPEN, mergeable, 1 commit — ouvert le 18 août ~00:20, aucun retour | idem |
+| #1002 | settings Set + validateValue | OPEN, mergeable, 1 commit — ouvert le 18 août ~00:35, aucun retour | idem |
+| #1003 | checkForUpdate throttle | OPEN, mergeable, 1 commit — ouvert le 18 août ~00:35, aucun retour | idem |
+| #1004 | BxSelect observer délégué | OPEN, mergeable, 1 commit — ouvert le 18 août ~00:35, aucun retour | idem |
 
-## Branches prêtes en attente (PR #10-12 + fix #991)
+## Branche prête en attente (fix #991)
 
-Les branches **#10, #11, #12** et le **fix #991** sont commitées en local sur
-le clone (aucune poussée, aucune PR ouverte — décision : ne pas empiler les
-PR avant un retour du mainteneur sur #993-1001). Au premier retour, l'envoi
-est immédiat : `git push mine <branche>` puis `gh pr create --base
-typescript --head Endymi0n74:<branche>` avec le corps du commit. Les
-commits de corps sont dans chaque commit (message complet
-quoi/pourquoi/sécurité).
+Le **fix #991** est commité en local sur le clone (non poussé, non ouvert —
+décision : ne pas empiler les PR avant un retour du mainteneur sur
+#993-1004). Au premier retour, l'envoi est immédiat : `git push mine
+feat/poll-gamepad-crash-guard` puis `gh pr create --base typescript --head
+Endymi0n74:feat/poll-gamepad-crash-guard` avec le corps du commit.
 
 | Branche | Sujet | Commit | Build |
 |---|---|---|---|
-| `feat/settings-set-prefs` | PR #10 — settings Set + validateValue | `19122a1` | exit 0 |
-| `feat/checkforupdate-throttle` | PR #11 — fetch après le garde 2 h | `071bde7` | exit 0 |
-| `feat/bxselect-delegated-observer` | PR #12 — observer délégué + debugger | `b6b49ac` | exit 0 |
 | `feat/poll-gamepad-crash-guard` | **fix #991** — `currentGamepad.buttons?.[16]` | `29f87b1` | exit 0 |
 
 Fix #991 (garde crash) : les objets Gamepad ne garantissent pas un tableau
@@ -150,11 +148,11 @@ PR merge d'abord (probabilité faible — #908 attend depuis mars, #468 depuis
 
 ## Rappel mainteneur (timing)
 
-**Aucun retour au 18 août ~00:20** sur les 9 PR (0 commentaire, 0 review,
+**Aucun retour au 18 août ~00:40** sur les 12 PR (0 commentaire, 0 review,
 0 review request). Le mainteneur répond en **semaines/mois** — voir
 `upstream-prs/reminder.md` (#468 attend depuis juillet 2024, #851 depuis
 décembre 2025, dernier commit typescript : 14 juillet). **Ne pas pinger
-avant le 24 août** ; le commentaire groupé prêt (sur #993, référence les 9)
+avant le 24 août** ; le commentaire groupé prêt (sur #993, référence les 12)
 est dans `upstream-prs/reminder.md`.
 
 Style observé du mainteneur : **« thank you. I'll take a look later. »** (PR

@@ -15,6 +15,9 @@ Le mainteneur (redphx) répond en **semaines/mois** — pas en heures :
 | #999 controller skip idle | 17 août 21:40 UTC | idem |
 | #1000 structuredClone → réf. | 17 août 21:55 UTC | idem |
 | #1001 fix share-delete | 17 août 22:20 UTC | idem |
+| #1002 settings Set | 17 août 22:35 UTC | idem |
+| #1003 checkForUpdate throttle | 17 août 22:35 UTC | idem |
+| #1004 BxSelect observer | 17 août 22:35 UTC | idem |
 
 Contexte : #468 (record) ouverte depuis **juillet 2024**, #851 depuis
 **décembre 2025**, #908 depuis **mars 2026** — toutes sans merge. Dernier
@@ -23,7 +26,7 @@ Un ping à +3-5 h serait perçu comme de l'impatience et contre-productif.
 
 **Décision** : ne PAS poster avant le 24 août. Si toujours aucun retour le
 24 août, poster UN commentaire sur **#993** (la plus ancienne) qui référence
-les 9 PR — un seul commentaire, pas 9.
+les 12 PR — un seul commentaire, pas 12.
 
 ## Commentaire groupé (prêt, en anglais)
 
@@ -52,6 +55,12 @@ les 9 PR — un seul commentaire, pas 9.
 > - **#1001** fix(controller): don't `delete` the Share mapping — it's a live
 >   reference to the stored settings, the delete wiped the user's config after
 >   the first press
+> - **#1002** perf(settings): `ALL_PREFS` arrays → `Set` — O(1) lookups on every
+>   pref read/write (45+ item list) + non-mutating `validateValue` filter
+> - **#1003** perf(update): the GitHub releases fetch now runs after the 2h
+>   throttle — 1 API call per 2h max instead of 1 per page load
+> - **#1004** perf(ui): one global `MutationObserver` for all `bx-select`s
+>   (delegated via `closest`, dedup per batch) + leftover `debugger;` removed
 >
 > Happy to rebase, split further, or adjust anything you'd like — just say
 > the word.
