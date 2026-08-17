@@ -70,26 +70,19 @@ collect — mesuré ~7 % réaliste, négatif à 500 entrées), portage preview
 | #1002 | settings Set + validateValue | OPEN, mergeable, 1 commit — ouvert le 18 août ~00:35, aucun retour | idem |
 | #1003 | checkForUpdate throttle | OPEN, mergeable, 1 commit — ouvert le 18 août ~00:35, aucun retour | idem |
 | #1004 | BxSelect observer délégué | OPEN, mergeable, 1 commit — ouvert le 18 août ~00:35, aucun retour | idem |
+| #1005 | fix #991 (garde `buttons?.[16]`) | OPEN, mergeable, 1 commit — ouvert le 18 août ~00:50, **lié sur l'issue #991** (commentaire pour le rapporteur), aucun retour | idem |
 
-## Branche prête en attente (fix #991)
+## Portage terminé — aucune branche en attente
 
-Le **fix #991** est commité en local sur le clone (non poussé, non ouvert —
-décision : ne pas empiler les PR avant un retour du mainteneur sur
-#993-1004). Au premier retour, l'envoi est immédiat : `git push mine
-feat/poll-gamepad-crash-guard` puis `gh pr create --base typescript --head
-Endymi0n74:feat/poll-gamepad-crash-guard` avec le corps du commit.
-
-| Branche | Sujet | Commit | Build |
-|---|---|---|---|
-| `feat/poll-gamepad-crash-guard` | **fix #991** — `currentGamepad.buttons?.[16]` | `29f87b1` | exit 0 |
+**Toutes les branches prêtes ont été ouvertes.** La dernière (`feat/poll-gamepad-crash-guard`,
+fix #991, commit `29f87b1`) est devenue **PR #1005** le 18 août ~00:50, avec
+commentaire sur l'issue #991 pour le rapporteur (test demandé sur GameSir G7 SE).
 
 Fix #991 (garde crash) : les objets Gamepad ne garantissent pas un tableau
 `buttons` à chaque poll (GameSir G7 SE) — `buttons[16]` levait une exception
 qui tuait la boucle de polling entière (input mort jusqu'au reload). Le
 `?.` fait du bloc raccourcis un no-op pour ces gamepads ; la livraison
-d'input continue. Corps de PR rédigé dans le commit ; à ouvrir en priorité
-si le mainteneur s'intéresse à #991 (il y a déjà un lien dans les corps
-#999/#1000).
+d'input continue. Corps de PR + commentaire issue #991 (lien #991 ↔ #1005).
 
 ## Couverture par d'autres contributeurs (vérifié le 17 août ~23:40)
 
@@ -148,12 +141,12 @@ PR merge d'abord (probabilité faible — #908 attend depuis mars, #468 depuis
 
 ## Rappel mainteneur (timing)
 
-**Aucun retour au 18 août ~00:40** sur les 12 PR (0 commentaire, 0 review,
-0 review request). Le mainteneur répond en **semaines/mois** — voir
-`upstream-prs/reminder.md` (#468 attend depuis juillet 2024, #851 depuis
-décembre 2025, dernier commit typescript : 14 juillet). **Ne pas pinger
-avant le 24 août** ; le commentaire groupé prêt (sur #993, référence les 12)
-est dans `upstream-prs/reminder.md`.
+**Aucun retour au 18 août ~00:50** sur les 13 PR (0 commentaire mainteneur,
+0 review — seul notre commentaire sur l'issue #991). Le mainteneur répond
+en **semaines/mois** — voir `upstream-prs/reminder.md` (#468 attend depuis
+juillet 2024, #851 depuis décembre 2025, dernier commit typescript : 14
+juillet). **Ne pas pinger avant le 24 août** ; le commentaire groupé prêt
+(sur #993, référence les 13) est dans `upstream-prs/reminder.md`.
 
 Style observé du mainteneur : **« thank you. I'll take a look later. »** (PR
 #908, 24 mars) puis silence de plusieurs mois ; la plupart de ses merges

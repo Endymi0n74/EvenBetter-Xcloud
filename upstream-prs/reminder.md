@@ -18,6 +18,7 @@ Le mainteneur (redphx) répond en **semaines/mois** — pas en heures :
 | #1002 settings Set | 17 août 22:35 UTC | idem |
 | #1003 checkForUpdate throttle | 17 août 22:35 UTC | idem |
 | #1004 BxSelect observer | 17 août 22:35 UTC | idem |
+| #1005 fix #991 (garde buttons) | 17 août 22:50 UTC | idem |
 
 Contexte : #468 (record) ouverte depuis **juillet 2024**, #851 depuis
 **décembre 2025**, #908 depuis **mars 2026** — toutes sans merge. Dernier
@@ -26,7 +27,7 @@ Un ping à +3-5 h serait perçu comme de l'impatience et contre-productif.
 
 **Décision** : ne PAS poster avant le 24 août. Si toujours aucun retour le
 24 août, poster UN commentaire sur **#993** (la plus ancienne) qui référence
-les 12 PR — un seul commentaire, pas 12.
+les 13 PR — un seul commentaire, pas 13.
 
 ## Commentaire groupé (prêt, en anglais)
 
@@ -61,6 +62,9 @@ les 12 PR — un seul commentaire, pas 12.
 >   throttle — 1 API call per 2h max instead of 1 per page load
 > - **#1004** perf(ui): one global `MutationObserver` for all `bx-select`s
 >   (delegated via `closest`, dedup per batch) + leftover `debugger;` removed
+> - **#1005** fix(#991): guard `currentGamepad.buttons?.[16]` — a missing
+>   `buttons` array (GameSir G7 SE) threw inside `pollGamepad`, killing input
+>   until reload
 >
 > Happy to rebase, split further, or adjust anything you'd like — just say
 > the word.
