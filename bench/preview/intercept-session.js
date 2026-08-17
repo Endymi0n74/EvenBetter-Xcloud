@@ -264,18 +264,36 @@ function createRawCdpClient(wsUrl) {
 async function installSWInterceptor(context, prefs, onLog) {
   const log = onLog || (() => {});
   if (prefs.connect) {
-    const list = await (await fetch(`http://127.0.0.1:${prefs.connect}/json/list`)).json();
-    const targets = list.filter((t) => t.type === "service_worker" && t.url.includes("play.xbox.com"));
-    for (const t of targets) {
+    const port = prefs.connect.startsWith("http") ? prefs.connect : `http://127.0.0.1:${prefs.connect}`;
+    const seen = new Set();
+    const scan = async () => {
+      let list;
       try {
-        const cdp = createRawCdpClient(t.webSocketDebuggerUrl);
-        await installInterceptor(cdp, prefs, log);
-        log(`[sw] interception attachée à ${t.url.slice(0, 90)} (CDP brut)`);
-      } catch (e) {
-        log(`[warn] attachement SW échoué : ${e.message}`);
+        list = await (await fetch(`${port}/json/list`)).json();
+      } catch {
+        return; // navigateur momentanément injoignable — prochain scan
       }
-    }
-    return;
+      const targets = list.filter((t) => t.type === "service_worker" && t.url.includes("play.xbox.com"));
+      for (const t of targets) {
+        if (seen.has(t.id)) continue;
+        seen.add(t.id);
+        try {
+          const cdp = createRawCdpClient(t.webSocketDebuggerUrl);
+          await installInterceptor(cdp, prefs, log);
+          log(`[sw] interception attachée à ${t.url.slice(0, 90)} (CDP brut)`);
+        } catch (e) {
+          log(`[warn] attachement SW échoué : ${e.message}`);
+        }
+      }
+    };
+    await scan();
+    // SW futurs : le SW entry.worker.js est DORMANT tant qu'aucun stream ne le
+    // réveille — il n'apparaît dans /json/list que lorsqu'il tourne. Le play
+    // part de la page (P3) puis le provisioning émet /configuration depuis le
+    // SW : le re-scan attache le SW dès son réveil, avant le provisioning.
+    const timer = setInterval(scan, 500);
+    timer.unref && timer.unref();
+    return timer;
   }
   const attach = async (sw) => {
     try {

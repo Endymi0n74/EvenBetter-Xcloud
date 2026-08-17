@@ -306,6 +306,54 @@ function fakeCdp() {
     check("sessions page et SW distinctes (Fetch par-session)", swCdp !== fakeCdp());
   }
 
+  // --- 3bis. mode connect : re-scan périodique des SW futurs ---
+  // En mode connect, le SW entry.worker.js est DORMANT au démarrage (absent de
+  // /json/list). Le re-scan (500 ms) doit attacher un SW qui apparaît plus tard
+  // (réveillé par le stream, juste avant le provisioning /configuration) et ne
+  // pas ré-attacher un target déjà vu (dédupe par id).
+  {
+    console.log("== mode connect — re-scan des SW futurs ==");
+    const origFetch = global.fetch;
+    const origWSDesc = Object.getOwnPropertyDescriptor(global, "WebSocket");
+    const fakeWSInstances = [];
+    class FakeWebSocket {
+      constructor(url) {
+        this.url = url;
+        fakeWSInstances.push(this);
+        setTimeout(() => this.onopen && this.onopen(), 0);
+      }
+      send(data) {
+        const msg = JSON.parse(data);
+        setTimeout(() => this.onmessage && this.onmessage({ data: JSON.stringify({ id: msg.id, result: {} }) }), 0);
+      }
+      close() {}
+    }
+    let swTargets = [];
+    global.fetch = async () => ({ json: async () => swTargets });
+    Object.defineProperty(global, "WebSocket", { value: FakeWebSocket, configurable: true, writable: true });
+    let timer = null;
+    try {
+      const logs = [];
+      timer = await installSWInterceptor({}, { ...PREFS, connect: "9222", sw: true }, (m) => logs.push(m));
+      // démarrage : aucun SW running → rien attaché
+      await new Promise((r) => setTimeout(r, 60));
+      check("connect : aucun SW au démarrage → rien attaché", fakeWSInstances.length === 0);
+      // le stream réveille entry.worker.js → le re-scan l'attache
+      swTargets = [{ id: "sw-1", type: "service_worker", url: "https://play.xbox.com/entry.worker.js", webSocketDebuggerUrl: "ws://fake/sw-1" }];
+      await new Promise((r) => setTimeout(r, 700));
+      check("connect : SW réveillé attaché par le re-scan", logs.some((m) => m.includes("[sw]") && m.includes("entry.worker")));
+      const attaches = fakeWSInstances.length;
+      // pas de ré-attachement sur les scans suivants (dédupe par id)
+      await new Promise((r) => setTimeout(r, 700));
+      check("connect : pas de double attachement (dédupe par id)", fakeWSInstances.length === attaches);
+    } finally {
+      if (timer) clearInterval(timer);
+      global.fetch = origFetch;
+      if (origWSDesc) Object.defineProperty(global, "WebSocket", origWSDesc);
+      else delete global.WebSocket;
+    }
+  }
+
   // --- parseArgs : flags CLI (--sw notamment) ---
   // Régression 17 août : sw: has("--sw") doublait le tiret (----sw) → le flag
   // n'a jamais été parsé. Verrouille le parsing de chaque flag.
