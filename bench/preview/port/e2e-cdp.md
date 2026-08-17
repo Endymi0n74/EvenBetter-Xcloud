@@ -14,7 +14,7 @@ l'onglet Network ET dans les logs de l'outil.
 | Gate | Commande | Résultat |
 |---|---|---|
 | A — document-start | `node bench/preview/port/fetch-early.test.js` | **17/17 OK ✅** (exit 0) — garde T6 neutralisé, hook posé avant entry.client, SDK `ub` capture notre hook |
-| B — réécriture P2+P3 | `node bench/preview/port/userscript-rewrite.test.js` | **14/14 OK ✅** (exit 0) — play → tizen + x-ms-device-info ; configuration → overrides fusionnés, serveur préservé |
+| B — réécriture P2+P3 | `node bench/preview/port/userscript-rewrite.test.js` | **15/15 OK ✅** (exit 0) — play INCHANGÉ (T8, osName=tizen retiré) ; configuration → overrides fusionnés, serveur préservé |
 | Probe (recommandé) | `node bench/preview/probe-page.js 9222` | `hookActif: false` — page en **preview stock**, stream en cours (`readyState 4, paused:false`), aucun marqueur BX_* |
 
 - **Lecture** : la logique de réécriture est verte (vm), le hook userscript
@@ -339,10 +339,19 @@ tizen ne dépasse le max natif** — s'il y avait un effet qualité, on l'attend
 systématiquement au-dessus.
 
 **Décision P3 (17 août)** : l'override `osName=tizen` (+ device-info tizen) est
-un **no-op mesuré** sur PC — résolution ET bitrate identiques. Recommandation :
-le retirer du build à la prochaine release (P2 — fusion /configuration — reste
-le vrai bénéfice) ; en attendant, l'outil peut tourner sans réécriture du play
-(`--resolution=auto` → play laissé natif).
+un **no-op mesuré** sur PC — résolution ET bitrate identiques.
+
+**Application (17 août, build preview3)** : l'override est RETIRÉ du build —
+patch T8 de build-preview.js remplace la condition de réécriture par
+`if (false)` (le play passe donc natif, sans osName ni x-ms-device-info
+réécrits). L'outil `intercept-session.js` devient **observateur passif** : le
+play est loggé (`[P3#n] play observé → osName=… · device-info os=…`) puis
+continué SANS modification — `--resolution` est un no-op documenté. P2 (fusion
+/configuration) est conservé ; `userscript-rewrite` vérifie désormais que le
+play ressort inchangé (osName=windows, aucun device-info ajouté) et que P2
+fusionne toujours les overrides. Les fonctions de réécriture
+(getOsNameFromResolution/generateMsDeviceInfo/rewritePlayBody) restent dans
+l'outil comme référence de test.
 
 ## Run 1 — intercepté
 
@@ -358,8 +367,9 @@ But : prouver que l'outil réécrit les deux cibles sans casser le flux.
    (optionnel : `--sw` pour couvrir aussi les service workers.)
 2. Ouvrir le jeu et lancer le stream. Attendre que la session démarre.
 3. Vérifier les **logs de l'outil** (preuves directes) :
-   - `[P3] play réécrit → settings.osName=tizen + x-ms-device-info (…)`
-     → doit apparaître **dans les premières secondes** du lancement.
+   - `[P3] play observé → osName=windows (natif, non réécrit) · device-info os=…`
+     → doit apparaître **dans les premières secondes** du lancement (P3 est
+     passif depuis le 17 août — osName=tizen retiré, voir A/B bitrate).
    - `[P2] /configuration réécrite → inputConfiguration,nqiConfiguration,… (…)`
      → apparaît après le play (provisioning).
 

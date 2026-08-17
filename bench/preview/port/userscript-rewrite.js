@@ -11,8 +11,9 @@
  * (getOsNameFromResolution / generateMsDeviceInfo) DU BUILD PREVIEW RÉEL, on
  * les exécute dans un vm avec un fetch simulé (NATIVE_FETCH), et on vérifie :
  *
- *   P3 — play POST → NATIVE_FETCH reçoit un body avec settings.osName=tizen
- *        + header x-ms-device-info (dev.os.name=tizen)
+ *   P3 — play POST → NEUTRALISÉ par T8 (17 août, A/B mesuré : osName=tizen
+ *        no-op en PC cloud gaming) → NATIVE_FETCH reçoit le body d'origine
+ *        (settings.osName inchangé, windows) SANS header x-ms-device-info
  *   P2 — réponse /configuration → clientStreamingConfigOverrides fusionné
  *        (enableVibration + enableMouseInput/enableKeyboardInput +
  *        enableMicrophone) par-dessus les overrides serveur
@@ -155,7 +156,9 @@ const CONFIG_BODY = {
 
 /**
  * Mesure P3 : un play POST passant par XcloudInterceptor.handle() doit
- * ressortir réécrit côté NATIVE_FETCH (osName=tizen + x-ms-device-info).
+ * ressortir INCHANGÉ côté NATIVE_FETCH — T8 neutralise la réécriture
+ * (osName=tizen retiré le 17 août, no-op mesuré) : osName=windows d'origine,
+ * AUCUN header x-ms-device-info ajouté, chirurgie totale du body.
  */
 async function measureP3(buildSrc, resolution) {
   let sent = null;
@@ -182,13 +185,12 @@ async function measureP3(buildSrc, resolution) {
   if (!sent) return { ok: false, error: "handle() n'a pas appelé NATIVE_FETCH (URL non routée ?)" };
   const sentBody = JSON.parse(await sent.req.clone().text());
   const deviceInfoHeader = sent.req.headers.get("x-ms-device-info");
-  let deviceInfo = null;
-  try { deviceInfo = deviceInfoHeader ? JSON.parse(deviceInfoHeader) : null; } catch (e) {}
   return {
-    ok: sentBody.settings.osName === "tizen" && deviceInfo && deviceInfo.dev.os.name === "tizen",
+    // T8 : le play n'est PLUS réécrit → osName inchangé (windows) + pas de device-info
+    ok: sentBody.settings.osName === "windows" && !deviceInfoHeader,
     osName: sentBody.settings.osName,
     original: PLAY_BODY.settings.osName,
-    deviceInfoOs: deviceInfo && deviceInfo.dev.os.name,
+    deviceInfoOs: deviceInfoHeader ? "présent (anomalie)" : "absent",
     localeIntact: sentBody.settings.locale === "fr-FR",
     clientSessionIdIntact: sentBody.clientSessionId === "abc-def-123",
   };
@@ -262,20 +264,20 @@ if (require.main === module) {
   (async () => {
     const p3 = await measureP3(src, "1080p-hq");
     const p2 = await measureP2(src);
-    console.log("\n## P3 — play request (via handle → NATIVE_FETCH)");
-    console.log("- osName réécrit : " + (p3.ok ? `✅ ${p3.original} → ${p3.osName}` : `❌ ${JSON.stringify(p3)}`));
-    console.log("- x-ms-device-info : " + (p3.deviceInfoOs ? `✅ dev.os.name=${p3.deviceInfoOs}` : "❌ absent"));
-    console.log("- réécriture chirurgicale (locale + clientSessionId intacts) : " + (p3.localeIntact && p3.clientSessionIdIntact ? "✅" : "❌"));
+    console.log("\n## P3 — play request (via handle → NATIVE_FETCH, NEUTRALISÉ par T8)");
+    console.log("- osName inchangé : " + (p3.ok ? `✅ ${p3.original} (pas de réécriture)` : `❌ ${JSON.stringify(p3)}`));
+    console.log("- x-ms-device-info : " + (p3.deviceInfoOs === "absent" ? "✅ absent (natif)" : `❌ ${p3.deviceInfoOs}`));
+    console.log("- body intact (locale + clientSessionId) : " + (p3.localeIntact && p3.clientSessionIdIntact ? "✅" : "❌"));
     console.log("\n## P2 — réponse /configuration (via handleConfiguration)");
     console.log("- enableVibration : " + (p2.enableVibration === true ? "✅ true" : "❌ " + p2.enableVibration));
     console.log("- enableMouseInput/enableKeyboardInput (mkb=on) : " + (p2.enableMouse === true && p2.enableKeyboard === true ? "✅" : "❌"));
     console.log("- enableMicrophone (mic=on) : " + (p2.enableMicrophone === true ? "✅" : "❌"));
     console.log("- overrides serveur préservés : " + (p2.serveurPreservé ? "✅" : "❌"));
     console.log("- champs racine intacts (keepAlive) : " + (p2.keepAliveIntact ? "✅" : "❌"));
-    const ok = p3.ok && p3.deviceInfoOs === "tizen" && p2.ok;
+    const ok = p3.ok && p3.deviceInfoOs === "absent" && p2.ok;
     console.log("\n" + (ok
-      ? "VERDICT : réécriture userscript P2+P3 COMPLÈTE ✅ — XcloudInterceptor du build preview réécrit play + configuration sans CDP"
-      : "VERDICT : réécriture incomplète ❌ — voir les échecs"));
+      ? "VERDICT : P3 neutralisé (osName=tizen retiré) + P2 actif ✅ — XcloudInterceptor du build preview ne réécrit que /configuration"
+      : "VERDICT : comportement inattendu ❌ — voir les échecs"));
     process.exit(ok ? 0 : 1);
   })();
 }

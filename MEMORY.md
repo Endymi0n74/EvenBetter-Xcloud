@@ -35,9 +35,14 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
   1156AA48, `observe-play.js`) ET bitrate (`bitrate-check.js`, 3 échantillons
   ×12 s par profil) — natif windows = **1920×1080 @ 60 fps, ~5,95 Mbps**,
   tizen = **1920×1080 @ 60 fps, ~5,75 Mbps** → **P3 sans gain mesurable en PC
-  cloud gaming** (résolution ET bitrate identiques). **Décision : retirer
-  l'override osName=tizen à la prochaine release** (P2 fusion /configuration
-  reste le vrai bénéfice). Piège reprise : le slot de session est lié au
+  cloud gaming** (résolution ET bitrate identiques).  **Décision : retirer
+  l'override osName=tizen — APPLIQUÉ au build preview3 (17 août)** : patch T8
+  de build-preview.js (condition de réécriture → `if (false)`, le play part
+  natif) ; `intercept-session.js` devient **observateur passif** (`[P3] play
+  observé → osName=… · device-info os=…`, continué SANS modification) ;
+  `userscript-rewrite` vérifie le play inchangé + P2 toujours fusionné. P2
+  (fusion /configuration) reste le vrai bénéfice ; `--resolution` est un
+  no-op documenté. Les fonctions de réécriture restent en référence (tests). Piège reprise : le slot de session est lié au
   compte/titre — navigation home, redémarrage Edge ET `session.disconnect()`
   ne changent pas le GUID (7C346491 persistant) ; seul un 2e onglet (kick) ou
   un long délai libère le slot.
@@ -250,5 +255,6 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
    `--strict-probe` (hookActif:true exigé) + chemin d'échec testé.
 5. ✅ Fait — localisation de la session au runtime + locator auto (voir P1).
 6. ✅ Fait — v1.8.0 (USM) + 1.8.0-preview1 publiées (17 août 12:11).
-7. ⏳ En cours — publier la preview2 (fixes overlay T4/T7 du soir) ;
-   l'interception du stream en cours tourne encore (kill si besoin).
+7. ✅ Fait — preview2 publiée (fixes overlay T4/T7) puis **preview3 (17 août)
+   : retrait osName=tizen (T8, A/B mesuré) + intercept-session passif**.
+   Releases : 1.8.0 (stable, latest) / 1.8.0-preview2 / 1.8.0-preview3.

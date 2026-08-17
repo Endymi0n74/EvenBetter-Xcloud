@@ -39,7 +39,7 @@ const META_OUT = path.join(ROOT, "better-xcloud-preview.meta.js");
 const EOL = "\n";
 
 // ---- contrat « deux versions » : identité DISTINCTE du build preview ----
-const PREVIEW_VERSION = "1.8.0-preview2";
+const PREVIEW_VERSION = "1.8.0-preview3";
 const PREVIEW_NAME = "Better xCloud (Preview)";
 const PREVIEW_TAG = "better-xcloud-perf-" + PREVIEW_VERSION; // releases/download/<tag>/...
 
@@ -219,6 +219,19 @@ ${entryAnchor}`;
   const guardAnchor = "if (!window.location.pathname.match(/^\\/[a-zA-Z]{2}-[a-zA-Z]{2}\\/play/)) throw Error(\"[Better xCloud] Not xCloud page\");";
   must(s, guardAnchor, "T6 garde Not xCloud page");
   s = s.replace(guardAnchor, "if (!BX_PREVIEW && !window.location.pathname.match(/^\\/[a-zA-Z]{2}-[a-zA-Z]{2}\\/play/)) throw Error(\"[Better xCloud] Not xCloud page\");");
+
+  /* ---------- T8 : P3 neutralisé (override osName=tizen retiré le 17 août) ----------
+     A/B mesuré en réel (e2e-cdp.md « A/B bitrate ») : osName=tizen est un
+     NO-OP en PC cloud gaming — résolution ET bitrate identiques au natif
+     (1080p60, ~6 Mbps, distributions superposées). Le play passe donc SANS
+     réécriture : ni osName, ni x-ms-device-info (le header natif du client
+     porte le displayInfo réel — le remplacer perdrait l'info d'écran). P2
+     (fusion de la réponse /configuration) est conservé ; --resolution est un
+     no-op documenté. */
+  const p3Anchor =
+    'if (PREF_STREAM_TARGET_RESOLUTION !== "auto") {let osName = getOsNameFromResolution(PREF_STREAM_TARGET_RESOLUTION);headers["x-ms-device-info"] = JSON.stringify(generateMsDeviceInfo(osName)), body.settings.osName = osName;}';
+  must(s, p3Anchor, "T8 handlePlay resolution (P3)");
+  s = s.replace(p3Anchor, "if (false) {let osName = getOsNameFromResolution(PREF_STREAM_TARGET_RESOLUTION);headers[\"x-ms-device-info\"] = JSON.stringify(generateMsDeviceInfo(osName)), body.settings.osName = osName;}");
 
   /* ---------- T5 : keep-alive idle (P1) — inséré en FIN de script ----------
      Après main(); : window.fetch est alors le hook final (bloqueurs du script),

@@ -43,15 +43,15 @@ try {
 
 (async () => {
   try {
-    // ---------- 2. P3 : play réécrit via le hook (osName=tizen) ----------
+    // ---------- 2. P3 : play NEUTRALISÉ par T8 (osName=tizen retiré 17 août) ----------
     const p3 = await measureP3(src, "1080p-hq");
     check("P3 : handle() route le play vers NATIVE_FETCH", p3.osName !== undefined || p3.error !== undefined, p3.error);
-    check("P3 : osName réécrit windows → tizen", p3.osName === "tizen", JSON.stringify(p3));
-    check("P3 : x-ms-device-info dev.os.name=tizen", p3.deviceInfoOs === "tizen", JSON.stringify(p3.deviceInfoOs));
-    check("P3 : réécriture chirurgicale (locale intacte)", p3.localeIntact === true);
+    check("P3 : osName INCHANGÉ (windows, pas de réécriture)", p3.osName === "windows", JSON.stringify(p3));
+    check("P3 : AUCUN x-ms-device-info ajouté (natif conservé)", p3.deviceInfoOs === "absent", JSON.stringify(p3.deviceInfoOs));
+    check("P3 : body intact (locale conservée)", p3.localeIntact === true);
     check("P3 : clientSessionId préservé", p3.clientSessionIdIntact === true);
 
-    // P3 auto (résolution auto) → pas de réécriture
+    // P3 auto (résolution auto) → pas de réécriture (comportement inchangé)
     const p3auto = await measureP3(src, "auto");
     check("P3 : resolution=auto → osName inchangé (windows)", p3auto.osName === "windows", JSON.stringify(p3auto));
 
@@ -63,9 +63,9 @@ try {
     check("P2 : overrides serveur préservés (useIntervalWorkerThreadForInput + preferMainH264Profile)", p2.serveurPreservé === true);
     check("P2 : champs racine intacts (keepAlivePulseInSeconds=60)", p2.keepAliveIntact === true);
 
-    // ---------- 4. P3 : résolution 1080p → windows (mapping du stable) ----------
+    // ---------- 4. P3 : résolution 1080p → osName inchangé (mapping retiré) ----------
     const p31080 = await measureP3(src, "1080p");
-    check("P3 : resolution=1080p → osName=windows", p31080.osName === "windows", JSON.stringify(p31080));
+    check("P3 : resolution=1080p → osName=windows inchangé", p31080.osName === "windows", JSON.stringify(p31080));
   } catch (e) {
     // échec d'exécution (ex. build corrompu → ancre introuvable à l'extraction
     // re-faite par measureP3) : message PROPRE, pas de stack trace — logs CI lisibles.

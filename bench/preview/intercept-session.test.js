@@ -5,9 +5,10 @@
  * Teste la logique pure sur les formes RÉELLES capturées en session
  * (body du play request + réponse /configuration, session.md) et le flux
  * CDP simulé (Fetch.requestPaused → continueRequest / getResponseBody →
- * fulfillRequest) : P3 réécrit settings.osName + x-ms-device-info, P2
- * fusionne les overrides dans clientStreamingConfigOverrides, tout ce qui
- * ne matche pas est continué tel quel.
+ * fulfillRequest) : P3 est un OBSERVATEUR PASSIF depuis le 17 août (le play
+ * est continué tel quel — osName=tizen retiré, no-op mesuré), P2 fusionne
+ * les overrides dans clientStreamingConfigOverrides, tout ce qui ne matche
+ * pas est continué tel quel.
  *
  * Usage : node bench/preview/intercept-session.test.js
  */
@@ -75,13 +76,14 @@ check("generateMsDeviceInfo : dev.os.name=tizen", di.dev.os.name === "tizen");
 check("generateMsDeviceInfo : displayInfo 4096x2160", di.dev.displayInfo.dimensions.widthInPixels === 4096 && di.dev.displayInfo.dimensions.heightInPixels === 2160);
 check("generateMsDeviceInfo : appInfo.env.clientAppId=host", di.appInfo.env.clientAppId === "play.xbox.com");
 
-// P3 : body du play request réel réécrit
+// P3 (référence) : rewritePlayBody conserve la logique pour les tests,
+// mais P3 est passif en réel — le play n'est plus réécrit.
 const rewritten = rewritePlayBody(PLAY_BODY, "1080p-hq");
-check("rewritePlayBody : osName réécrit en tizen", rewritten && rewritten.settings.osName === "tizen");
-check("rewritePlayBody : le reste intact (titleId/locale/timezone)", rewritten && rewritten.titleId === PLAY_BODY.titleId && rewritten.settings.locale === "fr-FR" && rewritten.settings.timezoneOffsetMinutes === 120 && rewritten.settings.nanoVersion === "V3;WebrtcTransport.dll");
-check("rewritePlayBody : clientSessionId préservé", rewritten && rewritten.clientSessionId === "abc-def-123");
-check("rewritePlayBody : auto → null (rien à faire)", rewritePlayBody(PLAY_BODY, "auto") === null);
-check("rewritePlayBody : non-objet → null", rewritePlayBody(null, "1080p") === null);
+check("rewritePlayBody (référence) : osName réécrit en tizen", rewritten && rewritten.settings.osName === "tizen");
+check("rewritePlayBody (référence) : le reste intact (titleId/locale/timezone)", rewritten && rewritten.titleId === PLAY_BODY.titleId && rewritten.settings.locale === "fr-FR" && rewritten.settings.timezoneOffsetMinutes === 120 && rewritten.settings.nanoVersion === "V3;WebrtcTransport.dll");
+check("rewritePlayBody (référence) : clientSessionId préservé", rewritten && rewritten.clientSessionId === "abc-def-123");
+check("rewritePlayBody (référence) : auto → null (rien à faire)", rewritePlayBody(PLAY_BODY, "auto") === null);
+check("rewritePlayBody (référence) : non-objet → null", rewritePlayBody(null, "1080p") === null);
 
 // P2 : fusion sur la réponse /configuration réelle
 const cfg = rewriteConfigurationBody(CONFIG_BODY, PREFS);
@@ -117,9 +119,11 @@ function fakeCdp() {
 
 (async () => {
   // --- P3 : requête play interceptée et réécrite ---
+  // --- P3 (passif) : requête play interceptée et continuée SANS modification ---
   {
     const cdp = fakeCdp();
-    await installInterceptor(cdp, PREFS, () => {});
+    const p3logs = [];
+    await installInterceptor(cdp, PREFS, (m) => p3logs.push(m));
     const enableCall = cdp.calls.find((c) => c.method === "Fetch.enable");
     check("Fetch.enable appelé avec 3 patterns (Request play + Request/Response configuration)", !!enableCall && enableCall.params.patterns.length === 3);
     const playPattern = enableCall.params.patterns.find((p) => p.urlPattern.includes("play"));
@@ -133,18 +137,16 @@ function fakeCdp() {
       request: {
         url: "https://uks.core.gssv-play-prod.xboxlive.com/v5/sessions/cloud/8A7F6A20-DA4A-4607-9B45-29180C93730B/play",
         method: "POST",
-        headers: { "content-type": "application/json", "accept": "*/*" },
+        headers: { "content-type": "application/json", "accept": "*/*", "x-ms-device-info": JSON.stringify({ dev: { os: { name: "windows" } } }) },
         postData: JSON.stringify(PLAY_BODY),
       },
     });
     const cont = cdp.calls.find((c) => c.method === "Fetch.continueRequest" && c.params.requestId === "req-play-1");
     check("P3 : continueRequest envoyé pour le play", !!cont);
-    // CDP : postData est base64 quand il passe par JSON (décodage avant vérification)
-    const contBody = cont && JSON.parse(Buffer.from(cont.params.postData, "base64").toString("utf8"));
-    check("P3 : postData réécrit (settings.osName=tizen)", contBody && contBody.settings.osName === "tizen");
-    const deviceInfoHeader = cont && cont.params.headers.find((h) => h.name.toLowerCase() === "x-ms-device-info");
-    check("P3 : header x-ms-device-info ajouté", deviceInfoHeader && JSON.parse(deviceInfoHeader.value).dev.os.name === "tizen");
-    check("P3 : headers d'origine préservés (content-type)", cont && cont.params.headers.some((h) => h.name.toLowerCase() === "content-type" && h.value === "application/json"));
+    // pass-through : PAS de postData/headers dans continueRequest → corps d'origine inchangé
+    check("P3 : AUCUNE réécriture (pas de postData)", cont && cont.params.postData === undefined);
+    check("P3 : AUCUNE modification de headers (pas de x-ms-device-info réécrit)", cont && cont.params.headers === undefined);
+    check("P3 : log d'observation émis (osName natif + device-info)", p3logs.some((m) => m.includes("[P3#1 ") && m.includes("play observé") && m.includes("osName=windows") && m.includes("device-info os=windows")));
   }
 
   // --- P2 : configuration interceptée en 2 temps (Request → interceptResponse, puis Response → fulfill) ---
@@ -269,7 +271,8 @@ function fakeCdp() {
       },
     });
     const swCont = swCdp.calls.find((c) => c.method === "Fetch.continueRequest" && c.params.requestId === "req-sw-play");
-    check("P3 depuis le SW : play réécrit (osName=tizen)", swCont && JSON.parse(Buffer.from(swCont.params.postData, "base64").toString("utf8")).settings.osName === "tizen");
+    // P3 passif : continueRequest SANS postData → play inchangé (T8 / A/B mesuré)
+    check("P3 depuis le SW : play continué SANS modification (passif)", swCont && swCont.params.postData === undefined && swCont.params.headers === undefined);
 
     // P2 depuis le SW : requête configuration (stage Request → interceptResponse, puis Response → fulfill)
     swCdp.send = async (method, params) => {

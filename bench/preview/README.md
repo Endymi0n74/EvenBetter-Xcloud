@@ -164,15 +164,20 @@ prêt à lancer en réel. Les transports `sendBeacon` et les fetch `keepalive`
 sont couverts depuis la v4 (ce sont des voies possibles pour les requêtes
 state/keepalive du protocole que les hooks fetch seuls pouvaient manquer).
 
-## Interception CDP P3+P2 (réécriture active du protocole)
+## Interception CDP P2 (+P3 passif)
 
 `bench/preview/intercept-session.js` s'attache au navigateur via CDP et
 réécrit le protocole en vol, là où les hooks de page sont impuissants (le
 trafic part d'un worker) :
 
 - **P3** — requête `v5/sessions/cloud/play` (POST, stage Request) :
-  `settings.osName` + en-tête `x-ms-device-info`, même logique que
-  `handlePlay` du stable (`getOsNameFromResolution` / `generateMsDeviceInfo`).
+  **OBSERVATEUR PASSIF depuis le 17 août** — A/B mesuré : `osName=tizen`
+  est un no-op en PC cloud gaming (résolution + bitrate identiques au
+  natif) → le play est loggé (`[P3#n] play observé → osName=… ·
+  device-info os=…`) puis continué SANS modification. `--resolution` est un
+  no-op documenté ; les fonctions de réécriture
+  (`getOsNameFromResolution`/`generateMsDeviceInfo`/`rewritePlayBody`)
+  restent en référence (tests).
 - **P2** — réponse `…/configuration` (GET, stage Response) : fusion des
   overrides du stable (`enableVibration`, `enableTouchInput`,
   `enableMouseInput`/`enableKeyboardInput`, `enableMicrophone`…) dans
@@ -191,7 +196,8 @@ node bench/preview/intercept-session.js --connect=9222 --resolution=1080p-hq
 node bench/preview/intercept-session.js --resolution=1080p
 ```
 
-Options : `--resolution=1080p-hq|1080p|auto` (P3), `--vibration=on|off`,
+Options : `--resolution=1080p-hq|1080p|auto` (no-op depuis le retrait de
+P3 — conservé pour compat CLI), `--vibration=on|off`,
 `--mkb=on|off`, `--touch=on|off`, `--mic=on|off` (P2), `--sw` (attacher
 aussi l'interception aux service workers), `--timeout=S`.
 

@@ -7,8 +7,12 @@
  * persistant dédié .cdp-profile/, à connecter une fois) et intercepTe :
  *
  *   P3 — REQUÊTE play (v5/sessions/cloud/play, POST) :
- *        réécrit settings.osName + en-tête x-ms-device-info, même logique
- *        que handlePlay du stable (getOsNameFromResolution/generateMsDeviceInfo).
+ *        OBSERVATEUR PASSIF depuis le 17 août (A/B mesuré : osName=tizen est
+ *        un NO-OP en PC cloud gaming — résolution ET bitrate identiques au
+ *        natif). Le play est loggé (osName observé + device-info) puis
+ *        continué SANS modification. Les fonctions de réécriture
+ *        (getOsNameFromResolution/generateMsDeviceInfo/rewritePlayBody) sont
+ *        conservées comme référence pour les tests.
  *   P2 — RÉPONSE /configuration (GET) :
  *        fusionne les overrides du stable (enableVibration, enableTouchInput,
  *        enableMouseInput/enableKeyboardInput, enableMicrophone…) dans
@@ -85,6 +89,8 @@ function generateMsDeviceInfo(osName, host) {
 
 /**
  * Réécrit le body du play request : settings.osName ← résolution cible.
+ * CONSERVÉE COMME RÉFÉRENCE (tests) — plus appliquée en réel depuis le
+ * 17 août (T8 du build preview neutralise le rewrite ; ici P3 est passif).
  * Retourne le body réécrit (objet) ou null si rien à faire.
  */
 function rewritePlayBody(body, resolution) {
@@ -161,21 +167,20 @@ async function installInterceptor(cdp, prefs, onLog) {
         await cdp.send("Fetch.continueRequest", { requestId, interceptResponse: true });
         return;
       }
-      // --- P3 : requête play (POST) ---
-      if (method === "POST" && PLAY_RE.test(url) && prefs.resolution && prefs.resolution !== "auto") {
+      // --- P3 : requête play (POST) — OBSERVATEUR PASSIF (17 août) ---
+      // A/B mesuré : osName=tizen no-op en PC (résolution+bitrate identiques au
+      // natif, e2e-cdp.md « A/B bitrate ») → le play est continué SANS
+      // réécriture. On logge ce qu'on observe (osName du client + device-info
+      // natif) pour garder la visibilité sur la forme réelle du play.
+      if (method === "POST" && PLAY_RE.test(url)) {
         let body = {};
         try { body = request.postData ? JSON.parse(request.postData) : {}; } catch (e) { body = {}; }
-        const rewritten = rewritePlayBody(body, prefs.resolution);
-        if (rewritten) {
-          const osName = getOsNameFromResolution(prefs.resolution);
-          let headers = toHeaderArray(request.headers);
-          headers = setHeader(headers, "x-ms-device-info", JSON.stringify(generateMsDeviceInfo(osName, new URL(url).host)));
-          // CDP : postData est encodé en base64 quand il passe par JSON (doc Fetch.continueRequest)
-          await cdp.send("Fetch.continueRequest", { requestId, postData: Buffer.from(JSON.stringify(rewritten), "utf8").toString("base64"), headers });
-          p3Count++;
-          log(`[P3#${p3Count} ${ts()}] play réécrit → osName=${osName} (original:${body.settings && body.settings.osName || "?"}) + x-ms-device-info (${url.slice(0, 90)})`);
-          return;
-        }
+        const observedOs = (body.settings && body.settings.osName) || "?";
+        const deviceInfoRaw = (request.headers && (request.headers["x-ms-device-info"] || request.headers["X-Ms-Device-Info"])) || null;
+        let deviceInfoOs = "?";
+        try { deviceInfoOs = deviceInfoRaw ? (JSON.parse(deviceInfoRaw).dev?.os?.name || "?") : "absent"; } catch (e) { deviceInfoOs = "parse-fail"; }
+        p3Count++;
+        log(`[P3#${p3Count} ${ts()}] play observé → osName=${observedOs} (natif, non réécrit) · device-info os=${deviceInfoOs} (${url.slice(0, 90)})`);
       }
       // --- P2 : réponse configuration (GET, stage Response) ---
       if (CONFIG_RE.test(url) && responseStatusCode !== undefined) {
@@ -337,7 +342,7 @@ function parseArgs(argv) {
 async function main() {
   const chromium = loadChromium();
   const prefs = parseArgs(process.argv.slice(2));
-  console.log(`[intercept] P3 résolution=${prefs.resolution} · P2 vibration=${prefs.vibration ? "on" : "off"} mkb=${prefs.mkb === null ? "auto" : prefs.mkb ? "on" : "off"} touch=${prefs.touch ? "on" : "off"} mic=${prefs.mic ? "on" : "off"}`);
+  console.log(`[intercept] P3 PASSIF (osName=tizen retiré — no-op mesuré) · P2 vibration=${prefs.vibration ? "on" : "off"} mkb=${prefs.mkb === null ? "auto" : prefs.mkb ? "on" : "off"} touch=${prefs.touch ? "on" : "off"} mic=${prefs.mic ? "on" : "off"}`);
 
   let browser = null;
   let context = null;
