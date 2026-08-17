@@ -478,7 +478,9 @@ function installKeepAliveIdle() {
   //    FORME (sendKeepAlive), pas par nom de composant (minifié/instable).
   function locateSession() {
     try {
-      var root = document.getElementById("root");
+      // le preview monte l'app sur des DIV de body (PAS de #root — vérifié 17
+      // août) → fallback document.body, sinon le walk ne démarre jamais.
+      var root = document.getElementById("root") || document.body;
       if (!root) return null;
       var fiberKey = null;
       var keys = Object.keys(root);
