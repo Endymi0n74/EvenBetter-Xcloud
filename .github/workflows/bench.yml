@@ -112,7 +112,14 @@ jobs:
             const fs = require('fs');
             const { mergeComment } = require(process.env.GITHUB_WORKSPACE + '/bench/pr-comment-merge.js');
             const mode = process.env.PR_COMMENT_MODE;
-            const section = fs.readFileSync(process.env.PR_COMMENT_SECTION, 'utf8').trimEnd();
+            const sectionPath = process.env.PR_COMMENT_SECTION;
+            // Job échoué avant la production du résumé (ex. gate rouge au build) :
+            // le fichier n'existe pas → skip propre au lieu d'un crash ENOENT.
+            if (!fs.existsSync(sectionPath)) {
+              console.log('résumé absent (' + sectionPath + ') — échec avant sa production, commentaire skippé (' + mode + ')');
+              return;
+            }
+            const section = fs.readFileSync(sectionPath, 'utf8').trimEnd();
             const MAIN = '<!-- bench-ratios -->';
             const opts = { owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number };
             const { data: comments } = await github.rest.issues.listComments({ ...opts, per_page: 100 });
@@ -190,7 +197,14 @@ jobs:
             const fs = require('fs');
             const { mergeComment } = require(process.env.GITHUB_WORKSPACE + '/bench/pr-comment-merge.js');
             const mode = process.env.PR_COMMENT_MODE;
-            const section = fs.readFileSync(process.env.PR_COMMENT_SECTION, 'utf8').trimEnd();
+            const sectionPath = process.env.PR_COMMENT_SECTION;
+            // Job échoué avant la production du résumé (ex. gate rouge au build) :
+            // le fichier n'existe pas → skip propre au lieu d'un crash ENOENT.
+            if (!fs.existsSync(sectionPath)) {
+              console.log('résumé absent (' + sectionPath + ') — échec avant sa production, commentaire skippé (' + mode + ')');
+              return;
+            }
+            const section = fs.readFileSync(sectionPath, 'utf8').trimEnd();
             const MAIN = '<!-- bench-ratios -->';
             const opts = { owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number };
             const { data: comments } = await github.rest.issues.listComments({ ...opts, per_page: 100 });
@@ -357,7 +371,14 @@ jobs:
             const fs = require('fs');
             const { mergeComment } = require(process.env.GITHUB_WORKSPACE + '/bench/pr-comment-merge.js');
             const mode = process.env.PR_COMMENT_MODE;
-            const section = fs.readFileSync(process.env.PR_COMMENT_SECTION, 'utf8').trimEnd();
+            const sectionPath = process.env.PR_COMMENT_SECTION;
+            // Job échoué avant la production du résumé (ex. gate rouge au build) :
+            // le fichier n'existe pas → skip propre au lieu d'un crash ENOENT.
+            if (!fs.existsSync(sectionPath)) {
+              console.log('résumé absent (' + sectionPath + ') — échec avant sa production, commentaire skippé (' + mode + ')');
+              return;
+            }
+            const section = fs.readFileSync(sectionPath, 'utf8').trimEnd();
             const MAIN = '<!-- bench-ratios -->';
             const opts = { owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number };
             const { data: comments } = await github.rest.issues.listComments({ ...opts, per_page: 100 });
