@@ -4,6 +4,13 @@ Mémoire de travail des sessions. Détails dans `bench/preview/port/session.md`
 (étude protocole), `bench/preview/port/e2e-cdp.md` (protocole E2E + journal),
 `bench/preview/port/anchors.md`, `bench/preview/port/classify.md`.
 
+## Discipline de mémoire
+
+L'utilisateur demande une mise à jour de ce fichier **au moins toutes les
+~2 h de travail cumulé** (et à chaque fin de session), sans attendre d'être
+relancé : après ~2 h d'actions, journaliser l'état (fichiers touchés,
+verdicts, pièges nouveaux, en attente). Dernière passe : 17 août 12:15.
+
 ## Projet
 
 Fork better-xcloud (redphx) avec **deux versions contractuelles** :
@@ -69,7 +76,7 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
   warning intercepted » + session survivante) — à valider (P1-B). Prérequis :
   Étape 0 `--strict-probe` passée.
 
-## État stable v1.7.0 (17 août)
+## État stable v1.8.0 — RELEASED (17 août)
 
 - **USM 4 taps WebGL2 intégré** (patch 22) : re-mesure seed 42 du **build réel**
   (`gpu-v170-usm-webgl2player.txt`) — draw 10,24 → 7,17 µs (**−30,0 %**),
@@ -84,14 +91,41 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
   `onSubmittedWorkDone` car timestamp queries mortes sur Edge 152). Le gain
   WebGL2 était spécifique à ANGLE/D3D11. Build reverté, pas de patch 23 —
   le shader WebGPU garde le 9 taps.
-- **USM WebGL2 validé visuellement le 17 août** (`bench/gpu/visual-diff.js`) :
-  gate v1.6.0 (9 taps) → v1.7.0 (4 taps) sur texte fin — identité sharpness 0
+- **Validé visuellement** (`bench/gpu/visual-diff.js` + `report-html.js`) :
+  gate v1.6.0 (9 taps) → v1.8.0 (4 taps) sur texte fin — identité sharpness 0
   bit-identique (maxAbs 0), équivalence ±1-ULP fp32 sur ≤ 0,002 % des pixels
-  (640×360 et 960×540). Le diff perf10 → v1.7.0 (maxAbs 44-74, ~0,4 %) vient
+  (640×360 et 960×540). Le diff perf10 → v1.8.0 (maxAbs 44-74, ~0,4 %) vient
   du chemin d'upload (texImage2D → texStorage2D/RGB8), pas du patch 22.
-- **Reste pour boucler la v1.7.0** : rien de bloquant — sanity check session
-  réelle optionnel (texte fin à l'œil nu), et push du lot en attente
-  (2 commits + intégration USM).
+  Sortie images par cas (screenshots 3 variantes, diff mask, montage, heatmap
+  16×9 → `shots/`) + rapport HTML autonome (base64). Seeks ordonnés en t
+  croissant + retry + échec dur (seek arrière → currentTime remis à 0).
+- **Gate CI gpu-upload** : visual-diff (exit 0/1) + report-html (`if:
+  always()`) + artefacts visual-diff-<sha> (rapport + shots/) — validé E2E le
+  17 août (dispatch 32026644870 : protocole ×1,80, gate visuel PASS).
+  **RESTE pour boucler la v1.8.0** : sanity check session réelle optionnel.
+
+## Releases & pipeline de publication
+
+- **v1.8.0 (stable)** — tag `better-xcloud-perf-v1.8.0`, **Latest**, assets
+  `better-xcloud.user.js` + `better-xcloud.meta.js`. Auto-update stable :
+  `releases/latest/download/*`.
+- **1.8.0-preview1 (preview)** — tag `better-xcloud-perf-1.8.0-preview1`,
+  **Pre-release**, assets `better-xcloud-preview.user.js` +
+  `better-xcloud-preview.meta.js`. Auto-update preview : **pinné sur son tag**
+  (jamais le latest — contrat deux versions). Un utilisateur d'une preview
+  ANCIENNE doit réinstaller manuellement (l'updateURL de l'ancienne pointe
+  l'ancien tag).
+- **Pipeline d'une release** (répéter à chaque bump) :
+  1. Bump stable : `better-xcloud.user.js` (@version + header
+     « OPTIMISATIONS v1.X.Y: ») ET `better-xcloud.meta.js` (@version).
+  2. Bump preview : `build-preview.js` — **3 ancres** : `PREVIEW_VERSION`,
+     `versionAnchor` (« // @version      1.X.0 ») et `headerAnchor`
+     (« /* OPTIMISATIONS v1.X.0: »). Oubli d'une → build-preview échoue
+     (ancre introuvable) : lire le message avant de corriger.
+  3. Rebuild : `node bench/preview/port/build-preview.js` (invariants deux
+     versions + node --check + probes + P1 self-test sur le bundle capturé).
+  4. Commit + push, puis `gh release create` (stable : défaut Latest ;
+     preview : `--prerelease`) avec les 2 assets .user.js + .meta.js.
 
 ## Pièges mémorisés
 
@@ -106,6 +140,17 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
 - `class` est lexicale dans un vm (évaluer en class expression).
 - Le preview CSP bloque raw.githubusercontent.com (listes native-mkb /
   local-co-op) → « Failed to fetch » (non fatals, rejets non gérés).
+- **Flake CI gpu-runner (17 août, dispatch 32024511950)** : gpu-runner écrivait
+  le JSON complet puis rejetait sur `browser.close()` (un Edge utilisateur
+  ouvert sur la machine tue le process Playwright) → exit 1 SILENCIEUX → le
+  `|| exit 1` du workflow court-circuitait agg-seeds (zéro sortie au log).
+  Fix `db8de27` : close en try/catch dans gpu-runner.js + visual-diff.js ;
+  report-html.js sort exit 0 si le JSON est absent (step `if: always()` ne
+  s'ajoute plus en rouge). Diagnostiquer un exit 1 silencieux : télécharger
+  l'artefact `gpu-runs-<sha>` et rejouer localement.
+- `git apply` **hors repo no-op silencieusement** ; hunk **zéro-contexte**
+  refusé sur ligne géante (contexte 3 lignes requis). Node `/tmp` ≠ bash
+  `/tmp` sous Git Bash (utiliser des chemins projet ou bash tools).
 - Conventions merge : rebase + fast-forward + suppression de branche ; badge
   Closed/Merged trompeur (§5 mémo projet).
 - Step « Commente la PR » (`always()` + readFileSync du résumé) : garde
@@ -118,12 +163,17 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
 
 ## En attente / prochaines étapes
 
-1. Run 1 CDP : valider `[P2]` réel (C4) — stream requis. Prêt : bug `--sw`
+1. **Preview 1.8.0-preview1 à valider en réel** : overlay visible sur
+   play.xbox.com (bouton settings dans le header, T4) après installation —
+   journaliser dans e2e-cdp.md.
+2. Run 1 CDP : valider `[P2]` réel (C4) — stream requis. Prêt : bug `--sw`
    corrigé (double tiret) + attache SW par **CDP brut** (Playwright ne sait
    pas newCDPSession sur un Worker) — `intercept-session.js --sw`.
-2. P1-B AFK : fenêtre longue (1800 s) — exécution 1 témoin journalisée
-   (600 s : 11 heartbeats, aucun warning → seuil d'idle preview > 10 min).
-   Le locator wrappera la session automatiquement au prochain stream.
-3. ✅ Fait — `run-e2e0.sh` au CI (step preview, `--skip-probe`) +
+3. P1-B AFK : fenêtre 1 h exécutée (17 août, 09:10:59→10:10:59) — session
+   survivante, AUCUN warning → **seuil d'idle preview > 60 min** (exécution 2
+   journalisée dans e2e-cdp.md). Prochaine : chercher le seuil statiquement
+   dans les bundles, ou conclure « pas de kick idle preview ».
+4. ✅ Fait — `run-e2e0.sh` au CI (step preview, `--skip-probe`) +
    `--strict-probe` (hookActif:true exigé) + chemin d'échec testé.
-4. ✅ Fait — localisation de la session au runtime + locator auto (voir P1).
+5. ✅ Fait — localisation de la session au runtime + locator auto (voir P1).
+6. ✅ Fait — v1.8.0 (USM) + 1.8.0-preview1 publiées (17 août 12:11).
