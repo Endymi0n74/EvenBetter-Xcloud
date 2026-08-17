@@ -1,7 +1,7 @@
 # Portage app-shell du preview (play.xbox.com)
 
 État : **v1 — infrastructure + détection + garde + entrée settings (candidats)**.
-La branche de travail porte le build `better-xcloud-preview.user.js` (v1.8.0-preview3).
+La branche de travail porte le build `better-xcloud-preview.user.js` (v1.8.0-preview4).
 
 ## Contrat « deux versions » (stable et preview distincts, toujours)
 
@@ -10,11 +10,11 @@ Le repo maintient **deux builds indépendants, jamais fusionnés** :
 | | Stable | Preview |
 |---|---|---|
 | Fichier | `better-xcloud.user.js` | `better-xcloud-preview.user.js` (+ `.meta.js`) |
-| Version | `1.8.0` | `1.8.0-preview3` |
+| Version | `1.8.0` | `1.8.0-preview4` |
 | @name | `Better xCloud` | `Better xCloud (Preview)` |
 | @match | `www.xbox.com/*/play*` (+ auth) | `play.xbox.com/*` **uniquement** |
-| Auto-update | `releases/latest` (stable) | `releases/download/better-xcloud-perf-1.8.0-preview3/*` (jamais le latest) |
-| Produit par | patches/ (baseline amont) | `build-preview.js` depuis le stable (overlay T1-T5) |
+| Auto-update | `releases/latest` (stable) | `releases/download/better-xcloud-perf-1.8.0-preview4/*` (jamais le latest) |
+| Produit par | patches/ (baseline amont) | `build-preview.js` depuis le stable (overlay T1-T9) |
 
 La séparation est **garantie par le build** (`checkTwoVersionInvariants`) :
 @name/@version/@updateURL distincts, @match disjoints (le preview ne matche
@@ -46,7 +46,7 @@ qui rend le build v1.8.0 sûr et utilisable sur play.xbox.com.
 
 | Fichier | Rôle |
 |---|---|
-| `build-preview.js` | build reproductible : `better-xcloud.user.js` → `better-xcloud-preview.user.js` (overlay T1-T4, CRLF pur, `node --check` + probes intégrés) |
+| `build-preview.js` | build reproductible : `better-xcloud.user.js` → `better-xcloud-preview.user.js` (overlay T1-T9, CRLF pur, `node --check` + probes intégrés) |
 | `classify.md` | classification des 13 patches (script-interne vs site-hook) avec preuves |
 | `anchors.md` | ancres React Router 7 issues des statics (route `settings`, `systems.settings`, `streaming.settings.*`) + stratégie + checklist runtime |
 | `session.md` | étude de la couche protocole de session (la surface partagée) : `clientStreamingConfigOverrides` wire-compatible 9/9, keep-alive `onServerDisconnectMessage` ancre identique, flags URL `session.configuration.*`, plan de portage P1-P3 |
@@ -57,9 +57,9 @@ qui rend le build v1.8.0 sûr et utilisable sur play.xbox.com.
 | `run-e2e0.sh` | **Étape 0 en une commande** : gates fetch-early + userscript-rewrite + play-chain (échec si rouge ; play-chain soft sans bundles) + probe-page (informatif, ou gate dur avec `--strict-probe` : hookActif:true exigé) + `--self-test` (rejoue le chemin d'échec sur une copie corrompue, exit 1 vérifié, build réel intact) — à lancer avant chaque session CDP ; branché au step preview de bench.yml (`--skip-probe`) |
 | `monitor-idle.js` | **Validation P1 en session réelle** (`bench/preview/monitor-idle.js`) : surveille console/réseau/état vidéo pendant une fenêtre AFK — interception du `WarningForBeingIdle` (log BX keep-alive), heartbeat natif `/keepalive`, survie de la session — runs P1-A témoin / P1-B T6 dans e2e-cdp.md |
 
-## L'overlay (T1-T8)
+## L'overlay (T1-T9)
 
-1. **T1 — header** : `@match https://play.xbox.com/*`, version `1.8.0-preview3`.
+1. **T1 — header** : `@match https://play.xbox.com/*`, version `1.8.0-preview4`.
 2. **T2 — détection** : `var BX_PREVIEW` (hostname `play.xbox.com`).
 3. **T3 — garde du Patcher site** : `Patcher.init()` et `checkChunks` no-op sur
    preview → aucun patch site (chunkName/requireAsync) ne risque de matcher
@@ -74,6 +74,18 @@ qui rend le build v1.8.0 sûr et utilisable sur play.xbox.com.
    hook fetch, pas d'overlay complet, pas de T5. `if (!BX_PREVIEW && …)` :
    main() tourne sur preview, la garde stable reste intacte. **Cause probable
    du « aucun overlay » sur la preview1.**
+7. **T7 — résilience dialog (remplacement document)** : le shell preview
+   REMPLACE le document au démarrage (document.open) — nœuds du
+   NavigationDialogManager et feuille de style orphelins sous l'ancien
+   `<html>` détaché. Interval 2 s : ré-append overlay/container si
+   `!isConnected` + re-`addCss()` si aucun `<style>` porteur.
+8. **T8 — P3 neutralisé (17 août)** : l'override `osName=tizen` est retiré
+   (`if (false)`) — le play part natif, A/B mesuré (no-op en PC : résolution
+   ET bitrate identiques).
+9. **T9 — settings dans la game bar (17 août)** : la page stream immersive
+   n'a ni nav ni header (navs:[]) → `SettingsAction` (engrenage) injectée
+   dans le GameBar, ouvre `SettingsDialog.getInstance().show()` — validé en
+   session réelle (dialog complet ouvert depuis la bar).
 
 ## Usage
 
