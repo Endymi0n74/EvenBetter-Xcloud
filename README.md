@@ -73,13 +73,13 @@ détaillé dans `bench/preview/port/README.md`) :
 | Rôle | Le fork optimisé classique — xbox.com/play (SPA Webpack, renderer WebGL2) | La variante du nouveau client web (React Router 7 + rolldown, renderer Babylon.js) |
 | Fichier | `better-xcloud.user.js` | `better-xcloud-preview.user.js` (+ `.meta.js`) |
 | Version | `1.8.0` | `1.8.0-preview4` (prerelease) |
-| @name | `Better xCloud` | `Better xCloud (Preview)` |
-| @match | `www.xbox.com/*/play*` | `play.xbox.com/*` uniquement |
+| `@name` | `Better xCloud` | `Better xCloud (Preview)` |
+| `@match` | `www.xbox.com/*/play*` | `play.xbox.com/*` uniquement |
 | Auto-update | `releases/latest` (canal stable) | tag dédié `better-xcloud-perf-1.8.0-preview4` (jamais le `latest`) |
 
 Les deux builds **cohabitent sans se confondre** : identité distincte
 (name/version/updateURL) et matches disjoints (le preview ne s'exécute jamais
-sur www.xbox.com). La séparation est vérifiée à chaque PR/push par le CI
+sur `www.xbox.com`). La séparation est vérifiée à chaque PR/push par le CI
 (step « Build preview — contrat deux versions ») — toute évolution du stable
 qui casserait le preview ou la séparation fait échouer le job.
 

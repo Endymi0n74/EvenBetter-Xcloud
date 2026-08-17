@@ -72,13 +72,13 @@ contract in `bench/preview/port/README.md`):
 | Role | The classic optimized fork — xbox.com/play (Webpack SPA, WebGL2 renderer) | The variant for the new web client (React Router 7 + rolldown, Babylon.js renderer) |
 | File | `better-xcloud.user.js` | `better-xcloud-preview.user.js` (+ `.meta.js`) |
 | Version | `1.8.0` | `1.8.0-preview4` (prerelease) |
-| @name | `Better xCloud` | `Better xCloud (Preview)` |
-| @match | `www.xbox.com/*/play*` | `play.xbox.com/*` only |
+| `@name` | `Better xCloud` | `Better xCloud (Preview)` |
+| `@match` | `www.xbox.com/*/play*` | `play.xbox.com/*` only |
 | Auto-update | `releases/latest` (stable channel) | dedicated tag `better-xcloud-perf-1.8.0-preview4` (never the `latest`) |
 
 Both builds **coexist without mixing**: distinct identity
 (name/version/updateURL) and disjoint matches (the preview never runs on
-www.xbox.com). The separation is verified on every PR/push by the CI
+`www.xbox.com`). The separation is verified on every PR/push by the CI
 ("Build preview — two-version contract" step) — any stable change that would
 break the preview or the separation fails the job.
 
