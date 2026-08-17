@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Better xCloud
 // @namespace    https://github.com/redphx
-// @version      1.7.0
+// @version      1.8.0
 // @description  Improve Xbox Cloud Gaming (xCloud) experience
 // @author       redphx
 // @license      MIT
@@ -13,7 +13,7 @@
 // @updateURL    https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.meta.js
 // @downloadURL  https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.user.js
 // ==/UserScript==
-/* OPTIMISATIONS v1.7.0:
+/* OPTIMISATIONS v1.8.0:
    - WebGL2: shader USM 4 echantillons bilineaires (gaussienne 3x3 exacte, 9 fetches -> 4 par pixel, draw GPU -30%)
    - Settings: codecProfile evalue paresseusement (RTCRtpReceiver.getCapabilities plus appele au chargement, ~15-20 ms de startup) - resultat memoise (constant par navigateur), options/unsupported/suggest calcules a la 1re lecture reelle (ouverture des settings / demarrage de session)
    - WebGL2: updateCanvas ne recalcule les 7 gl.uniform* que si les options/canvas ont change (flag dirty : chemin stable 60 Hz = 1 lecture + branche, au lieu de la comparaison complete de valeurs)

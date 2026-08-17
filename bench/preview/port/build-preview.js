@@ -8,7 +8,7 @@
  * (01-12, 21) sont déjà dans le build (script-interne pour la plupart — voir
  * classify.md) ; l'overlay porte :
  *
- *   T1  Header : +@match https://play.xbox.com/* , version 1.7.0-preview1
+ *   T1  Header : +@match https://play.xbox.com/* , version 1.8.0-preview1
  *   T2  Détection runtime : var BX_PREVIEW (hostname play.xbox.com)
  *   T3  Garde du Patcher site : Patcher.init()/checkChunks no-op sur preview
  *       (évite un match accidentel des patches site — chunkName/requireAsync —
@@ -39,7 +39,7 @@ const META_OUT = path.join(ROOT, "better-xcloud-preview.meta.js");
 const EOL = "\n";
 
 // ---- contrat « deux versions » : identité DISTINCTE du build preview ----
-const PREVIEW_VERSION = "1.7.0-preview1";
+const PREVIEW_VERSION = "1.8.0-preview1";
 const PREVIEW_NAME = "Better xCloud (Preview)";
 const PREVIEW_TAG = "better-xcloud-perf-" + PREVIEW_VERSION; // releases/download/<tag>/...
 
@@ -61,7 +61,7 @@ function build() {
   must(s, nameAnchor, "T1 @name");
   s = s.replace(nameAnchor, "// @name         " + PREVIEW_NAME + EOL);
 
-  const versionAnchor = "// @version      1.7.0" + EOL;
+  const versionAnchor = "// @version      1.8.0" + EOL;
   must(s, versionAnchor, "T1 @version");
   s = s.replace(versionAnchor, "// @version      " + PREVIEW_VERSION + EOL);
 
@@ -81,7 +81,7 @@ function build() {
     "// @downloadURL  https://github.com/Endymi0n74/better-xcloud-perf/releases/download/" + PREVIEW_TAG + "/better-xcloud-preview.user.js" + EOL);
 
   // l'en-tête OPTIMISATIONS signale la variante preview
-  const headerAnchor = "/* OPTIMISATIONS v1.7.0:";
+  const headerAnchor = "/* OPTIMISATIONS v1.8.0:";
   must(s, headerAnchor, "T1 header OPTIMISATIONS");
   s = s.replace(headerAnchor,
     "/* OPTIMISATIONS " + PREVIEW_VERSION + " — VARIANTE PREVIEW (play.xbox.com uniquement) :\n" +
