@@ -144,6 +144,31 @@ entry.worker.js (CDP brut)`). Stream : `launch-stream.js` + Retry (blip
   sur `retryButton` (ou reload) une fois le réseau rétabli ; l'interception
   reste attachée entre-temps.
 
+**Vérification rendu effectif (session CF49BC01, 17 août ~15:30)** — la
+résolution 1080p-hq (osName=tizen via P3) est appliquée au rendu :
+
+| Métrique | Valeur | Preuve |
+|---|---|---|
+| Chaîne CDP de la session | `[P3#3]` play→tizen + `[P2#3]` config réécrite | log intercept-session |
+| Résolution décodée | **1920×1080** | `video.videoWidth/videoHeight` (élément vidéo, pas l'upscale canvas) |
+| FPS effectif | **59,98 fps** (180 frames / 3,0 s, **0 dropped**) | sampling `getVideoPlaybackQuality()` |
+| Render target canvas | 2326×1308 (upscale plein écran) | `_renderTargetWidth/Height` |
+
+- **Lecture** : le serveur a répondu au play `osName=tizen` par un flux
+  **1080p60 réel** — la réécriture P3 agit sur la qualité sélectionnée côté
+  serveur. `session.deviceInformation.osName` reste `windows` (c'est la
+  télémétrie du client, pas le paramètre envoyé au serveur — ne pas s'y
+  fier pour vérifier P3).
+- **Piège manette (découvert le 17 août, même session)** : sur CF49BC01,
+  `enableVibration` était **false** sur TOUTES les inputConfiguration alors
+  que sessions 1-2 avaient true — cause : **0 manette connectée**
+  (`navigator.getGamepads()` vide) ; le SDK met la vibration à false sans
+  gamepad. Vérifier `manettes: N` avant de conclure sur P2 via la config
+  (la preuve C4 de la vibration reste la session 1, manette branchée).
+- **Rejouable** : `node bench/preview/render-check.js 9222 --sample=3
+  --chain=<log>` — gates A résolution / B FPS / C dropped / D chaîne
+  P3→P2 (self-test sans navigateur : `--self-test`).
+
 ## Prérequis
 
 - Session authentifiée play.xbox.com (compte Insider, Preview Features).
@@ -263,6 +288,62 @@ But : figer la baseline non modifiée, à comparer au run 1.
 4. Noter l'URL complète du play et de la configuration (elles servent de
    référence de forme pour le run 1).
 
+### Run 0 — exécution réelle du contrôle A/B (17 août ~15:27) — P3 sans gain de résolution
+
+**Piège découvert** : un premier « témoin » était **contaminé par la reprise de
+session** — après teardown incomplet, le serveur a rendu le **même GUID** que la
+session tizen (CF49BC01) au play natif (resource timing : tous les appels gssv
+depuis la navigation portaient CF49BC01). Contrôle invalide.
+
+Contrôle propre : teardown complet (navigation vers la home → session tizen
+terminée) → observateur passif `observe-play.js` (Fetch log seul, continueRequest
+inchangé) → stream natif → **GUID neuf 1156AA48-8AEB-4026-AE50-0297D2564CFB**.
+
+| Métrique | Tizen (P3, CF49BC01) | **Natif windows (1156AA48)** |
+|---|---|---|
+| play envoyé | osName=tizen (réécrit) + x-ms-device-info | osName=**windows**, x-ms-device-info complet (displayInfo 2560×1392) |
+| Résolution décodée | 1920×1080 | **1920×1080** |
+| FPS | 59,98 | **60,3** |
+| Frames perdues | 0 % | 0,6 % |
+| Overrides P2 dans le play | absents (P2 fusionne dans /configuration) | absents (natif) |
+
+**Verdict : P3 n'apporte AUCUN gain de résolution sur ce titre (Halo CE) en
+PC cloud gaming — les deux profils reçoivent 1080p60.** Le serveur plafonne le
+stream PC à 1080p quelle que soit la qualité demandée ; osName ne change pas la
+résolution allouée.
+
+### A/B bitrate (17 août ~13:45-13:58) — P3 sans gain de bitrate non plus
+
+Mesuré avec `bitrate-check.js` (nouveau — localise la session dans les fibers,
+`pc = session.streamStats.stream.peerConnection`, `getStats()` ×2 sur 12 s,
+Δbytes×8/Δt) :
+
+| Échantillon | Natif windows | Tizen (P3) |
+|---|---|---|
+| 1 | 6 576 kbps | 6 654 kbps |
+| 2 | 4 395 kbps | 4 610 kbps |
+| 3 | 5 954 kbps | 5 746 kbps |
+| **Médiane** | **~5 954 kbps** | **~5 746 kbps** |
+
+Tous les échantillons : **1080p60**, audio ~130 kbps. Les deux distributions
+se recouvrent intégralement (4,4-6,6 Mbps) — l'écart médian ~3 % est du bruit
+de contenu, pas un effet osName.
+
+**Réserve méthodologique** : la session tizen a servi sur le même slot serveur
+que le natif (GUID 7C346491 — la reprise de session persiste même après
+navigation home, redémarrage complet d'Edge et `session.disconnect()` SDK : le
+slot est lié au compte/titre). Le play tizen a bien été ré-émis et la
+/configuration re-servie à chaque fois, mais la re-provisioning de l'encodeur
+côté serveur n'est pas prouvée. Malgré cette réserve, **aucun des 6 échantillons
+tizen ne dépasse le max natif** — s'il y avait un effet qualité, on l'attendrait
+systématiquement au-dessus.
+
+**Décision P3 (17 août)** : l'override `osName=tizen` (+ device-info tizen) est
+un **no-op mesuré** sur PC — résolution ET bitrate identiques. Recommandation :
+le retirer du build à la prochaine release (P2 — fusion /configuration — reste
+le vrai bénéfice) ; en attendant, l'outil peut tourner sans réécriture du play
+(`--resolution=auto` → play laissé natif).
+
 ## Run 1 — intercepté
 
 But : prouver que l'outil réécrit les deux cibles sans casser le flux.
@@ -290,6 +371,54 @@ le kick d'idle serveur pendant une fenêtre AFK (aucun input utilisateur).
 fibers intégré au build, voir session.md) → le run P1-B peut valider le kick
 en réel. Le run P1-A (témoin, exécution 1) a montré un seuil d'idle du preview
 > 10 min : il faut une fenêtre longue pour voir le warning.
+
+### Recherche statique du seuil (17 août — bundles capturés D:\tmp\preview-player)
+
+**Verdict : il n'y a PAS de constante de seuil côté client — le seuil est
+CALCULÉ PAR LE SERVEUR.** Recherche exhaustive dans tous les bundles
+(`WarningForBeingIdle`, `secondsUntilKick`, `BeingIdle`, `KickForBeingIdle`,
+`idleTimeout`, `idleTimer`, `countdown`, `sessionIdleWarningEvent`) :
+
+| Fait | Preuve (StreamSessionRequest-iiux1fqv.js) |
+|---|---|
+| Le client reçoit `secondsUntilKick` du serveur | `t.reason===WarningForBeingIdle` → log `Warning for being idle; secondsUntilKick:${t.secondsUntilKick}` + trackEvent + dispatch |
+| L'événement dispatché n'a AUCUN écouteur | `qe=class … { static type=sessionIdleWarningEvent }` — la chaîne `sessionIdleWarningEvent` n'existe QUE dans la définition du SDK, aucun `.on(` dans entry.client |
+| Pas de countdown/kick local | aucun texte « disconnect in », aucun timer d'idle UI dans entry.client |
+| Le kick est un message SÉPARÉ du serveur | `KickForBeingIdle` → `doDisconnect()` (pas de minuterie locale) |
+
+- **Conséquence pour P1** : notre wrapSession sur `onServerDisconnectMessage`
+  est la SEULE ligne de défense possible (rien d'autre ne traite le warning
+  côté client) — architecture confirmée.
+- **Calibrage** : empiriquement seuil > 60 min (exécution 2 : 1 h AFK sans
+  warning). La prochaine fenêtre ne peut pas être calibrée par le statique ;
+  si une fenêtre 1 h ne montre toujours rien, conclure « pas de kick d'idle
+  observable en fenêtre raisonnable » plutôt que de chercher la constante.
+
+### Décision P1 (17 août) — validation clôturée, risque résiduel accepté
+
+**Fenêtre longue abandonnée** : une fenêtre AFK de 2 h (seuil supposé > 1 h)
+aurait été nécessaire pour borner le seuil serveur au-delà de 60 min —
+**impossible : le PC doit rester sans aucune interaction 2 h de suite**
+(indisponibilité utilisateur réelle, pas une limite technique). Aucune
+alternative : le timer d'idle est **serveur et basé sur l'absence d'input** —
+il ne peut être ni accéléré ni simulé (envoyer de l'input virtuel, c'est
+précisément ce que fait P1 et ça reset le timer).
+
+**État des preuves** :
+
+| Élément | Valeur |
+|---|---|
+| Seuil serveur | **> 60 min** (exécution 2 : 1 h AFK sans warning, 16 août) |
+| Défense en place | `wrapSession` branchée automatiquement (locator fibers, 16/16 tests) — `wrapped:true` vérifié en réel sur les sessions 17 août |
+| Seule ligne de défense possible | wrapSession sur `onServerDisconnectMessage` (rien d'autre ne traite le warning côté client — recherche statique) |
+| Mécanismes indépendants | heartbeat natif /keepalive (connexion) ≠ timer d'idle (input) — pas de conflit |
+
+**Décision** : P1 est classé **« défendu, seuil > 1 h, calibration au-delà non
+faite »** — validation clôturée. Le risque résiduel (kick possible entre 1 h et
+un seuil inconnu) est **accepté** : il est non quantifiable sans une fenêtre
+que l'utilisateur ne peut pas se permettre. Si un kick d'idle survient en
+usage réel, une fenêtre longue sera faite à ce moment-là — la défense
+(wrapSession) est déjà en place et n'a rien à changer.
 
 ### Les 3 mécanismes (étude session.md — à ne pas confondre)
 

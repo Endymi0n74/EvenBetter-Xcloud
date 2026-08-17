@@ -31,6 +31,16 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
   capture la chaîne). Play : `osName=tizen` (1080p) + `x-ms-device-info`.
   Réponse `/configuration` : fusion `enableVibration`/mkb/mic dans
   `clientStreamingConfigOverrides` (schéma Zod validé — p2-schema.test.js).
+  **A/B P3 mesuré 17 août** : résolution (contrôle propre GUID neuf
+  1156AA48, `observe-play.js`) ET bitrate (`bitrate-check.js`, 3 échantillons
+  ×12 s par profil) — natif windows = **1920×1080 @ 60 fps, ~5,95 Mbps**,
+  tizen = **1920×1080 @ 60 fps, ~5,75 Mbps** → **P3 sans gain mesurable en PC
+  cloud gaming** (résolution ET bitrate identiques). **Décision : retirer
+  l'override osName=tizen à la prochaine release** (P2 fusion /configuration
+  reste le vrai bénéfice). Piège reprise : le slot de session est lié au
+  compte/titre — navigation home, redémarrage Edge ET `session.disconnect()`
+  ne changent pas le GUID (7C346491 persistant) ; seul un 2e onglet (kick) ou
+  un long délai libère le slot.
 - **P1 keep-alive idle** : `keepalive-idle.js` (T5). **Verdict 16 août** : le
   module StreamSessionRequest est chargé en **ESM natif** → le hook fetch ne
   peut pas se brancher ; **wrapSession est la seule voie runtime**.
@@ -133,6 +143,12 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
   AVEC GUID. Le hook route par `endsWith("/sessions/cloud/play")`.
 - Réécriture **réponse** page-level (userscript) = invisible dans Network ;
   seul `Fetch.fulfillRequest` CDP l'affiche. Réécriture **requête** = visible.
+- **Reprise de session (17 août)** : après un teardown incomplet, le play natif
+  se voit rendre le MÊME GUID que la session tizen précédente (CF49BC01)
+  — contrôle A/B invalide. Teardown propre = navigation home (session
+  terminée) → play → vérifier GUID **neuf** dans le resource timing.
+- **P3 ne change pas la résolution en PC** : natif windows et tizen reçoivent
+  tous deux 1080p60 sur Halo CE (contrôle propre 17 août).
 - Double réécriture : hook actif → le CDP logue `[P3] original:tizen` (déjà
   réécrit avant le réseau).
 - `probe-page.js` : `hookActif` = présence de `window.BX_FETCH` (ne pas exiger
@@ -214,8 +230,22 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
    Journal : e2e-cdp.md « Run 1 — P2 (exécution 3) ».
 3. P1-B AFK : fenêtre 1 h exécutée (17 août, 09:10:59→10:10:59) — session
    survivante, AUCUN warning → **seuil d'idle preview > 60 min** (exécution 2
-   journalisée dans e2e-cdp.md). Prochaine : chercher le seuil statiquement
-   dans les bundles, ou conclure « pas de kick idle preview ».
+   journalisée dans e2e-cdp.md). **Recherche statique faite (17 août)** : PAS
+   de constante de seuil côté client — le serveur envoie `secondsUntilKick`
+   dans le message `WarningForBeingIdle` (StreamSessionRequest-iiux1fqv.js),
+   l'événement `sessionIdleWarningEvent` dispatché n'a AUCUN écouteur (pas de
+   countdown UI, pas de kick local — le kick est un message `KickForBeingIdle`
+   séparé). WrapSession sur onServerDisconnectMessage = SEULE ligne de
+   défense. Nouvelle fenêtre 1 h relancée 17 août 15:09 (monitor-afk-1h-v2.log,
+   session CF49BC01) après que la 1re tentative (15:02) est morte à 4,5 min
+   (reload du shell + dialog permission micro réapparu — cliqué Autoriser au
+   clavier, mémorisé dans le profil C:\edge-cdp). **DÉCISION P1 (17 août) :
+   validation clôturée.** Fenêtre longue (2 h) abandonnée — PC indisponible
+   2 h de suite, et le timer d'idle serveur ne peut être ni accéléré ni
+   simulé. Seuil > 60 min établi (exécution 2), wrapSession en place et
+   branchée en réel (`wrapped:true`), risque résiduel (kick entre 1 h et un
+   seuil inconnu) **accepté** — si un kick survient en usage réel, fenêtre
+   longue à ce moment-là. Journal : e2e-cdp.md « Décision P1 ».
 4. ✅ Fait — `run-e2e0.sh` au CI (step preview, `--skip-probe`) +
    `--strict-probe` (hookActif:true exigé) + chemin d'échec testé.
 5. ✅ Fait — localisation de la session au runtime + locator auto (voir P1).

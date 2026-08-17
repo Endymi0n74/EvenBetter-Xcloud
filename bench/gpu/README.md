@@ -28,7 +28,7 @@ chapitre Benchmarks du README principal.
 | `gpu-v150-webgl2player.txt` | Classe extraite du build v1.5.0 (idem v1.4.0 + cache uniforms `updateCanvas` — chemin GPU identique, re-mesure ×2,10/×1,49) |
 | `gpu-v160-webgl2player.txt` | Classe extraite du build v1.6.0 (idem v1.5.0 + flag dirty `updateCanvas` — `updateFrame` et shader octet pour octet identiques, table GPU v1.4.0/v1.5.0 valide) |
 | `gpu-v170-webgl2player.txt` | **Prototype v1.7.0** : classe v1.6.0 avec le chemin USM du fragment shader remplacé — gaussienne 3×3 exacte en 4 échantillons bilinéaires (±0,5 texel) au lieu de 9 fetches. Seed 42 : draw GPU 10,24 → 7,17 µs (−30 %), ratio perf10/build 1,43. **Intégré au build v1.7.0 le 17 août** (patch 22) — re-mesure du build confirmée, validation visuelle reste à faire |
-| `gpu-v170-usm-webgl2player.txt` | Classe extraite du **build v1.7.0 réel** (17 août, patch 22 appliqué) — re-mesure seed 42 : draw 10,24 → 7,17 µs (−30,0 %), identique au prototype sur les 3 passes |
+| `gpu-v170-usm-webgl2player.txt` | Classe extraite du **build v1.8.0 réel** (17 août, patch 22 appliqué) — re-mesure seed 42 : draw 10,24 → 7,17 µs (−30,0 %), identique au prototype sur les 3 passes |
 | `gpu-runner-webgpu.js` | Harnais **WebGPU** (`WebGPUPlayer`, Dawn/D3D12) : draw hors-écran en batch de N frames à 1080p, `onSubmittedWorkDone` comme barrière de complétion (timestamp queries mortes sur cet Edge), split émission/sync, passes croisées par seed |
 | `visual-diff.js` | **Validation visuelle du shader** : rend les variantes v1.6.0 (9 taps) / v1.7.0 (4 taps) / perf10 sur une vidéo de texte fin (4 cartes statiques), diff pixel à pixel (identité = 0, isolation/équivalence ±1/255), self-checks, exit code, **sortie images** (screenshots des variantes, diff mask, montage, heatmap → `shots/`) — section dédiée ci-dessous |
 | `report-html.js` | Générateur de **rapport HTML autonome** depuis `visual-diff.json` + `shots/` : banner de verdict, table de synthèse, stats gate/INFO et montages par cas (images embarquées en base64 → un seul fichier déplaçable, lightbox) → `visual-diff-report.html` (gitignoré) |
@@ -225,12 +225,13 @@ Résultat (16 août, soirée, upload en état haut ×1,8 — le draw n'en dépen
 
 Le gain est strictement GPU-side (compteurs GL identiques : texSubImage2D 1,
 drawArrays 1, 0 uniform/frame). À 1080p (9× les pixels) il extrapole ~30 µs/frame.
-**INTÉGRÉ au build v1.7.0 le 17 août** (patch 22 — le fragment shader WebGL2 de
+**INTÉGRÉ au build v1.8.0 le 17 août** (patch 22 — le fragment shader WebGL2 de
 `better-xcloud.user.js` porte maintenant la variante 4 taps, vérifié identique au
-prototype). **Re-mesure du build réel confirmée le 17 août** (seed 42,
+prototype ; préparé comme candidat v1.7.0, la release porte la version v1.8.0).
+**Re-mesure du build réel confirmée le 17 août** (seed 42,
 `gpu-v170-usm-webgl2player.txt` via `extract-class.js`) : draw 10,24 → 7,17 µs,
 **−30,0 %** — identique au prototype sur les 3 passes. **Validation visuelle
-acquise le 17 août** (`visual-diff.js`, gate v1.6.0 9 taps → v1.7.0 4 taps sur
+acquise le 17 août** (`visual-diff.js`, gate v1.6.0 9 taps → v1.8.0 4 taps sur
 texte fin : identité sharpness 0 bit-identique, équivalence ±1-ULP sur ≤ 0,002 %
 des pixels — section dédiée ci-dessous).
 

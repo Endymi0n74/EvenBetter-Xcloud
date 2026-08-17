@@ -252,7 +252,7 @@ les bundles locaux, drift check de `static-matrix.md`) — voir
 `bench/preview/README.md`.
 
 Le **portage app-shell vers le preview** (`bench/preview/port/`) produit le
-build `better-xcloud-preview.user.js` (v1.7.0-preview1) : `build-preview.js`
+build `better-xcloud-preview.user.js` (v1.8.0-preview2) : `build-preview.js`
 (overlay détection `play.xbox.com` + garde du Patcher site + entrée settings),
 `classify.md` (les 13 patches app-shell 01-12/21 sont script-internes, preuve à
 l'appui) et `anchors.md` (ancres React Router 7 issues des statics : route

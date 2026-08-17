@@ -7,16 +7,17 @@ index 4926cd2..d7cd207 100644
  // @name         Better xCloud
  // @namespace    https://github.com/redphx
 -// @version      6.7.12-perf10
-+// @version      1.7.0
++// @version      1.8.0
  // @description  Improve Xbox Cloud Gaming (xCloud) experience
  // @author       redphx
  // @license      MIT
-@@ -13,7 +13,8 @@
+@@ -13,7 +13,9 @@
  // @updateURL    https://raw.githubusercontent.com/redphx/better-xcloud/typescript/dist/better-xcloud.meta.js
  // @downloadURL  https://github.com/redphx/better-xcloud/releases/latest/download/better-xcloud.user.js
  // ==/UserScript==
 -/* OPTIMISATIONS v6.7.12-perf10:
-+/* OPTIMISATIONS v1.7.0:
++/* OPTIMISATIONS v1.8.0:
++   - WebGL2: shader USM 4 echantillons bilineaires (gaussienne 3x3 exacte, 9 fetches -> 4 par pixel, draw GPU -30%)
 +   - Settings: codecProfile evalue paresseusement (RTCRtpReceiver.getCapabilities plus appele au chargement, ~15-20 ms de startup) - resultat memoise (constant par navigateur), options/unsupported/suggest calcules a la 1re lecture reelle (ouverture des settings / demarrage de session)
     - Patcher: Set O(1) au lieu de indexOf O(n)
     - Patcher: suppression du splice() redondant

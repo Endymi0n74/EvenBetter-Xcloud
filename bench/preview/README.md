@@ -210,6 +210,71 @@ configuration), du flux CDP simulé (continueRequest / getResponseBody /
 fulfillRequest) et de l'intégration service worker (`installSWInterceptor` :
 SW existant + futur, P3/P2 depuis la session SW), 45 assertions.
 
+## Vérification du rendu effectif (`render-check.js`)
+
+Prouve que la config réécrite (P3+P2) est appliquée au RENDU de la session
+live : résolution décodée (`video.videoWidth/Height` — pas l'upscale canvas),
+FPS réel (sampling `getVideoPlaybackQuality`), état session (connectionState,
+`_bxKeepAliveWrapped`, enableVibration), et — si le log d'interception est
+fourni — la chaîne CDP `[P3]→[P2]` (même `#N`) reliée au GUID de la session
+live (préfixe 13 chars, le log tronque les URLs à 90).
+
+```
+node bench/preview/render-check.js 9222 [--sample=3] [--min-width=1920] \
+    [--min-height=1080] [--min-fps=50] [--chain=<log intercept-session>] [--json]
+node bench/preview/render-check.js --self-test   # parsing + gates, sans navigateur
+```
+
+Gates (exit 1 si rouge) : **A** résolution ≥ min (défaut 1920×1080), **B** FPS ≥
+min-fps (défaut 50), **C** frames dropped ≤ 5 %, **D** (si `--chain`) chaîne
+P3(tizen)→P2 présente et GUID == session live. Validé en réel le 17 août
+(session CF49BC01) : 1920×1080, 59,98 fps / 0 dropped, `[P3#3]→[P2#3]`.
+**Piège** : `enableVibration` n'est significatif qu'avec une manette connectée
+(le SDK le met à `false` sans gamepad — vérifié le 17 août) ; le rapport
+affiche `manettes: N` à côté.
+
+## Observateur passif du play (`observe-play.js`) — côté témoin du A/B P3
+
+Log le **play natif** (postData + headers) et la réponse SANS rien modifier
+(`Fetch.continueRequest` inchangé) — le miroir du Run 1 : il capture ce que le
+client envoie réellement quand aucune réécriture n'est active, pour quantifier
+le gain de P3 (témoin vs intercepté).
+
+```
+node bench/preview/observe-play.js [--port=9222] [--json]
+node bench/preview/observe-play.js --self-test   # parsing, sans navigateur
+```
+
+Sortie par play vu : `osName`, `x-ms-device-info` (présence + displayInfo),
+`hasVibration` (override P2 présent dans le play ?), `sessionPath` (reprise ?).
+**Piège reprise de session** (découvert le 17 août) : après un teardown
+incomplet, le play natif peut se voir rendre le **même GUID** que la session
+précédente (tizen) — contrôle invalide. Teardown propre = navigation vers la
+home (session terminée) avant le play, puis vérifier que le resource timing
+affiche un **GUID neuf**. Contrôle réel du 17 août : play natif
+`osName=windows` + x-ms-device-info (displayInfo 2560×1392) → GUID
+1156AA48-8AEB-4026-AE50-0297D2564CFB → **1920×1080 @ 60,3 fps**, identique au
+profil tizen (1920×1080 @ 59,98) → **P3 sans gain de résolution mesurable sur
+ce titre** (détails dans `port/e2e-cdp.md`, section Run 0).
+
+## Mesure du bitrate de session (`bitrate-check.js`) — côté A/B P3
+
+Quantifie le débit réel d'une session live : localise la session SDK dans les
+fibers (locator check-wrap), `pc = session.streamStats.stream.peerConnection`,
+`getStats()` ×2 sur N secondes → **bitrate vidéo/audio** (Δbytes×8/Δt) + fps +
+résolution + qualité (Δqp). Complète `render-check.js` (résolution/FPS) pour le
+comparatif tizen vs natif.
+
+```
+node bench/preview/bitrate-check.js [port] [--sample=12] [--json]
+node bench/preview/bitrate-check.js --self-test   # parsing, sans navigateur
+```
+
+Résultat réel du 17 août (Halo CE, 3 échantillons ×12 s par profil) : natif
+windows **4 395-6 576 kbps (méd. ~5 954)** vs tizen **4 610-6 654 kbps (méd.
+~5 746)**, tous en 1080p60 → distributions superposées, **pas d'effet osName
+sur le bitrate** (détails et réserve méthodologique dans `port/e2e-cdp.md`).
+
 ## Module d'injection P2 (`bench/preview/p2-inject.js`)
 
 Source unique de la fusion des overrides du stable dans

@@ -1,11 +1,11 @@
-# better-xcloud-perf — v1.7.0
+# better-xcloud-perf — v1.8.0
 
 [![Release](https://img.shields.io/github/v/release/Endymi0n74/better-xcloud-perf?style=for-the-badge&color=green)](https://github.com/Endymi0n74/better-xcloud-perf/releases/latest)
 [![Install](https://img.shields.io/badge/Install-userscript-blue?style=for-the-badge)](https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.user.js)
 
 Fork performance du userscript [Better xCloud](https://github.com/redphx/better-xcloud)
 (redphx), orienté **performance**. Dernière release :
-[better-xcloud-perf-v1.7.0](https://github.com/Endymi0n74/better-xcloud-perf/releases/tag/better-xcloud-perf-v1.7.0).
+[better-xcloud-perf-v1.8.0](https://github.com/Endymi0n74/better-xcloud-perf/releases/tag/better-xcloud-perf-v1.8.0).
 
 Ce dépôt contient le script **buildé** (`better-xcloud.user.js`) — c'est le
 fichier à installer tel quel dans un gestionnaire d'userscripts. Les
@@ -70,10 +70,10 @@ détaillé dans `bench/preview/port/README.md`) :
 |---|---|---|
 | Rôle | Le fork optimisé classique — xbox.com/play (SPA Webpack, renderer WebGL2) | La variante du nouveau client web (React Router 7 + rolldown, renderer Babylon.js) |
 | Fichier | `better-xcloud.user.js` | `better-xcloud-preview.user.js` (+ `.meta.js`) |
-| Version | `1.7.0` | `1.7.0-preview1` (prerelease) |
+| Version | `1.8.0` | `1.8.0-preview2` (prerelease) |
 | @name | `Better xCloud` | `Better xCloud (Preview)` |
 | @match | `www.xbox.com/*/play*` | `play.xbox.com/*` uniquement |
-| Auto-update | `releases/latest` (canal stable) | tag dédié `better-xcloud-perf-1.7.0-preview1` (jamais le `latest`) |
+| Auto-update | `releases/latest` (canal stable) | tag dédié `better-xcloud-perf-1.8.0-preview2` (jamais le `latest`) |
 
 Les deux builds **cohabitent sans se confondre** : identité distincte
 (name/version/updateURL) et matches disjoints (le preview ne s'exécute jamais
@@ -93,12 +93,15 @@ https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better
 Preview Features activé) :
 
 ```
-https://github.com/Endymi0n74/better-xcloud-perf/releases/download/better-xcloud-perf-1.7.0-preview1/better-xcloud-preview.user.js
+https://github.com/Endymi0n74/better-xcloud-perf/releases/download/better-xcloud-perf-1.8.0-preview2/better-xcloud-preview.user.js
 ```
 
-Le preview est **encore en validation runtime** : sélecteurs du bouton settings
-(T4) et voie de chargement du module keep-alive (P1) sont des candidats à
-confirmer en session authentifiée. Le stable n'est jamais affecté.
+Le preview est **jouable et validé en réel (17 août)** : bouton settings dans le
+top bar + dialog ouvert (T4/T7 — résilience au remplacement du document par le
+shell), réécriture P2 de la session prouvée (`enableVibration`/mkb/mic dans la
+configuration de la session live). P1 (anti-kick idle) est en place via
+`wrapSession` — seuil d'idle serveur observé > 1 h. Le stable n'est jamais
+affecté.
 
 ## Optimisations perf11 + perf13
 
@@ -138,7 +141,7 @@ absolue mais la comparaison relative entre les deux builds.
 
 ### Chargement (parse + éval de page)
 
-| Mesure | perf10 | v1.6.0 | v1.7.0 | Δ v1.7.0 vs perf10 |
+| Mesure | perf10 | v1.6.0 | v1.8.0 | Δ v1.8.0 vs perf10 |
 |---|---|---|---|---|
 | Parse/compile (Node `new Function`, ×300/passe, médiane de 3 passes) | ~0,11–0,12 ms | ~0,10–0,11 ms | ~0,12 ms | non mesurable : bruit sub-ms ±10–20 % |
 | Éval complète de page (Edge headless, `document-start`, 20 runs, médiane — pile RTC chaude) | 26,5 ms (min 23,7) | ~25 ms (min 22) | **24,2 ms** (min 21,1) | **−8,7 %** |
@@ -161,7 +164,8 @@ absolue mais la comparaison relative entre les deux builds.
 La série perf11 (re-mesurée sur le build v1.6.0 officiel) visait le **runtime**
 (hot loops, GPU, caches), pas le chargement — confirmé v1.6.0 : coût de démarrage identique.
 
-**v1.7.0 attaque enfin le chargement** : `stream.video.codecProfile` était évalué
+**Le chargement a été attaqué en v1.7.0** (éval paresseuse de `codecProfile`),
+**conservé inchangé en v1.8.0** : `stream.video.codecProfile` était évalué
 au chargement (options statiques des définitions), et `RTCRtpReceiver.getCapabilities("video")`
 coûte **667 ms à froid** (96 % du eval document-start) dans un Edge neuf — l'init de la
 pile RTC est synchrone et bloquante. L'évaluation est maintenant **paresseuse** (1re
@@ -278,6 +282,13 @@ WebGL2, méthodes GL instrumentées (compteurs) et rasterisation mesurée via
 > chaque seed a une sync élevée (65-239 µs) puis chute à 13-24 µs dès la
 > 2e passe (5/6 seeds) ; le préchauffage (50 uploads) ne stabilise pas le
 > readback (amélioration harnais à faire : préchauffer le readback).
+> **v1.8.0 — shader USM 4 taps** (patch 22, release du 17 août) : le fragment
+> shader WebGL2 passe de 9 fetches à une gaussienne 3×3 exacte en 4
+> échantillons bilinéaires (±0,5 texel) — draw GPU **10,24 → 7,17 µs (−30 %)**
+> (re-mesure seed 42 du build réel, identique au prototype sur les 3 passes) ;
+> upload et wall **inchangés** (le patch ne touche que le shader). Équivalence
+> visuelle validée (`bench/gpu/visual-diff.js`) : sharpness bit-identique
+> (maxAbs 0), ≤ 0,002 % des pixels à ±1 ULP fp32 — gate CI au job gpu-upload.
 
 | Mesure | perf10 | v1.6.0 | Δ |
 |---|---|---|---|
@@ -309,6 +320,7 @@ draw, jamais les absolus.
 | Soir 15 août — re-mesure (6 seeds + état machine) | v1.6.0 | 42,2–77,7 | 7,7–11,8 | **×5,47** | bas | 24,5 (19,5–75) | **33,3** (29–83,8) | 10,2 vs 9,2 | émission ≤ 25,00 µs · wall ≤ 0,10 ms · draw ≤ 25,00 µs | ✅ |
 | Nuit 15 août — phase capturée (6 seeds) | v1.6.0 | 57,25 (51,25–60,50) | 11,00 (9,00–11,75) | **×5,20** | bas | 16,75 (15,00–26,25) | **26,25** (25,25–34,25) | 11,26 vs 10,24 | émission ≤ 25,00 µs · wall ≤ 0,10 ms · draw ≤ 25,00 µs | ✅ |
 | CI 15 août (6 seeds, runner self-hosted Windows/GPU) | v1.6.0 | 47,50 (45,50–52,50) | 10,00 (8,25–11,75) | **×4,75** | bas | 17,25 (14,75–25,25) | **26,75** (24,25–35,50) | 10,24 vs 10,24 | émission ≤ 25,00 µs · wall ≤ 0,10 ms · draw ≤ 25,00 µs | ✅ |
+| 17 août — build v1.8.0 USM (seed 42, re-mesure du build réel) | v1.8.0 | — | — | — | — | — | — | 10,24 vs **7,17** | draw ≤ 25,00 µs · émission ≤ 25,00 µs · wall ≤ 0,10 ms | ✅ |
 
 _Colonnes **Borne**/**Statut** : bornes absolues du build (émission ≤ 25 µs, wall ≤ 0,10 ms, draw ≤ 25 µs — calibrées sur le runner CI). Les sessions antérieures au split émission/sync ou en état haut/mixte (absolus non comparables, « seuls les ratios comptent ») sont marquées « — ». Générées par `check-gpu.js` (`--update-readme`)._
 
@@ -332,8 +344,11 @@ anomal (15,4 µs) n’est pas reproductible (artéfact ponctuel)._
 
 Lecture des résultats :
 
-- Le **draw** (rasterisation) coûte pareil dans les deux versions (10,2 vs
-  9,2 µs, ratio 1,1) — même shader, même résolution : attendu.
+- Le **draw** (rasterisation) coûtait pareil dans les deux versions (10,2 vs
+  9,2 µs, ratio 1,1) — même shader ; **depuis v1.8.0**, le shader USM 4 taps
+  (gaussienne 3×3 exacte en 4 échantillons bilinéaires au lieu de 9 fetches)
+  le fait passer à **7,17 µs (−30 %)** côté build (perf10 inchangé, 10,24 µs),
+  équivalence visuelle validée (gate CI).
 - Le vrai levier est l'**upload vidéo** : `texImage2D` **réalloue le storage
   GPU de la texture à chaque frame** (~×2,1 le coût d'un `texSubImage2D` dans
   un storage immuable). C'est le bénéfice mesurable des patches 13/16 côté GPU

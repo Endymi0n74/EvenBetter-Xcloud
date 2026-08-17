@@ -1,7 +1,7 @@
 # Portage app-shell du preview (play.xbox.com)
 
 État : **v1 — infrastructure + détection + garde + entrée settings (candidats)**.
-La branche de travail porte le build `better-xcloud-preview.user.js` (v1.7.0-preview1).
+La branche de travail porte le build `better-xcloud-preview.user.js` (v1.8.0-preview2).
 
 ## Contrat « deux versions » (stable et preview distincts, toujours)
 
@@ -10,10 +10,10 @@ Le repo maintient **deux builds indépendants, jamais fusionnés** :
 | | Stable | Preview |
 |---|---|---|
 | Fichier | `better-xcloud.user.js` | `better-xcloud-preview.user.js` (+ `.meta.js`) |
-| Version | `1.7.0` | `1.7.0-preview1` |
+| Version | `1.8.0` | `1.8.0-preview2` |
 | @name | `Better xCloud` | `Better xCloud (Preview)` |
 | @match | `www.xbox.com/*/play*` (+ auth) | `play.xbox.com/*` **uniquement** |
-| Auto-update | `releases/latest` (stable) | `releases/download/better-xcloud-perf-1.7.0-preview1/*` (jamais le latest) |
+| Auto-update | `releases/latest` (stable) | `releases/download/better-xcloud-perf-1.8.0-preview2/*` (jamais le latest) |
 | Produit par | patches/ (baseline amont) | `build-preview.js` depuis le stable (overlay T1-T5) |
 
 La séparation est **garantie par le build** (`checkTwoVersionInvariants`) :
@@ -40,7 +40,7 @@ protocole de session (`StreamSessionConfiguration`, `adapter_core` RTC, WebCodec
 
 → Les **13 patches app-shell (01-12, 21) sont script-internes** (preuve dans
 `classify.md`) : ils portent tels quels. Le portage se réduit à un **overlay**
-qui rend le build v1.7.0 sûr et utilisable sur play.xbox.com.
+qui rend le build v1.8.0 sûr et utilisable sur play.xbox.com.
 
 ## Ce qui est livré
 
@@ -59,7 +59,7 @@ qui rend le build v1.7.0 sûr et utilisable sur play.xbox.com.
 
 ## L'overlay (T1-T6)
 
-1. **T1 — header** : `@match https://play.xbox.com/*`, version `1.7.0-preview1`.
+1. **T1 — header** : `@match https://play.xbox.com/*`, version `1.8.0-preview2`.
 2. **T2 — détection** : `var BX_PREVIEW` (hostname `play.xbox.com`).
 3. **T3 — garde du Patcher site** : `Patcher.init()` et `checkChunks` no-op sur
    preview → aucun patch site (chunkName/requireAsync) ne risque de matcher
