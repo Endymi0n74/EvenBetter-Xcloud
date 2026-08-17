@@ -31,8 +31,11 @@ patchtest*/
 
 # Harnais GPU (bench/gpu) : artefacts générés, non versionnés
 bench/gpu/test.webm
+bench/gpu/test-text.webm
 bench/gpu/run-s*.json
 bench/gpu/state-s*.json
+bench/gpu/visual-diff.json
+bench/gpu/shots/
 bench/state-cpu-s*.json
 bench/state-cpu-ci.*.json
 

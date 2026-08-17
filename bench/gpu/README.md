@@ -30,6 +30,7 @@ chapitre Benchmarks du README principal.
 | `gpu-v170-webgl2player.txt` | **Prototype v1.7.0** : classe v1.6.0 avec le chemin USM du fragment shader remplacé — gaussienne 3×3 exacte en 4 échantillons bilinéaires (±0,5 texel) au lieu de 9 fetches. Seed 42 : draw GPU 10,24 → 7,17 µs (−30 %), ratio perf10/build 1,43. **Intégré au build v1.7.0 le 17 août** (patch 22) — re-mesure du build confirmée, validation visuelle reste à faire |
 | `gpu-v170-usm-webgl2player.txt` | Classe extraite du **build v1.7.0 réel** (17 août, patch 22 appliqué) — re-mesure seed 42 : draw 10,24 → 7,17 µs (−30,0 %), identique au prototype sur les 3 passes |
 | `gpu-runner-webgpu.js` | Harnais **WebGPU** (`WebGPUPlayer`, Dawn/D3D12) : draw hors-écran en batch de N frames à 1080p, `onSubmittedWorkDone` comme barrière de complétion (timestamp queries mortes sur cet Edge), split émission/sync, passes croisées par seed |
+| `visual-diff.js` | **Validation visuelle du shader** : rend les variantes v1.6.0 (9 taps) / v1.7.0 (4 taps) / perf10 sur une vidéo de texte fin (4 cartes statiques), diff pixel à pixel (identité = 0, isolation/équivalence ±1/255), self-checks, exit code, **sortie images** (screenshots des variantes, diff mask, montage, heatmap → `shots/`) — section dédiée ci-dessous |
 | `gpu-webgpu-9tap.txt` | Classe `WebGPUPlayer` extraite de HEAD (USM 9 fetches) |
 | `gpu-webgpu-4tap.txt` | Variante expérimentale 4 taps bilinéaires — mesurée **PLUS LENTE** sur Dawn/D3D12, build reverté (voir section « USM WebGPU ») |
 | `gpu-v130-webgl2player.txt` | Classe v1.3.0 (historique, bug `gl.RGB` non corrigé) |
@@ -227,9 +228,10 @@ drawArrays 1, 0 uniform/frame). À 1080p (9× les pixels) il extrapole ~30 µs/f
 `better-xcloud.user.js` porte maintenant la variante 4 taps, vérifié identique au
 prototype). **Re-mesure du build réel confirmée le 17 août** (seed 42,
 `gpu-v170-usm-webgl2player.txt` via `extract-class.js`) : draw 10,24 → 7,17 µs,
-**−30,0 %** — identique au prototype sur les 3 passes. Reste : **validation
-visuelle du rendu** (le harnais GPU ne peut pas prouver l'équivalence visuelle —
-vérifier le USM en session sur du texte fin).
+**−30,0 %** — identique au prototype sur les 3 passes. **Validation visuelle
+acquise le 17 août** (`visual-diff.js`, gate v1.6.0 9 taps → v1.7.0 4 taps sur
+texte fin : identité sharpness 0 bit-identique, équivalence ±1-ULP sur ≤ 0,002 %
+des pixels — section dédiée ci-dessous).
 
 ## USM WebGPU — verdict : 4 taps PLUS LENT sur Dawn/D3D12 (17 août)
 
@@ -255,6 +257,90 @@ fetches directs — l'avantage constaté en WebGL2 était **spécifique à
 ANGLE/D3D11**. **Build reverté le 17 août** : le shader WebGPU garde le 9 taps,
 aucun patch 23. `gpu-webgpu-4tap.txt` est conservé pour rejouer la mesure ;
 `gpu-runner-webgpu.js` reste disponible pour de futures mesures WebGPU.
+
+## Validation visuelle du shader — USM 4 taps vs 9 taps (`visual-diff.js`)
+
+Le harnais GPU prouve la **performance** (draw −30 %), pas l'équivalence de
+**rendu** : les 4 échantillons bilinéaires (±0,5 texel) sont algébriquement
+identiques à la gaussienne 3×3 en 9 fetches (vérifié bit-identique en fp64),
+mais le rendu réel peut diverger (précision du filtre bilinéaire HW, ordre des
+sommes, scheduling du compilateur GLSL). `visual-diff.js` rend TROIS variantes
+sur du **texte fin** (pire cas : contours à fort contraste) dans le vrai
+backend (Edge/ANGLE) et compare pixel à pixel :
+
+- **v1.6.0** (`gpu-v160-webgl2player.txt`) : USM 9 taps, upload
+  texStorage2D/RGB8 — le contrôle qui **isole le patch 22** (les deux classes
+  ne diffèrent QUE de la ligne du shader, vérifié : diff d'1 seule ligne).
+- **v1.7.0** (`gpu-v170-usm-webgl2player.txt`) : USM 4 taps, MÊME upload.
+- **perf10** (`gpu-perf10-webgl2player.txt`) : diffère AUSSI du chemin
+  d'upload (texImage2D, patches 13-20) → table INFO, pas un gate.
+
+Trois niveaux de vérification sur le gate v1.6.0 → v1.7.0 :
+
+| Niveau | Réglage | Seuil | Sens |
+|---|---|---|---|
+| **Identité** | `usm`, sharpness 0 | `maxAbs == 0` | les deux renvoient `e` inchangé → diff EXACTEMENT 0 (preuve de câblage) |
+| **Isolation** | `cas`, sharpness 2 | `maxAbs ≤ 2` + `pct(>1) ≤ 0,1 %` | le bloc CAS est identique ; le return anticipé du 4 taps peut réordonner le scheduling → 1-ULP fp32 toléré |
+| **Équivalence** | `usm`, sharpness 2 et 10 | `maxAbs ≤ 2` + `pct(>1) ≤ 0,1 %` | mêmes poids, ordre d'évaluation différent ; une régression d'offsets/pondération produit des écarts ≥ 8 sur les contours → FAIL |
+
+Mécanique : vidéo de texte fin générée en navigateur (4 cartes statiques de
+8-12 px, canvas + captureStream, `test-text.webm` gitignoré), seek sur chaque
+carte (temps strictement croissants — piège Edge : un seek ARRIÈRE proche de la
+fin remet `currentTime` à 0, le harnais échoue si le seek ne tombe pas),
+3 rendus par cas (2 échantillons par variante pour le self-check de
+déterminisme), diff calculé **en page** (renvoyer les pixels vers Node
+saturait le heap), stats seules au rapport (`visual-diff.json`, gitignoré).
+
+**Comparaison image par image** (sortie par défaut, `--no-images` pour
+l'éteindre) : chaque cas produit 6 PNG dans `--out-dir` (défaut
+`bench/gpu/shots/`, gitignoré) — les screenshots des 3 variantes
+(`shot-<id>.perf10/.v160/.v170.png`), l'image de diff (`shot-<id>.diff.png` :
+v1.7.0 avec les pixels différents recolés par magnitude — 1 → rouge,
+2-3 → orange, 4-15 → jaune, ≥16 → blanc), le montage labelisé
+(`shot-<id>.montage.png` : perf10 | v1.6.0 | v1.7.0 | diff) et la heatmap 16×9
+de localisation (`shot-<id>.heat.png`, compteurs par tuile aussi dans le
+rapport JSON). Les screenshots sont reconstruits depuis les buffers readPixels
+(réinversion Y) — pas de `toDataURL` direct sur les canvases WebGL
+(`preserveDrawingBuffer:false` → noir).
+
+```bash
+node bench/gpu/visual-diff.js                 # protocole complet (défaut 640×360) + images
+node bench/gpu/visual-diff.js --size=960x540   # résolution supérieure (vidéo régénérée)
+node bench/gpu/visual-diff.js --headed         # fenêtre visible (debug)
+node bench/gpu/visual-diff.js --keep-video     # réutilise test-text.webm
+node bench/gpu/visual-diff.js --no-images      # gate seul, sans PNG
+node bench/gpu/visual-diff.js --out-dir=/tmp/shots
+```
+
+**Résultat 17 août (Edge 152, ANGLE/D3D11, RTX 3070) — GATE TOUT PASS** :
+
+| Taille | Cas | maxAbs | pixels > 0 | pixels > 1 | Verdict |
+|---|---|---|---|---|---|
+| 640×360 | usm sharp0 (identité) | 0 | 0 % | 0 % | PASS (identique) |
+| 640×360 | cas sharp2 (isolation) | 1 | ~0,000 % | 0 % | PASS (±1/255) |
+| 640×360 | usm sharp2 (cartes 1/4) | 1 | 0,002 % | 0 % | PASS (±1/255) |
+| 640×360 | usm sharp10 (cartes 2/3) | **0** | 0 % | 0 % | PASS (identique) |
+| 960×540 | idem (6 cas) | 1 | ≤ 0,0008 % | 0 % | PASS (±1/255) |
+
+Localisation (heatmap 16×9, run 640×360) : les pixels différents (3-4 par cas)
+vivent uniquement dans les tuiles du texte (col0 row8 pour la carte 1, col3
+row7 pour la carte 4) ; les cas bit-identiques (sharp 0/10) ont une heatmap
+vide. Les images correspondantes sont dans `bench/gpu/shots/` (ex.
+`shot-usm-sharp2-card1.montage.png`).
+
+Le sharpness 10 est **bit-identique** sur les cartes 2/3 ; seuls les plus
+petits textes (8-9 px, cartes 1/4) montrent 1-ULP fp32 sur une poignée de
+pixels (0,002 %, maxAbs 1) — invisible à l'œil (1/255). La table INFO
+(perf10 → v1.7.0, upload + shader cumulés) montre maxAbs 44-74 sur ~0,2-0,4 %
+des pixels : ce sont les pixels de contours où la conversion d'upload
+(texImage2D RGB vs texStorage2D RGB8) diffère d'un cran — différence prévue
+et déjà acceptée depuis les v1.4.0-v1.6.0, PAS un effet du patch 22.
+
+**Validation visuelle du patch 22 : ACQUISE.** L'étape « session réelle »
+reste un sanity check optionnel (streamer un jeu à l'UI textuelle dense,
+comparer l'œil nu à sharpness identique) — le harnais couvre l'équivalence
+pixel à pixel sur le pire cas, ce que la session ne peut pas faire
+précisément (contenu non contrôlé).
 
 ## Pièges du harnais
 

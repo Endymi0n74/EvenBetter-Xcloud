@@ -84,8 +84,14 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
   `onSubmittedWorkDone` car timestamp queries mortes sur Edge 152). Le gain
   WebGL2 était spécifique à ANGLE/D3D11. Build reverté, pas de patch 23 —
   le shader WebGPU garde le 9 taps.
-- **Reste pour boucler la v1.7.0** : validation visuelle du USM WebGL2 (texte
-  fin en session) + push du lot en attente (2 commits + intégration USM).
+- **USM WebGL2 validé visuellement le 17 août** (`bench/gpu/visual-diff.js`) :
+  gate v1.6.0 (9 taps) → v1.7.0 (4 taps) sur texte fin — identité sharpness 0
+  bit-identique (maxAbs 0), équivalence ±1-ULP fp32 sur ≤ 0,002 % des pixels
+  (640×360 et 960×540). Le diff perf10 → v1.7.0 (maxAbs 44-74, ~0,4 %) vient
+  du chemin d'upload (texImage2D → texStorage2D/RGB8), pas du patch 22.
+- **Reste pour boucler la v1.7.0** : rien de bloquant — sanity check session
+  réelle optionnel (texte fin à l'œil nu), et push du lot en attente
+  (2 commits + intégration USM).
 
 ## Pièges mémorisés
 
