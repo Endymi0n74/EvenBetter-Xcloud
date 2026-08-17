@@ -38,9 +38,9 @@ amont `redphx/better-xcloud` (branche `typescript`, baseline 6.7.12) via des
 | 1 | codecProfile lazy (WebRTC init différé) | 21 | ~600 ms one-shot cold startup, 19,7 ms dominant profil | ✅ **PR #993 ouverte** (commits `bd63e92`) |
 | 2 | USM 4 taps shader | 22 | draw −30 % (10,24→7,17 µs), visual-diff | ✅ **PR #994 ouverte** (commit `81d5ffc`, `clarity-boost.fs` seul) |
 | 3 | updateCanvas dirty flag | 20 | ×19,4 (jusqu'à ×22 avec le cache uniforms) | ✅ **PR #995 ouverte** (commit `6a2a9ed`, `webgl2-player.ts` seul — le portage pré-existant texStorage/viewport/NoColorConversion a été **sauvegardé** dans `upstream-prs/.work/webgl2-player-full-port.ts` et restauré dans le working tree pour les PR 5/6) |
-| 4 | updateCanvas uniform cache | 19 | ×22 (état v1.5.0) | à faire |
+| 4 | updateCanvas uniform cache | 19 | ×22 (état v1.5.0) | **obsolète — subsumé par le dirty flag #995** (le cache de valeurs compare 8 champs par frame ; le flag dirty ne fait qu'une lecture + branche, strictement supérieur ; dans le build v1.8.0 le flag a remplacé le cache) |
 | 5 | texStorage/RGB8/bindTexture | 13/18/16 | upload ×5,5, wall ×2,8 + fix renderer noir | ✅ **PR #996 ouverte** (commit `dacc024`, `webgl2-player.ts` seul — dirty flag exclu, déjà #995) |
-| 6 | viewport fix + NoColorConversion | 14/17 | fixes | bx-flags déjà dans le working tree |
+| 6 | viewport fix + NoColorConversion | 14/17 | fixes | ✅ **PR #997 ouverte** (commit `c97c334`, 3 fichiers : `webgl2-player.ts` +7/−1, `bx-flags.ts` +1, `types/index.d.ts` +1 — le flag `WebGL2NoColorConversion` n'existait pas côté amont, ajouté opt-in désactivé) |
 | 7 | streamstats hidden throttle | 08 | throttle document.hidden | à faire |
 | 8 | controller skip idle | 12 | zéro allocation au repos | partiel (controller-customization 15 août) |
 | 9 | structuredClone → référence | 15 | zéro allocation relâchement | à faire |
@@ -61,6 +61,7 @@ collect — mesuré ~7 % réaliste, négatif à 500 entrées), portage preview
 | #994 | USM 4 taps | OPEN, mergeable, 1 commit — ouvert le 17 août, aucun retour | idem |
 | #995 | updateCanvas dirty flag | OPEN, mergeable, 1 commit — ouvert le 17 août, aucun retour | idem |
 | #996 | texStorage2D/RGB8 + bindTexture | OPEN, mergeable, 1 commit — ouvert le 17 août, aucun retour | idem |
+| #997 | viewport fix + NoColorConversion | OPEN, mergeable, 1 commit — ouvert le 17 août ~23:20, aucun retour | idem |
 
 ## Conventions pour chaque PR
 
