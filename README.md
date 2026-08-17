@@ -3,6 +3,8 @@
 [![Release](https://img.shields.io/github/v/release/Endymi0n74/better-xcloud-perf?style=for-the-badge&color=green)](https://github.com/Endymi0n74/better-xcloud-perf/releases/latest)
 [![Install](https://img.shields.io/badge/Install-userscript-blue?style=for-the-badge)](https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.user.js)
 
+**🇫🇷 Français** · [🇬🇧 English](README.en.md)
+
 Fork performance du userscript [Better xCloud](https://github.com/redphx/better-xcloud)
 (redphx), orienté **performance**. Dernière release :
 [better-xcloud-perf-v1.8.0](https://github.com/Endymi0n74/better-xcloud-perf/releases/tag/better-xcloud-perf-v1.8.0).
@@ -693,7 +695,7 @@ node --check better-xcloud.user.js
 
 ### Portage sélectif
 
-- `patches/` : 20 patches individuels (un par optimisation), chacun applicable
+- `patches/` : 22 patches individuels (un par optimisation), chacun applicable
   seul sur la baseline perf10. Lisez `patches/README.md` pour la liste détaillée,
   la matrice de compatibilité par paires et les zones non empilables (le build
   minifié a des lignes géantes : plusieurs optimisations de la même zone
