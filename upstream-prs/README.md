@@ -41,7 +41,7 @@ amont `redphx/better-xcloud` (branche `typescript`, baseline 6.7.12) via des
 | 4 | updateCanvas uniform cache | 19 | ×22 (état v1.5.0) | **obsolète — subsumé par le dirty flag #995** (le cache de valeurs compare 8 champs par frame ; le flag dirty ne fait qu'une lecture + branche, strictement supérieur ; dans le build v1.8.0 le flag a remplacé le cache) |
 | 5 | texStorage/RGB8/bindTexture | 13/18/16 | upload ×5,5, wall ×2,8 + fix renderer noir | ✅ **PR #996 ouverte** (commit `dacc024`, `webgl2-player.ts` seul — dirty flag exclu, déjà #995) |
 | 6 | viewport fix + NoColorConversion | 14/17 | fixes | ✅ **PR #997 ouverte** (commit `c97c334`, 3 fichiers : `webgl2-player.ts` +7/−1, `bx-flags.ts` +1, `types/index.d.ts` +1 — le flag `WebGL2NoColorConversion` n'existait pas côté amont, ajouté opt-in désactivé) |
-| 7 | streamstats hidden throttle | 08 | throttle document.hidden | à faire |
+| 7 | streamstats hidden throttle | 08 | 59/60 des getStats() supprimés en arrière-plan | ✅ **PR #998 ouverte** (commit `0c22be3`, `stream-stats.ts` seul +45/−21 — `INTERVAL_BACKGROUND` existait déjà dans le collector amont, inutilisé ; `_cachedColors` du bundle fork NON porté, hors sujet #7) |
 | 8 | controller skip idle | 12 | zéro allocation au repos | partiel (controller-customization 15 août) |
 | 9 | structuredClone → référence | 15 | zéro allocation relâchement | à faire |
 | 10 | settings Set + validateValue | 02/03 | lookups O(1) | à faire |
@@ -62,6 +62,7 @@ collect — mesuré ~7 % réaliste, négatif à 500 entrées), portage preview
 | #995 | updateCanvas dirty flag | OPEN, mergeable, 1 commit — ouvert le 17 août, aucun retour | idem |
 | #996 | texStorage2D/RGB8 + bindTexture | OPEN, mergeable, 1 commit — ouvert le 17 août, aucun retour | idem |
 | #997 | viewport fix + NoColorConversion | OPEN, mergeable, 1 commit — ouvert le 17 août ~23:20, aucun retour | idem |
+| #998 | streamstats hidden throttle | OPEN, mergeable, 1 commit — ouvert le 17 août ~23:25, aucun retour | idem |
 
 ## Rappel mainteneur (timing)
 
