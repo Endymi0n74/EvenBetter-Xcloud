@@ -88,6 +88,19 @@ chevauchement de sujet sur la queue**, deux signaux à suivre :
 | **Issue #991** (15 août, fraîche) | 🚨 **`pollGamepad` crash `Cannot read properties of undefined (reading 'pressed')`** (GameSir G7 SE, chrome 151) — la zone exacte de nos patches **#8 (skip idle) et #9 (structuredClone→référence)** qui touchent `poll_gamepad_default`. Nos patches sont de la perf, PAS un fix de crash → ne pas mélanger. Décision : au moment d'envoyer #8-9, citer l'issue dans le corps (contexte = la fonction est sous pression) et proposer le garde `currentGamepad.buttons?.[16]` comme **PR fix séparée** (style patch 11 qui a déjà mis `?.` sur `buttons[17]`) |
 | Issues features (settings/controller) | #934 Settings Profiles, #581 remap guide, #160 sensitivity… — **toutes des features**, aucune ne couvre nos optimisations |
 
+### Vérification approfondie anti-doublon (#8-12, scan complet le 17 août ~23:45)
+
+| Méthode | Portée | Résultat |
+|---|---|---|
+| PR par **fichiers** (open + closed) | ~500 PR scannées, cibles `controller-customization.ts`, `poll_gamepad`, `pref-keys.ts`, `pref-utils.ts`, `base-settings-storage.ts`, `bx-select.ts`, `translation.ts`, `utils.ts` | **0 hit** — aucun contributeur n'a jamais touché ces fichiers en PR |
+| PR par **titre** (12 mots-clés : pollGamepad, structuredClone, checkForUpdate, idle, bx-select, validateValue…) | open + closed | **1 seul hit** : #21 « Add Check for update feature » (**MERGED**, l'origine du feature) — c'est ce qu'on optimise, pas un doublon |
+| Issues par **titre** (11 mots-clés) | open + closed | **1 seul hit** : #991 pollGamepad crash (déjà documenté, notre PR fix séparée proposée) |
+
+**Verdict** : #8-9 (controller) et #10-12 (settings/ui) sont **exclusifs au fork** —
+rien à retirer de la queue, aucun conflit de sujet avec l'amont. Le seul
+ancêtre commun est #21 (checkForUpdate), déjà mergé depuis longtemps ; notre
+#11 est une optimisation de ce feature, pas une copie.
+
 ## Rappel mainteneur (timing)
 
 **Aucun retour au 17 août ~23:30** sur les 6 PR (0 commentaire, 0 review,
