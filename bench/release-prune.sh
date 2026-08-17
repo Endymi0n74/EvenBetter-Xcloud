@@ -2,10 +2,10 @@
 # ============================================================================
 # bench/release-prune.sh — Politique de rétention des releases
 #
-# Garde  : la release stable marquée Latest + les 2 derniers previews (les plus
-#          récents par VERSION — jamais publishedAt : une release recréée depuis
+# Garde  : la release stable marquée Latest + le dernier preview (le plus
+#          récent par VERSION — jamais publishedAt : une release recréée depuis
 #          git reprend une date récente et tromperait le tri), plus le tag pinné
-#          par le @updateURL du build local s'il n'est pas déjà dans les 2
+#          par le @updateURL du build local s'il n'est pas déjà le dernier
 #          (source de vérité — ne jamais purger l'ancre d'auto-update).
 # Purge  : toutes les autres (release + tag, --cleanup-tag).
 # Après  : vérifie les 4 liens d'auto-update (user.js/meta.js × stable/preview).
@@ -55,15 +55,15 @@ LATEST_TAG=$(gh release list --repo "$REPO" --limit 100 --json tagName,isLatest 
     || gate "impossible de lister les releases de $REPO"
 [ -n "$LATEST_TAG" ] || gate "pas de release Latest sur $REPO"
 
-# Les 2 previews conservés = les plus récents par VERSION (tri numérique,
+# Le preview conservé = le plus récent par VERSION (tri numérique,
 # preview9 < preview10 — capture + tonumber). Jamais publishedAt.
 PREVIEWS=$(gh release list --repo "$REPO" --limit 100 --json tagName,isPrerelease \
-    --jq '[.[] | select(.isPrerelease == true) | {tag: .tagName, n: ((.tagName | capture("preview(?<n>[0-9]+)$")? | .n) // "0" | tonumber)}] | sort_by(.n) | reverse | .[:2] | .[].tag' 2>/dev/null)
+    --jq '[.[] | select(.isPrerelease == true) | {tag: .tagName, n: ((.tagName | capture("preview(?<n>[0-9]+)$")? | .n) // "0" | tonumber)}] | sort_by(.n) | reverse | .[:1] | .[].tag' 2>/dev/null)
 [ -n "$PREVIEWS" ] || gate "aucune release prerelease sur $REPO"
 # gh sort les tags par newline — normaliser en espaces pour les tests de présence
 PREVIEWS=$(echo "$PREVIEWS" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
 
-# + le tag pinné par le @updateURL du build local (source de vérité) s'il n'est pas déjà dans les 2
+# + le tag pinné par le @updateURL du build local (source de vérité) s'il n'est pas déjà le dernier
 PINNED_TAG=""
 if [ -f better-xcloud-preview.user.js ]; then
     PINNED_TAG=$(grep -o 'releases/download/[^/]*' better-xcloud-preview.user.js | head -1 | cut -d/ -f3)
@@ -72,7 +72,7 @@ if [ -f better-xcloud-preview.user.js ]; then
         PINNED_TAG=""
     fi
     if [ -n "$PINNED_TAG" ] && [[ " $PREVIEWS " != *" $PINNED_TAG "* ]]; then
-        log "⚠️  tag pinné par le build ($PINNED_TAG) hors des 2 plus récents — conservé en plus"
+        log "⚠️  tag pinné par le build ($PINNED_TAG) plus récent que le dernier preview — conservé en plus"
         PREVIEWS="$PREVIEWS $PINNED_TAG"
     fi
 fi
@@ -82,7 +82,7 @@ PREVIEW_CURRENT="$PINNED_TAG"
 [ -n "$PREVIEW_CURRENT" ] || PREVIEW_CURRENT=$(echo "$PREVIEWS" | awk '{print $1}')
 
 KEEP="$LATEST_TAG $PREVIEWS"
-log "garde : $LATEST_TAG (Latest) + $PREVIEWS (2 derniers previews)"
+log "garde : $LATEST_TAG (Latest) + $PREVIEWS (dernier preview)"
 
 # --- 2. Purge ---------------------------------------------------------------
 DELETED=0

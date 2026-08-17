@@ -142,11 +142,9 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
   `releases/latest/download/*` ; **1.8.0-preview4 (preview courant)** — tag
   `better-xcloud-perf-1.8.0-preview4`, assets `better-xcloud-preview.*`,
   auto-update preview **pinné sur SON tag** (jamais le latest — un utilisateur
-  d'une preview ANCIENNE réinstalle manuellement) ; **1.8.0-preview3**
-  conservée en cran de secours (recréée depuis le commit `6641bbd` — les
-  builds sont commités dans git, une release est toujours reconstruisible).
-- **Rétention automatisée** : `bench/release-prune.sh` — garde Latest + **les
-  2 derniers previews** (tri par VERSION numérique, jamais `publishedAt`
+  d'une preview ANCIENNE réinstalle manuellement).
+- **Rétention automatisée** : `bench/release-prune.sh` — garde Latest + **le
+  dernier preview** (tri par VERSION numérique, jamais `publishedAt`
   trompeur pour une release recréée) + le tag pinné par le `@updateURL` du
   build local, purge le reste (release + tag, `--cleanup-tag`), vérifie les 4
   liens d'auto-update (GATE ROUGE si 404), `--dry-run` pour prévisualiser. À
@@ -165,7 +163,7 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
      preview : `--prerelease`) avec les 2 assets .user.js + .meta.js.
   5. **Rétention AUTOMATIQUE** : le workflow `release-prune` (bench.yml à
      côté) se déclenche sur `release: published` et exécute
-     `bench/release-prune.sh` — garde Latest + **les 2 derniers previews**
+     `bench/release-prune.sh` — garde Latest + **le dernier preview**
      (tri par version), purge le reste (release + tag), vérifie les 4 liens
      (GATE ROUGE si 404). `workflow_dispatch` pour une re-purge manuelle /
      un contrôle.
@@ -302,10 +300,12 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
     publiée ».
 11. ✅ **Fait (17 août ~23:30) — rétention des releases** : 12 anciennes
     purgées (v1.0.0→v1.7.0, 1.7.0-preview1, 1.8.0-preview1/2/3 — release +
-    tag). Reste **v1.8.0 (Latest) + preview4 + preview3** (cette dernière
-    recréée depuis git sur demande, cran de secours). Script
-    `bench/release-prune.sh` commité (politique latest + dernier preview,
-    vérification des 4 liens d'auto-update). README + docs : README.en.md
+    tag). Reste **v1.8.0 (Latest) + preview4** (preview3 recréée depuis git
+    sur demande comme cran de secours, puis purgée le 17 août soir par
+    `release-prune.sh` une fois le cran jugé inutile — builds toujours
+    reconstruisibles depuis git). Script `bench/release-prune.sh` commité
+    (politique latest + dernier preview, vérification des 4 liens
+    d'auto-update). README + docs : README.en.md
     (traduction complète, sélecteur 🇫🇷/🇬🇧), notes de release bilingues
     FR/EN (5 releases), fix rendu GitHub (@name/@match backtiqués), badge CI
     bench. 3 PR upstream ouvertes : #993 codecProfile lazy, #994 USM 4 taps,
