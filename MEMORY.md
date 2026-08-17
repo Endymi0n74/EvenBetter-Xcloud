@@ -145,12 +145,13 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
   d'une preview ANCIENNE réinstalle manuellement) ; **1.8.0-preview3**
   conservée en cran de secours (recréée depuis le commit `6641bbd` — les
   builds sont commités dans git, une release est toujours reconstruisible).
-- **Rétention automatisée** : `bench/release-prune.sh` — garde Latest + le
-  preview pinné par le `@updateURL` du build local (repli : prerelease la
-  plus récente — pas `publishedAt`, trompeur pour une release recréée),
-  purge le reste (release + tag, `--cleanup-tag`), vérifie les 4 liens
-  d'auto-update (GATE ROUGE si 404), `--dry-run` pour prévisualiser. À
-  lancer après chaque publication.
+- **Rétention automatisée** : `bench/release-prune.sh` — garde Latest + **les
+  2 derniers previews** (tri par VERSION numérique, jamais `publishedAt`
+  trompeur pour une release recréée) + le tag pinné par le `@updateURL` du
+  build local, purge le reste (release + tag, `--cleanup-tag`), vérifie les 4
+  liens d'auto-update (GATE ROUGE si 404), `--dry-run` pour prévisualiser. À
+  lancer après chaque publication (le workflow `release-prune` le fait
+  automatiquement sur `release: published`).
 - **Pipeline d'une release** (répéter à chaque bump) :
   1. Bump stable : `better-xcloud.user.js` (@version + header
      « OPTIMISATIONS v1.X.Y: ») ET `better-xcloud.meta.js` (@version).
@@ -164,9 +165,10 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
      preview : `--prerelease`) avec les 2 assets .user.js + .meta.js.
   5. **Rétention AUTOMATIQUE** : le workflow `release-prune` (bench.yml à
      côté) se déclenche sur `release: published` et exécute
-     `bench/release-prune.sh` — garde Latest + dernier preview, purge le
-     reste (release + tag), vérifie les 4 liens (GATE ROUGE si 404).
-     `workflow_dispatch` pour une re-purge manuelle / un contrôle.
+     `bench/release-prune.sh` — garde Latest + **les 2 derniers previews**
+     (tri par version), purge le reste (release + tag), vérifie les 4 liens
+     (GATE ROUGE si 404). `workflow_dispatch` pour une re-purge manuelle /
+     un contrôle.
 
 ## Pièges mémorisés
 
