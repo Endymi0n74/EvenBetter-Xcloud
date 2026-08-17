@@ -101,12 +101,48 @@ pas la voie retenue (realm).
   `/configuration` exige l'interception en 2 temps (`interceptResponse:true`
   au stage Request pour que le stage Response se déclenche).
 
-### Run 1 — P2 (résultat à compléter)
+### Run 1 — P2 (exécution 3, 17 août ~12:43) ✅ VALIDÉ
 
 Le `[P2#N]` doit apparaître après le `[P3#N]` (provisioning). Si absent : la
 réponse `/configuration` part du worker ou le stage Response ne se déclenche
 pas — relancer avec `--sw` et vérifier la réponse dans Network
 (`clientStreamingConfigOverrides` doit contenir `enableVibration:true`).
+
+**Exécution 3 (17 août, ~12:43) — chaîne complète + preuve session :**
+
+```
+[P3#1 12:43:28] play réécrit → osName=tizen (original:windows) + x-ms-device-info
+[P2-staging 12:43:35] /configuration vue (stage Request) ×2 (page + service worker)
+[P2#1 12:43:35] /configuration réécrite → inputConfiguration,nqiConfiguration,
+                statisticsConfiguration,videoConfiguration,audioConfiguration
+```
+
+Commandes : Étape 0 `--strict-probe` passée (A+B+C+D, hookActif:true), puis
+`intercept-session.js --connect=9222 --resolution=1080p-hq --vibration=on
+--mkb=on --mic=on --sw` (SW attaché : `[sw] interception attachée à
+entry.worker.js (CDP brut)`). Stream : `launch-stream.js` + Retry (blip
+« offline » d'Edge contourné, cf. piège).
+
+**Preuve C4 dans la session live** (hunt-session → fibre `.Connection` →
+`_session`, stream en cours video ready=4) :
+
+| Chemin | Valeur | Origine |
+|---|---|---|
+| `_configuration.inputConfiguration.enableVibration` | **`true`** | notre fusion (le natif n'envoie que `useUnreliableInput` dans inputConfiguration) |
+| `_configuration.audioConfiguration.enableMicrophone` | **`true`** | `--mic=on` (aucun override audio natif) |
+| `_configuration.statisticsConfiguration.useQosChannel` | `true` | natif conservé |
+| `_configuration.nqiConfiguration.consecutiveBadIntervalsForTrigger` | `10` | natif conservé (le seuil `pingMsBadThreshold:100` aussi) |
+| `stream.inputConfiguration` / `sourceManagedInputSink` / `physicalInputSink` | `enableVibration:true` | la config est propagée aux canaux d'input réels |
+| `_bxKeepAliveWrapped` | présent | P1 wrapSession branchée (bénéfice collatéral) |
+
+- **Lecture** : le `fulfillRequest` CDP a bien remplacé la réponse `/configuration`
+  vue par le SDK — la session a été construite AVEC les overrides du stable
+  (vibration, micro). Le critère C4 est satisfait par la config effective, ce
+  qui est plus fort que la seule présence dans Network.
+- Piège rencontré : le blip « You're offline » d'Edge (déjà vu) bloque le
+  chargement de la page stream → le play ne part pas. Contournement : clic
+  sur `retryButton` (ou reload) une fois le réseau rétabli ; l'interception
+  reste attachée entre-temps.
 
 ## Prérequis
 
@@ -420,6 +456,64 @@ Build preview) → `ENOENT: bench-summary.md` + crash du step (vu sur la PR
   (hotloops)`. Job startup-cold (succès) : commentaire normal émis — chemin
   heureux intact.
 - PR #16 fermée sans merge — le commit de contrôle n'a jamais touché main.
+
+## Validation overlay 1.8.0-preview1 en réel (17 août) ✅
+
+But : prouver que la preview (T1-T7) affiche l'overlay et le bouton settings
+dans le header de play.xbox.com, et que le dialog settings s'ouvre.
+**Résultat : VALIDÉ** — trois problèmes réels trouvés et corrigés dans
+`build-preview.js` (sélecteurs T4, pointer-events, résilience T7) :
+
+### 1. Sélecteurs T4 — le shell preview est du Tailwind, pas de `<header>`
+
+`document.querySelector('header')` → **null** sur play.xbox.com : pas de
+header sémantique ni de classe `Header-*` (anchors.md §4 confirmé). Le vrai
+top bar est `nav.col-container` (h 73, rangée interne `[class*='flex-row']`
+h 48 — logo, nav, spacer, avatar). Fix : `nav.col-container` en tête des
+SELECTORS, `[class*='flex-row']` en tête des TARGET_SELECTORS.
+
+### 2. pointer-events — le container z-shell-top est `pointer-events:none`
+
+Le top bar vit dans un container `fixed z-100 pointer-events-none` : chaque
+élément interactif du site se ré-arme en `pointer-events:auto`, notre wrapper
+non → les clics traversaient vers `<main>` (Playwright : « subtree intercepts
+pointer events », elementFromPoint = contenu). Fix :
+`wrapper.style.pointerEvents = "auto"` à l'injection.
+
+### 3. T7 — le shell preview REMPLACE le document (nœuds + CSS orphelins)
+
+Observé : le manager de dialogs survit (show() tourne, `bx-no-scroll` posé,
+contenu monté) mais **rien ne s'affiche** — l'overlay/container finissent sous
+un **ancien `<html>` détaché** (parentNode `isConnected:false`), et la feuille
+de style du script (`addCss()` → `<style>` sur documentElement) est effacée
+avec lui (zéro règle `bx-*` → dialog `position:static` hors-écran, rect
+h=32388). Mécanisme probable : `document.open()` du shell (les références JS
+survivent, le DOM est vidé). Fix T7 (interval 2 s, coût nul) : ré-append
+overlay + container au documentElement courant si `!isConnected`, et
+re-lancer `addCss()` si aucun `<style>` porteur de
+`.bx-navigation-dialog-overlay{` (garde anti-doublon).
+
+### 4. Résilience SPA — observer ne disconnete plus
+
+L'ancien T4 disconnectait l'observer après la 1re injection : le nav est
+re-rendu par React (hydratation) → le wrapper se faisait détacher sans
+ré-injection. Nouveau T4 : observer permanent, coalescé 150 ms, ré-append
+seulement si le wrapper est détaché (`isConnected`).
+
+### Résultats du run de validation (profil edge-cdp, 17 août)
+
+| Vérification | Résultat |
+|---|---|
+| hook fetch actif (`hookActif`, fetch enveloppé) | ✅ `true` |
+| Bouton `bx-header-settings-button` injecté | ✅ visible, dans `nav.col-container`, `pointer-events:auto` |
+| Clic → dialog settings | ✅ `overlayVisible:true`, `containerVisible:true`, `kids:1`, `.bx-settings-dialog` à l'écran (y=0, 498×1308), zéro erreur console |
+| T7 ré-append overlay/container | ✅ `overlayLive:1` après remplacement document |
+| T7 ré-injection CSS | ✅ `cssPresent:true` (`.bx-navigation-dialog-overlay{` retrouvé) |
+
+**Attention** : ces fixes sont dans le build local (`better-xcloud-preview.user.js`)
+mais **pas** dans la release 1.8.0-preview1 publiée (17 août, avant la
+validation). Prochaine release preview requise pour que les utilisateurs en
+bénéficient.
 
 ## Pièges connus
 

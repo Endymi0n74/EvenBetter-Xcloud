@@ -1,17 +1,17 @@
 // ==UserScript==
 // @name         Better xCloud (Preview)
 // @namespace    https://github.com/redphx
-// @version      1.8.0-preview1
+// @version      1.8.0-preview2
 // @description  Improve Xbox Cloud Gaming (xCloud) experience
 // @author       redphx
 // @license      MIT
 // @match        https://play.xbox.com/*
 // @run-at       document-start
 // @grant        none
-// @updateURL    https://github.com/Endymi0n74/better-xcloud-perf/releases/download/better-xcloud-perf-1.8.0-preview1/better-xcloud-preview.meta.js
-// @downloadURL  https://github.com/Endymi0n74/better-xcloud-perf/releases/download/better-xcloud-perf-1.8.0-preview1/better-xcloud-preview.user.js
+// @updateURL    https://github.com/Endymi0n74/better-xcloud-perf/releases/download/better-xcloud-perf-1.8.0-preview2/better-xcloud-preview.meta.js
+// @downloadURL  https://github.com/Endymi0n74/better-xcloud-perf/releases/download/better-xcloud-perf-1.8.0-preview2/better-xcloud-preview.user.js
 // ==/UserScript==
-/* OPTIMISATIONS 1.8.0-preview1 — VARIANTE PREVIEW (play.xbox.com uniquement) :
+/* OPTIMISATIONS 1.8.0-preview2 — VARIANTE PREVIEW (play.xbox.com uniquement) :
    Identite distincte du stable (name/version/updateURL) — les deux versions
    cohabitent sans se confondre. Overlay T1-T4 (detection BX_PREVIEW, garde
    du Patcher site, entree settings) + T5 (keep-alive idle P1).
@@ -287,11 +287,19 @@ window.localRedirect = localRedirect;
 if (BX_PREVIEW) {
   BxLogger.info("BX_PREVIEW", "overlay actif (T4 arme) — play.xbox.com");
   var PreviewSettingsEntry = {
-    SELECTORS: ["header[class*='Header']", "[class*='AppHeader']", "[class*='shell'] header", "header"],
-    TARGET_SELECTORS: ["[class*='right']", "[class*='actions']", "[class*='nav']", "[class*='menu']", "[class*='buttons']"],
+    /* 17 août : le shell preview est du Tailwind — pas de <header> sémantique ni
+       de classe Header-* (anchors.md §4). Le vrai top bar est nav.col-container
+       (h 73, rangée interne flex-row h 48). On garde les anciens candidats pour
+       compat et on ajoute l'ancre réelle observée en session. */
+    SELECTORS: ["nav.col-container", "header[class*='Header']", "[class*='AppHeader']", "[class*='shell'] header", "header"],
+    TARGET_SELECTORS: ["[class*='flex-row']", "[class*='right']", "[class*='actions']", "[class*='nav']", "[class*='menu']", "[class*='buttons']"],
+    /* 17 août : re-rendu SPA du nav (hydratation/React) — on NE disconnecte PAS
+       l'observer et on ré-appende le wrapper s'il est détaché (isConnected),
+       coalescé à 150 ms pour ne pas travailler à chaque mutation. */
+    _wrapper: null,
+    _t: 0,
     _injected: false,
     tryInject() {
-      if (this._injected) return true;
       var $header = null, i = 0;
       for (; i < this.SELECTORS.length; i++) { $header = document.querySelector(this.SELECTORS[i]); if ($header) break; }
       if (!$header) return false;
@@ -300,20 +308,65 @@ if (BX_PREVIEW) {
       $target = $target || $header;
       var section = HeaderSection.getInstance();
       section.$btnSettings.classList.remove("bx-gone");
-      $target.appendChild(section.$buttonsWrapper);
+      var wrapper = this._wrapper || (this._wrapper = section.$buttonsWrapper);
+      /* 17 août : le top bar preview est dans un container pointer-events-none
+         (z-shell-top) — chaque élément interactif du site se ré-arme en
+         pointer-events:auto. Le wrapper du bouton doit faire pareil, sinon les
+         clics traversent vers le <main> (observé : elementFromPoint = contenu). */
+      wrapper.style.pointerEvents = "auto";
+      if (!wrapper.isConnected) {
+        $target.appendChild(wrapper);
+        BxLogger.info("PreviewSettingsEntry", "bouton settings (re)injecte", $header.className || $header.tagName);
+      }
       this._injected = true;
-      BxLogger.info("PreviewSettingsEntry", "bouton settings injecte", $header.className || $header.tagName);
       return true;
     },
     start() {
-      var observer = new MutationObserver(() => { if (this.tryInject()) observer.disconnect(); });
+      var self = this;
+      var observer = new MutationObserver(function () {
+        if (self._t) return;
+        self._t = setTimeout(function () { self._t = 0; self.tryInject(); }, 150);
+      });
       observer.observe(document.body || document.documentElement, { childList: true, subtree: true });
       if (document.readyState !== "loading") this.tryInject();
-      BxLogger.info("PreviewSettingsEntry", "observer arme", document.readyState);
+      BxLogger.info("PreviewSettingsEntry", "observer arme (resilient SPA)", document.readyState);
     }
   };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", function () { PreviewSettingsEntry.start(); }, { once: true });
   else PreviewSettingsEntry.start();
+
+  /* ---------- T7 : résilience dialog (document.open du shell preview) ----------
+     Le shell preview REPLACE le document au démarrage (observé 17 août : les
+     nœuds du NavigationDialogManager finissent sous un ancien <html> détaché —
+     le manager survit, show() marche, mais rien ne s'affiche). On ré-appende
+     overlay + container au documentElement courant s'ils sont détachés.
+     Interval 2 s : coût nul (check isConnected), couvre tout remplacement
+     futur du document (document.open, hydratation, re-render html). */
+  setInterval(function () {
+    try {
+      /* 1. nœuds du dialog : ré-append overlay + container si détachés (le
+            document remplacé les a orphelins sous l'ancien <html>). */
+      var _mgr = NavigationDialogManager.getInstance();
+      if (_mgr.$overlay && !_mgr.$overlay.isConnected && document.documentElement && document.documentElement.isConnected) {
+        document.documentElement.appendChild(_mgr.$overlay);
+        document.documentElement.appendChild(_mgr.$container);
+        BxLogger.info("NavigationDialogManager", "overlay/container re-attaches (document remplace par le shell)");
+      }
+      /* 2. feuille de style du script : le document remplacé l'a aussi effacée
+            (zéro règle bx-* → dialog statique hors-écran). addCss() est
+            idempotent ici car l'ancien <style> n'existe plus ; on ne ré-injecte
+            que si aucun style porteur du CSS n'est présent (évite les doublons
+            si le retrait vient d'ailleurs que du remplacement document). */
+      var _hasCss = false;
+      var _styles = document.querySelectorAll("style");
+      for (var _si = 0; _si < _styles.length; _si++) {
+        if ((_styles[_si].textContent || "").indexOf(".bx-navigation-dialog-overlay{") !== -1) { _hasCss = true; break; }
+      }
+      if (!_hasCss) {
+        try { addCss(); BxLogger.info("BX_PREVIEW", "CSS re-injecte (document remplace par le shell)"); } catch (e2) { /* non bloquant */ }
+      }
+    } catch (e) { /* non bloquant */ }
+  }, 2000);
 }
 /* ============ FIN PREVIEW ============ */
 class HeaderSection {static instance;static getInstance = () => HeaderSection.instance ?? (HeaderSection.instance = new HeaderSection);LOG_TAG = "HeaderSection";$btnRemotePlay;$btnSettings;$buttonsWrapper;constructor() {BxLogger.info(this.LOG_TAG, "constructor()"), this.$btnRemotePlay = createButton({classes: ["bx-header-remote-play-button", "bx-gone"],icon: BxIcon.REMOTE_PLAY,title: t("remote-play"),style: 8 | 64 | 2048,onClick: (e) => RemotePlayManager.getInstance()?.togglePopup()});let $btnSettings = this.$btnSettings = createButton({classes: ["bx-header-settings-button", "bx-gone"],label: t("better-xcloud"),style: 16 | 32 | 64 | 256,onClick: (e) => SettingsDialog.getInstance().show()});this.$buttonsWrapper = CE("div", !1, !getGlobalPref("block.features").includes("remote-play") ? this.$btnRemotePlay : null, this.$btnSettings), BxEventBus.Script.on("xcloud.server", ({ status }) => {if (status === "ready") {STATES.isSignedIn = !0, $btnSettings.querySelector("span").textContent = getPreferredServerRegion(!0) || t("better-xcloud");let PREF_LATEST_VERSION = getGlobalPref("version.latest");if (!SCRIPT_VERSION.includes("beta") && PREF_LATEST_VERSION && PREF_LATEST_VERSION !== SCRIPT_VERSION) $btnSettings.setAttribute("data-update-available", "true");} else if (status === "error") Toast.show(t("server-list-error"), "❌", { instant: !0 });else if (status === "unavailable") {if (STATES.supportedRegion = !1, document.querySelector("div[class^=UnsupportedMarketPage-module__container]")) SettingsDialog.getInstance().show();}$btnSettings.classList.remove("bx-gone");});}checkHeader = () => {let $header = document.querySelector("#gamepass-root header[class^=Header-module__header]");if (!$header) return;let $target = $header.querySelector("div[class*=EdgewaterHeader-module__rightSectionSpacing], div[class*=RemotePlayHeader-module__rightSectionSpacing]");if (!$target) $target = document.querySelector("div[class^=UnsupportedMarketPage-module__buttons]");if ($target?.appendChild(this.$buttonsWrapper), !STATES.isSignedIn) BxEventBus.Script.emit("xcloud.server", { status: "signed-out" });};showRemotePlayButton() {this.$btnRemotePlay?.classList.remove("bx-gone");}}

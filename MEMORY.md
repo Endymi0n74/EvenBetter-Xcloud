@@ -9,7 +9,7 @@ Mémoire de travail des sessions. Détails dans `bench/preview/port/session.md`
 L'utilisateur demande une mise à jour de ce fichier **au moins toutes les
 ~2 h de travail cumulé** (et à chaque fin de session), sans attendre d'être
 relancé : après ~2 h d'actions, journaliser l'état (fichiers touchés,
-verdicts, pièges nouveaux, en attente). Dernière passe : 17 août 12:15.
+verdicts, pièges nouveaux, en attente). Dernière passe : 17 août ~22:50.
 
 ## Projet
 
@@ -137,6 +137,35 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
   réécrit avant le réseau).
 - `probe-page.js` : `hookActif` = présence de `window.BX_FETCH` (ne pas exiger
   `window.fetch === BX_FETCH` — T5 enveloppe après main()).
+- **Shell preview = Tailwind, pas de `<header>`** : le top bar est
+  `nav.col-container` (h 73, rangée `[class*='flex-row']`), le `<html>` porte
+  la classe `global sbar …`. Le container z-shell-top est `fixed z-100
+  pointer-events-none` — tout élément injecté doit se ré-armer en
+  `pointer-events:auto` (sinon les clics traversent vers `<main>`).
+- **Le shell preview REPLACE le document au démarrage** (probable
+  `document.open()`) : les nœuds du userscript (overlay/container du
+  NavigationDialogManager, feuille `<style>` d'`addCss()`) finissent orphelins
+  sous un ancien `<html>` détaché — le manager survit (show() tourne,
+  `bx-no-scroll` posé) mais rien ne s'affiche et le CSS disparaît (dialog
+  `position:static` hors-écran). T7 (build-preview.js) : interval 2 s,
+  ré-append si `!isConnected` + re-`addCss()` si aucun `<style>` porteur de
+  `.bx-navigation-dialog-overlay{`. Edge cache le contenu des extensions
+  MV3 : après `cp` dans `.edge-inject/preview.js`, un reload ne suffit pas —
+  **redémarrer Edge**.
+- **L'extension `.edge-inject` doit être relancée** : `taskkill //F //IM
+  msedge.exe //T` + `Start-Process` (PowerShell) avec profil `C:\edge-cdp` +
+  `--load-extension=D:\Codex\better-xcloud-fork\.edge-inject` (depuis bash,
+  passer par `powershell -Command "Start-Process …"`, pas Start-Process
+  direct).
+- **Blip « You're offline » d'Edge** (vu 2× le 17 août) : le site se charge en
+  « offline » alors que le réseau va bien (curl 200) → la page stream ne part
+  pas, le play ne s'émet pas. Contournement : clic `retryButton` ou reload ;
+  l'interception CDP reste attachée entre-temps (aucun impact).
+- **Preuve P2 = config effective de la session live** (plus fort que Network) :
+  `hunt-session.js` → fibre `.Connection` → `_session` →
+  `_configuration.inputConfiguration.enableVibration` etc. — le natif n'envoie
+  que `useUnreliableInput` dans inputConfiguration, donc toute clé
+  supplémentaire vient de notre fusion CDP.
 - `class` est lexicale dans un vm (évaluer en class expression).
 - Le preview CSP bloque raw.githubusercontent.com (listes native-mkb /
   local-co-op) → « Failed to fetch » (non fatals, rejets non gérés).
@@ -163,12 +192,26 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
 
 ## En attente / prochaines étapes
 
-1. **Preview 1.8.0-preview1 à valider en réel** : overlay visible sur
-   play.xbox.com (bouton settings dans le header, T4) après installation —
-   journaliser dans e2e-cdp.md.
-2. Run 1 CDP : valider `[P2]` réel (C4) — stream requis. Prêt : bug `--sw`
-   corrigé (double tiret) + attache SW par **CDP brut** (Playwright ne sait
-   pas newCDPSession sur un Worker) — `intercept-session.js --sw`.
+1. ✅ **Fait (17 août soir) — overlay preview validé en réel** : bouton
+   settings injecté dans le top bar de play.xbox.com + dialog settings ouvert
+   (journal complet dans e2e-cdp.md, section « Validation overlay
+   1.8.0-preview1 »). Trois fixes dans build-preview.js : sélecteurs T4
+   (`nav.col-container` + cible `[class*='flex-row']` — pas de `<header>`
+   dans le shell Tailwind), `pointer-events:auto` sur le wrapper (le
+   container z-shell-top est `pointer-events:none`, clics traversés),
+   **T7 résilience** (le shell REMPLACE le document au démarrage →
+   overlay/container orphelins sous l'ancien `<html>` détaché ET feuille de
+   style effacée ; interval 2 s : ré-append si `!isConnected` + re-`addCss()`
+   si aucun `<style>` porteur). **À faire : republier la preview** (les fixes
+   ne sont PAS dans la release 1.8.0-preview1).
+2. ✅ **Fait (17 août ~12:43) — Run 1 CDP P2 VALIDÉ (C4)** : Étape 0
+   `--strict-probe` passée, `intercept-session.js --sw` (SW attaché CDP brut),
+   chaîne `[P3]` → `[P2-staging]` ×2 (page+SW) → `[P2]` (5 groupes réécrits).
+   **Preuve session live** (hunt-session, fibre `.Connection` → `_session`) :
+   `_configuration.inputConfiguration.enableVibration:true` (le natif n'envoie
+   que `useUnreliableInput`), `audioConfiguration.enableMicrophone:true`,
+   config propagée aux 3 canaux d'input, `_bxKeepAliveWrapped` présent.
+   Journal : e2e-cdp.md « Run 1 — P2 (exécution 3) ».
 3. P1-B AFK : fenêtre 1 h exécutée (17 août, 09:10:59→10:10:59) — session
    survivante, AUCUN warning → **seuil d'idle preview > 60 min** (exécution 2
    journalisée dans e2e-cdp.md). Prochaine : chercher le seuil statiquement
@@ -177,3 +220,5 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
    `--strict-probe` (hookActif:true exigé) + chemin d'échec testé.
 5. ✅ Fait — localisation de la session au runtime + locator auto (voir P1).
 6. ✅ Fait — v1.8.0 (USM) + 1.8.0-preview1 publiées (17 août 12:11).
+7. ⏳ En cours — publier la preview2 (fixes overlay T4/T7 du soir) ;
+   l'interception du stream en cours tourne encore (kill si besoin).
