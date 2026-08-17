@@ -63,6 +63,26 @@ downloads the full script when a new version exists. Avoids downloading
 > `@updateURL` points to this fork since v1.1.0 — earlier installs keep the
 > upstream URL (see the "Upgrade" note above).
 
+## Mobile install (Android & iOS)
+
+The same userscript works on mobile — the xCloud web client is responsive
+and the `@match` rules cover `xbox.com/play` on any device.
+
+| Platform | Browser | Install |
+|---|---|---|
+| **Android** | Kiwi Browser (or Edge Android) + Tampermonkey | Open the direct install link above (Installation section) → Tampermonkey offers to install |
+| **iOS** | Safari + the **"Userscripts"** app (free, open source) | In Userscripts, tap "+" → paste the `…/releases/latest/download/better-xcloud.user.js` URL, then enable the extension in Safari |
+
+**Keep in mind:**
+
+- The measured perf wins (WebGL2 GPU, startup, hot loops) are from the
+  **desktop client** (Chrome/Edge). On mobile the overlay, settings and
+  auto-update work, but the mobile xCloud renderer differs and the numbers
+  don't transfer — especially on Safari/WebKit.
+- Auto-update (`@updateURL`) works the same on mobile: Tampermonkey/Userscripts
+  check `better-xcloud.meta.js` on every launch.
+- The **preview** build (play.xbox.com) is desktop-only — no use on mobile.
+
 ## Two versions — stable and preview (play.xbox.com)
 
 The repo maintains **two independent builds, never merged** (detailed
