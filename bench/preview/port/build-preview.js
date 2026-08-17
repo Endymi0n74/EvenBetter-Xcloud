@@ -39,7 +39,7 @@ const META_OUT = path.join(ROOT, "better-xcloud-preview.meta.js");
 const EOL = "\n";
 
 // ---- contrat « deux versions » : identité DISTINCTE du build preview ----
-const PREVIEW_VERSION = "1.8.0-preview3";
+const PREVIEW_VERSION = "1.8.0-preview4";
 const PREVIEW_NAME = "Better xCloud (Preview)";
 const PREVIEW_TAG = "better-xcloud-perf-" + PREVIEW_VERSION; // releases/download/<tag>/...
 
@@ -232,6 +232,24 @@ ${entryAnchor}`;
     'if (PREF_STREAM_TARGET_RESOLUTION !== "auto") {let osName = getOsNameFromResolution(PREF_STREAM_TARGET_RESOLUTION);headers["x-ms-device-info"] = JSON.stringify(generateMsDeviceInfo(osName)), body.settings.osName = osName;}';
   must(s, p3Anchor, "T8 handlePlay resolution (P3)");
   s = s.replace(p3Anchor, "if (false) {let osName = getOsNameFromResolution(PREF_STREAM_TARGET_RESOLUTION);headers[\"x-ms-device-info\"] = JSON.stringify(generateMsDeviceInfo(osName)), body.settings.osName = osName;}");
+
+  /* ---------- T9 : bouton settings dans la game bar (page stream immersive) ----------
+     Sur play.xbox.com, la page stream est une vue immersive SANS <nav>/header
+     (observé 17 août : navs=[] sur /stream/) — le T4 n'a pas d'ancre
+     d'injection en session. La seule surface utilisateur du script en cours
+     de jeu est la GAME BAR (bx-game-bar, cachée par défaut, visible au
+     mouvement de souris / clic sur la poignée). On ajoute une action
+     Settings dans la liste d'actions du GameBar : même dialog que le bouton
+     du header (SettingsDialog.getInstance().show()), super.onClick() cache
+     la bar comme les autres actions. Patch preview-only (build-preview.js). */
+  const gameBarAnchor = "class GameBar {";
+  must(s, gameBarAnchor, "T9 class GameBar");
+  s = s.replace(gameBarAnchor,
+    "class SettingsAction extends BaseGameBarAction {$content;constructor() {super();this.$content = createButton({style: 8,icon: BxIcon.STREAM_SETTINGS,title: t(\"settings\"),onClick: this.onClick});}onClick = (e) => {super.onClick(e), SettingsDialog.getInstance().show();};}\n" +
+    "class GameBar {");
+  const gameBarActionsAnchor = "this.actions = [new ScreenshotAction";
+  must(s, gameBarActionsAnchor, "T9 GameBar actions");
+  s = s.replace(gameBarActionsAnchor, "this.actions = [new ScreenshotAction,new SettingsAction");
 
   /* ---------- T5 : keep-alive idle (P1) — inséré en FIN de script ----------
      Après main(); : window.fetch est alors le hook final (bloqueurs du script),

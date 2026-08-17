@@ -654,6 +654,66 @@ mais **pas** dans la release 1.8.0-preview1 publiée (17 août, avant la
 validation). Prochaine release preview requise pour que les utilisateurs en
 bénéficient.
 
+## Validation preview3 en réel (17 août ~19:30) ✅ — play natif
+
+But : confirmer que le build **1.8.0-preview3** (T8 : override `osName=tizen`
+retiré) est installé et fonctionne en réel — overlay + settings OK, et le
+play partant **natif** (osName=windows) sans aucune réécriture.
+
+Méthode : extension `.edge-inject/preview.js` mise à jour avec le build
+preview3, Edge relancé sur le profil `C:\edge-cdp` (port 9222), puis
+`intercept-session.js --connect=9222` (P3 passif) + lancement d'un stream
+Halo CE depuis la page produit.
+
+### Résultats
+
+| Vérification | Résultat |
+|---|---|
+| Build injecté (extension `.edge-inject`) | ✅ `1.8.0-preview3` (vérifié dans le fichier + script) |
+| Overlay | ✅ `BX_PREVIEW` + `BxLogger` + `BX_EXPOSED` présents (monde MAIN, document-start) |
+| Bouton settings T4 | ✅ visible dans `nav.col-container` (60×40, `pointer-events:auto`) |
+| Dialog settings | ✅ s'ouvre au clic réel — « Better xCloud 6.7.12 », sections Server/Stream/MKB/Touch/UI, Language |
+| Session | ✅ authentifiée (cookies `__Host-MSAAUTHP` + `MSPAuth` vivants) |
+| **Play natif (T8)** | ✅ `[P3#1 19:29:12] play observé → osName=windows (natif, non réécrit) · device-info os=windows` |
+| Stream | ✅ 1920×1080 @ 60 fps, 2482 frames, readyState 4 — session laissée en cours |
+
+**Lecture** : T8 est confirmé en session réelle — le play part sans
+modification (`osName=windows`, device-info `os=windows`), la surface de
+réécriture du play est bien retirée du build livré. P2 (fusion
+/configuration) reste le vrai bénéfice, inchangé dans le build.
+
+Note : sur la page stream immersive (vue jeu plein écran), il n'y a pas de
+`<nav>`/header — le bouton du top bar n'y est pas ; l'accès aux settings en
+session passe par la **game bar** du script (`bx-game-bar-container`, cachée
+par défaut, visible au mouvement de souris). Depuis **T9 (build preview4)**, la
+game bar porte un bouton Settings qui ouvre le même dialog (voir section
+suivante).
+
+## T9 — bouton settings dans la game bar (17 août ~21:45) ✅
+
+Problème : sur la page stream du preview (`/stream/...`), il n'y a AUCUN
+`<nav>`/header (observé : `navs: []`, body = 9 enfants) — le T4 n'a pas
+d'ancre d'injection en session, impossible d'ouvrir les settings en cours de
+jeu. La seule surface utilisateur du script en session est la **game bar**
+(`bx-game-bar`, cachée, visible au mouvement de souris — actions :
+screenshot, speaker, renderer, micro, TrueAchievements).
+
+Fix (`build-preview.js`, patch **T9**, preview-only) :
+- **`SettingsAction extends BaseGameBarAction`** — bouton icône engrenage
+  (`BxIcon.STREAM_SETTINGS`), title « Settings », `onClick` →
+  `SettingsDialog.getInstance().show()` (même dialog que le bouton du
+  header) + `super.onClick()` (cache la bar, comme les autres actions).
+- Injecté en 2e position de `this.actions` du GameBar (après Take screenshot).
+
+Résultats (session réelle, Halo CE, profil edge-cdp, build 1.8.0-preview4) :
+
+| Vérification | Résultat |
+|---|---|
+| Bouton « Settings » dans la game bar | ✅ 2e action (engrenage), title « Settings » |
+| Clic → dialog | ✅ panneau complet ouvert en stream : 498×1440, 5 onglets, 66 lignes |
+| Fermeture (Escape) | ✅ dialog fermé, session intacte (1920×1080 en cours) |
+| Tests | ✅ userscript-rewrite / intercept-session / Étape 0 verts |
+
 ## Pièges connus
 
 1. **Timing** : si `[P3]` n'apparaît pas dans les premières secondes, le

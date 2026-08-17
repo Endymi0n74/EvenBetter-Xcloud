@@ -42,10 +42,24 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
   observé → osName=… · device-info os=…`, continué SANS modification) ;
   `userscript-rewrite` vérifie le play inchangé + P2 toujours fusionné. P2
   (fusion /configuration) reste le vrai bénéfice ; `--resolution` est un
-  no-op documenté. Les fonctions de réécriture restent en référence (tests). Piège reprise : le slot de session est lié au
+  no-op documenté. Les fonctions de réécriture restent en référence (tests). **Validé en réel (preview3, 17 août ~19:30,
+  profil edge-cdp)** : extension `.edge-inject` à jour, overlay + settings OK
+  (bouton `nav.col-container`, dialog « Better xCloud 6.7.12 »), play
+  observé **natif** (`[P3#1] osName=windows, non réécrit`) — journal :
+  e2e-cdp.md « Validation preview3 en réel ». Piège reprise : le slot de session est lié au
   compte/titre — navigation home, redémarrage Edge ET `session.disconnect()`
   ne changent pas le GUID (7C346491 persistant) ; seul un 2e onglet (kick) ou
   un long délai libère le slot.
+- **T9 — settings dans la game bar (17 août ~21:45, build preview4)** : la
+  page stream du preview est immersive, SANS `<nav>`/header (navs:[] observé)
+  → le T4 n'a pas d'ancre en session, settings inaccessibles en cours de
+  jeu. Fix (build-preview.js, preview-only) : `SettingsAction extends
+  BaseGameBarAction` (engrenage `BxIcon.STREAM_SETTINGS`, title
+  « Settings », onClick → `SettingsDialog.getInstance().show()`) injectée en
+  2e position de `this.actions` du GameBar. **Validé en réel** (profil
+  edge-cdp, Halo CE) : bouton dans la bar, dialog complet ouvert en stream
+  (498×1440, 5 onglets, 66 lignes), Escape ferme, session intacte. Journal :
+  e2e-cdp.md « T9 ».
 - **P1 keep-alive idle** : `keepalive-idle.js` (T5). **Verdict 16 août** : le
   module StreamSessionRequest est chargé en **ESM natif** → le hook fetch ne
   peut pas se brancher ; **wrapSession est la seule voie runtime**.
@@ -258,3 +272,11 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
 7. ✅ Fait — preview2 publiée (fixes overlay T4/T7) puis **preview3 (17 août)
    : retrait osName=tizen (T8, A/B mesuré) + intercept-session passif**.
    Releases : 1.8.0 (stable, latest) / 1.8.0-preview2 / 1.8.0-preview3.
+8. ✅ **Fait (17 août ~19:30) — preview3 validée en réel** (profil edge-cdp,
+   extension `.edge-inject` à jour) : overlay + bouton settings + dialog OK,
+   play **natif** confirmé (`osName=windows`, non réécrit — T8), stream live
+   1920×1080. Journal : e2e-cdp.md « Validation preview3 en réel ».
+9. ✅ **Fait (17 août ~21:45) — T9 (build preview4)** : bouton Settings dans
+   la game bar de la page stream immersive (le seul accès settings en
+   session, le top bar n'existe pas sur /stream/). Validé en réel : dialog
+   complet ouvert depuis la bar en cours de jeu. Journal : e2e-cdp.md « T9 ».
