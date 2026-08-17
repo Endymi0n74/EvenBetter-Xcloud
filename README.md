@@ -2,6 +2,7 @@
 
 [![Release](https://img.shields.io/github/v/release/Endymi0n74/better-xcloud-perf?style=for-the-badge&color=green)](https://github.com/Endymi0n74/better-xcloud-perf/releases/latest)
 [![Install](https://img.shields.io/badge/Install-userscript-blue?style=for-the-badge)](https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.user.js)
+[![CI](https://img.shields.io/github/actions/workflow/status/Endymi0n74/better-xcloud-perf/bench.yml?style=for-the-badge)](https://github.com/Endymi0n74/better-xcloud-perf/actions/workflows/bench.yml)
 
 **🇫🇷 Français** · [🇬🇧 English](README.en.md)
 
