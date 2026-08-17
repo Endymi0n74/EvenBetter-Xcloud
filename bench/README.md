@@ -13,6 +13,9 @@ Mesures **perf10 (baseline `055d3a0`)** vs **build courant** (`better-xcloud.use
 
 Prérequis : Node. Pour l'éval page : Playwright + Edge (canal `msedge`) — installer
 avec `npm i -D playwright` ou pointer `NODE_PATH` vers un install existant.
+Le harnais ne télécharge **aucun navigateur** (canal `msedge` = Edge système).
+Les éventuels binaires Playwright vont sur D: via
+`PLAYWRIGHT_BROWSERS_PATH=D:\ms-playwright` (rien sur C:).
 
 | Fichier | Mesure | Environnement |
 |---|---|---|
