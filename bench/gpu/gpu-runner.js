@@ -384,6 +384,11 @@ const HARNESS = ({ clsP10, clsNew, LABEL_P10, LABEL_NEW, FRAMES, WARMUP, PASSES,
     new Promise((_, rej) => setTimeout(() => rej(new Error("page.evaluate timeout 180s")), 180000)),
   ]);
   console.log(JSON.stringify(res, null, 2));
-  await browser.close();
-  server.close();
+  // Fermeture robuste : une erreur de close (ex. process msedge tué pendant le
+  // run — un autre Edge utilisateur ouvert sur la machine — ou serveur déjà
+  // fermé) ne doit PAS transformer une mesure complète (JSON déjà écrit) en
+  // exit 1. Flake CI du 17 août (gpu-upload, seed 600 : JSON complet + exit 1
+  // silencieux → le `|| exit 1` du workflow court-circuitait agg-seeds).
+  try { await browser.close(); } catch (e) { console.error(`[bx-gpu] browser.close: ${e}`); }
+  try { server.close(); } catch (e) { console.error(`[bx-gpu] server.close: ${e}`); }
 })();

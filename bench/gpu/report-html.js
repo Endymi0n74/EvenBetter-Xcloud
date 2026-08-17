@@ -167,6 +167,13 @@ ${cases}
 </body></html>`;
 }
 
+if (!fs.existsSync(REPORT)) {
+  // Run interrompu avant visual-diff (ex. protocole 6 seeds rouge) : rien à
+  // générer — sortie propre (exit 0) pour que le step CI « if: always() » ne
+  // s'ajoute pas en rouge à un job déjà en échec.
+  console.log(`rapport JSON absent (${REPORT}) — run interrompu avant visual-diff, rien à générer`);
+  process.exit(0);
+}
 const report = JSON.parse(fs.readFileSync(REPORT, "utf-8"));
 fs.writeFileSync(OUT, build(report), "utf-8");
 const sizeKb = (fs.statSync(OUT).size / 1024).toFixed(0);

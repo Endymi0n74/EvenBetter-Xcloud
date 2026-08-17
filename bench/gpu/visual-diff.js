@@ -477,8 +477,10 @@ const CASES = [
     page.evaluate(HARNESS, { clsP10, clsOld, clsNew, W, H, CASES, IMAGES }),
     new Promise((_, rej) => setTimeout(() => rej(new Error("page.evaluate timeout 120s")), 120000)),
   ]);
-  await browser.close();
-  server.close();
+  // Fermeture robuste : comme gpu-runner.js — une erreur de close ne doit pas
+  // faire perdre un run complet (le rapport JSON est écrit après, en Node).
+  try { await browser.close(); } catch (e) { console.error(`[visual-diff] browser.close: ${e}`); }
+  try { server.close(); } catch (e) { console.error(`[visual-diff] server.close: ${e}`); }
 
   if (raw.error) {
     console.error(`[visual-diff] ERREUR harnais : ${raw.error}`);
