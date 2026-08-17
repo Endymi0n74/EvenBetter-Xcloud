@@ -68,14 +68,30 @@ collect — mesuré ~7 % réaliste, négatif à 500 entrées), portage preview
 | #1000 | structuredClone → référence | OPEN, mergeable, 1 commit — ouvert le 17 août ~23:55, aucun retour | idem |
 | #1001 | fix share-delete | OPEN, mergeable, 1 commit — ouvert le 18 août ~00:20, aucun retour | idem |
 
-## Branches prêtes en attente (PR #10-12)
+## Branches prêtes en attente (PR #10-12 + fix #991)
 
-Les branches **#10, #11, #12** sont commitées en local sur le clone (aucune
-poussée, aucune PR ouverte — décision : ne pas empiler les PR avant un
-retour du mainteneur sur #993-998). Au premier retour, l'envoi est
-immédiat : `git push mine <branche>` puis `gh pr create --base typescript
---head Endymi0n74:<branche>` avec le corps du commit. Les commits de corps
-sont dans chaque commit (message complet quoi/pourquoi/sécurité).
+Les branches **#10, #11, #12** et le **fix #991** sont commitées en local sur
+le clone (aucune poussée, aucune PR ouverte — décision : ne pas empiler les
+PR avant un retour du mainteneur sur #993-1001). Au premier retour, l'envoi
+est immédiat : `git push mine <branche>` puis `gh pr create --base
+typescript --head Endymi0n74:<branche>` avec le corps du commit. Les
+commits de corps sont dans chaque commit (message complet
+quoi/pourquoi/sécurité).
+
+| Branche | Sujet | Commit | Build |
+|---|---|---|---|
+| `feat/settings-set-prefs` | PR #10 — settings Set + validateValue | `19122a1` | exit 0 |
+| `feat/checkforupdate-throttle` | PR #11 — fetch après le garde 2 h | `071bde7` | exit 0 |
+| `feat/bxselect-delegated-observer` | PR #12 — observer délégué + debugger | `b6b49ac` | exit 0 |
+| `feat/poll-gamepad-crash-guard` | **fix #991** — `currentGamepad.buttons?.[16]` | `29f87b1` | exit 0 |
+
+Fix #991 (garde crash) : les objets Gamepad ne garantissent pas un tableau
+`buttons` à chaque poll (GameSir G7 SE) — `buttons[16]` levait une exception
+qui tuait la boucle de polling entière (input mort jusqu'au reload). Le
+`?.` fait du bloc raccourcis un no-op pour ces gamepads ; la livraison
+d'input continue. Corps de PR rédigé dans le commit ; à ouvrir en priorité
+si le mainteneur s'intéresse à #991 (il y a déjà un lien dans les corps
+#999/#1000).
 
 ## Couverture par d'autres contributeurs (vérifié le 17 août ~23:40)
 
