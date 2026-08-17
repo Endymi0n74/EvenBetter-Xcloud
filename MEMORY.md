@@ -280,3 +280,9 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
    la game bar de la page stream immersive (le seul accès settings en
    session, le top bar n'existe pas sur /stream/). Validé en réel : dialog
    complet ouvert depuis la bar en cours de jeu. Journal : e2e-cdp.md « T9 ».
+10. ✅ **Fait (17 août ~22:00) — preview4 publiée validée** (release
+    better-xcloud-perf-1.8.0-preview4) : asset GitHub **byte-identique** au
+    build local (494 246 o, cmp OK) — ce que recevra Tampermonkey est
+    exactement le fichier testé en réel (overlay + top bar + game bar
+    settings en session). Journal : e2e-cdp.md « Validation preview4
+    publiée ».

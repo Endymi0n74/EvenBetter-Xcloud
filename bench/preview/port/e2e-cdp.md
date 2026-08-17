@@ -714,6 +714,30 @@ Résultats (session réelle, Halo CE, profil edge-cdp, build 1.8.0-preview4) :
 | Fermeture (Escape) | ✅ dialog fermé, session intacte (1920×1080 en cours) |
 | Tests | ✅ userscript-rewrite / intercept-session / Étape 0 verts |
 
+## Validation preview4 publiée en réel (17 août ~22:00) ✅ — asset GitHub
+
+But : valider l'ASSET PUBLIÉ (release `better-xcloud-perf-1.8.0-preview4`),
+pas le build local — ce que recevra l'utilisateur via Tampermonkey.
+
+Méthode : téléchargement de `releases/download/.../better-xcloud-preview.user.js`,
+comparaison au build local (doit être byte-identique), installation dans
+`.edge-inject/preview.js`, Edge relancé sur le profil edge-cdp, puis même
+protocole que la validation locale (overlay → stream → game bar).
+
+| Vérification | Résultat |
+|---|---|
+| Asset GitHub vs build local | ✅ **byte-identique** (494 246 octets, `cmp` OK, `@version 1.8.0-preview4`) |
+| Overlay play.xbox.com | ✅ BX_PREVIEW + BX_EXPOSED + BxLogger présents |
+| Bouton settings top bar (T4) | ✅ 🇬🇧 UKS, 60×40, dialog ouvert (498×1308, 5 onglets) |
+| Stream lancé | ✅ Halo CE (1920×1080, 2041 frames) |
+| Game bar en session (T9) | ✅ boutons `[Take screenshot, Settings]` |
+| Dialog depuis la game bar | ✅ 498×1440, 5 onglets, 66 lignes — ouvert en session |
+| Fermeture | ✅ Escape → dialog fermé, session intacte |
+
+**Lecture** : l'utilisateur recevra exactement le fichier validé — l'asset
+publié est identique au build testé en réel (overlay + settings dans le top
+bar des pages app + bouton Settings dans la game bar en session).
+
 ## Pièges connus
 
 1. **Timing** : si `[P3]` n'apparaît pas dans les premières secondes, le

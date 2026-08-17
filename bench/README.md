@@ -60,6 +60,27 @@ mesure par itération fiable. Le `p95` de parse capture les outliers GC
 (absorbés par la médiane) ; l'écart perf10/build est dans le bruit inter-seed
 (≈ ±10-20 % run à run) — le protocole le montre au lieu de figer un chiffre.
 
+## Re-baseline du 17 août (v1.8.0) — bornes confirmées
+
+Run complet sur le build v1.8.0 (`better-xcloud.user.js`, 481 772 o — inchangé
+depuis la baseline précédente : les commits preview4/T9/docs n'ont pas touché
+le stable). `run-all.sh --skip-page-eval --skip-cold-getcap` +
+`startup-profile.js --runs=5` :
+
+| Harnais | perf10 | build | Lecture |
+|---|---|---|---|
+| Parse/compile | 0,117 ms | 0,112 ms | négligeable (écart dans le bruit inter-seed) |
+| Hot loop controller IDLE | 327,4 ns | **34,4 ns** | ×9,5 — au plancher |
+| poll_gamepad relâchement Home | 1 137,7 ns | **165,9 ns** | ×6,9 — au plancher |
+| updateCanvas (chemin 60 Hz) | 243,3 ns | **15,6 ns** | ×15,6 (uniforms 1/2/4 appels vs 215k/430k/860k) |
+| updateFrame | 167,6 ns | 165,2 ns | stable (texSubImage2D, alloc stable) |
+| Startup CDP — perf10 | `getSupportedCodecProfiles` 19,1 ms (78 %) | — | dominante intacte (cible PR upstream #993) |
+| Startup CDP — build | — | aucune fonction JS dominante, **76,8 % natif/GC** | plat |
+
+Aucune régression mesurée : hot loops au plancher, startup plat, parse
+négligeable. Les bornes CI (build plat, perf10 dominé par `getSupportedCodecProfiles`)
+restent valides pour alerter si le startup régresse.
+
 
 
 ## Profil CPU du startup (fonction-par-fonction)
