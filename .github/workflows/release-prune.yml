@@ -1,0 +1,36 @@
+name: release-prune
+
+# Politique de rétention : garde la release stable Latest + le dernier preview
+# (tag pinné par le build), purge le reste, vérifie les 4 liens d'auto-update.
+# Exécute bench/release-prune.sh après CHAQUE publication de release.
+#
+# Sécurité intégrée au script :
+#   - le preview conservé = tag pinné par le @updateURL du build local
+#     (source de vérité, repli sur la prerelease la plus récente) ;
+#   - la release qui déclenche ce workflow est TOUJOURS conservée (elle est
+#     soit la Latest stable, soit le preview courant) — jamais purgée ;
+#   - GATE ROUGE (exit 1) si un lien d'auto-update est 404 → le job échoue
+#     visiblement, rien n'est laissé en silence.
+#
+# Déclencheurs : release published (automatique) + workflow_dispatch (manuel,
+# utile pour re-purger après une correction ou un --dry-run de contrôle).
+# Voir bench/release-prune.sh pour les pièges Windows/Git Bash documentés.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write # gh release delete / --cleanup-tag
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rétention des releases (latest + dernier preview)
+        run: ./bench/release-prune.sh
+        env:
+          GH_TOKEN: ${{ github.token }}

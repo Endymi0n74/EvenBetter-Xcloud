@@ -162,6 +162,11 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
      versions + node --check + probes + P1 self-test sur le bundle capturé).
   4. Commit + push, puis `gh release create` (stable : défaut Latest ;
      preview : `--prerelease`) avec les 2 assets .user.js + .meta.js.
+  5. **Rétention AUTOMATIQUE** : le workflow `release-prune` (bench.yml à
+     côté) se déclenche sur `release: published` et exécute
+     `bench/release-prune.sh` — garde Latest + dernier preview, purge le
+     reste (release + tag), vérifie les 4 liens (GATE ROUGE si 404).
+     `workflow_dispatch` pour une re-purge manuelle / un contrôle.
 
 ## Pièges mémorisés
 
