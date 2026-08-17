@@ -73,6 +73,21 @@ immédiat : `git push mine <branche>` puis `gh pr create --base typescript
 --head Endymi0n74:<branche>` avec le corps du commit. Les commits de corps
 sont dans chaque commit (message complet quoi/pourquoi/sécurité).
 
+## Couverture par d'autres contributeurs (vérifié le 17 août ~23:40)
+
+Scan des PR ouvertes (fichiers) + issues ouvertes du repo amont — **aucun
+chevauchement de sujet sur la queue**, deux signaux à suivre :
+
+| Élément | Verdict |
+|---|---|
+| Queue #7 (streamstats) | déjà envoyée (#998) — **personne d'autre ne couvre le sujet** (aucune PR ouverte touche `stream-stats.ts` hors la nôtre) |
+| Queue #10 (pref-keys Set) | **vierge** — aucune PR ne touche `pref-keys.ts`/`pref-utils.ts`/`base-settings-storage.ts` |
+| Queue #11 (checkForUpdate) | **vierge** — rien sur le sujet (le throttle 2 h n'est dans aucune PR ouverte) |
+| Queue #12 (bx-select) | **vierge** — aucune PR ne touche `bx-select.ts` |
+| Queue #8-9 (controller) | ⚠️ **PR #938** (`claude/add-local-coop-controllers`, autre contributeur) touche `gamepad.ts` + `controller-extra.ts` — même domaine mais **fichiers différents** (`controller-customization.ts` pour nous) et sujet différent (slot co-op vs perf). Pas de conflit de merge direct — à mentionner quand on enverra #8-9 |
+| **Issue #991** (15 août, fraîche) | 🚨 **`pollGamepad` crash `Cannot read properties of undefined (reading 'pressed')`** (GameSir G7 SE, chrome 151) — la zone exacte de nos patches **#8 (skip idle) et #9 (structuredClone→référence)** qui touchent `poll_gamepad_default`. Nos patches sont de la perf, PAS un fix de crash → ne pas mélanger. Décision : au moment d'envoyer #8-9, citer l'issue dans le corps (contexte = la fonction est sous pression) et proposer le garde `currentGamepad.buttons?.[16]` comme **PR fix séparée** (style patch 11 qui a déjà mis `?.` sur `buttons[17]`) |
+| Issues features (settings/controller) | #934 Settings Profiles, #581 remap guide, #160 sensitivity… — **toutes des features**, aucune ne couvre nos optimisations |
+
 ## Rappel mainteneur (timing)
 
 **Aucun retour au 17 août ~23:30** sur les 6 PR (0 commentaire, 0 review,
