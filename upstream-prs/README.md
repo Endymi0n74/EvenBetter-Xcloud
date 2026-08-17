@@ -43,7 +43,7 @@ amont `redphx/better-xcloud` (branche `typescript`, baseline 6.7.12) via des
 | 6 | viewport fix + NoColorConversion | 14/17 | fixes | ✅ **PR #997 ouverte** (commit `c97c334`, 3 fichiers : `webgl2-player.ts` +7/−1, `bx-flags.ts` +1, `types/index.d.ts` +1 — le flag `WebGL2NoColorConversion` n'existait pas côté amont, ajouté opt-in désactivé) |
 | 7 | streamstats hidden throttle | 08 | 59/60 des getStats() supprimés en arrière-plan | ✅ **PR #998 ouverte** (commit `0c22be3`, `stream-stats.ts` seul +45/−21 — `INTERVAL_BACKGROUND` existait déjà dans le collector amont, inutilisé ; `_cachedColors` du bundle fork NON porté, hors sujet #7) |
 | 8 | controller skip idle | 12 | zéro allocation au repos | ✅ **PR #999 ouverte** (commit `311a31f`, `controller-customization.ts` seul +141/−117 — garde `anyInput` : 327 ns → 34 ns par poll IDLE (×9,5), corps citant l'issue #991) |
-| 9 | structuredClone → référence | 15 | zéro allocation relâchement | à faire |
+| 9 | structuredClone → référence | 15 | zéro allocation relâchement | ✅ **PR #1000 ouverte** (commit `74556a9`, `poll-gamepad.ts` seul +5/−1 — le clone défensif retiré : état jamais muté entre lecture et `=null`, 1236 → 280 ns (−77 %), corps citant l'issue #991) |
 | 10 | settings Set + validateValue | 02/03 | lookups O(1) | 🟡 **branche prête non ouverte** `feat/settings-set-prefs` (commit `19122a1`, 3 fichiers : `pref-keys.ts` + `pref-utils.ts` + `base-settings-storage.ts`, build exit 0) |
 | 11 | checkForUpdate throttle 2 h | 05 | 1 fetch/2 h max (API GitHub) | 🟡 **branche prête non ouverte** `feat/checkforupdate-throttle` (commit `071bde7`, `utils.ts` seul — le fetch passe APRÈS le garde 2 h ; la baseline amont avait le garde mais fetchait quand même) |
 | 12 | BxSelect observer délégué + debugger | 06/10 | un seul MutationObserver | 🟡 **branche prête non ouverte** `feat/bxselect-delegated-observer` (commit `b6b49ac`, 2 fichiers : `bx-select.ts` observer global délégué + `translation.ts` debugger retiré, build exit 0) |
@@ -64,6 +64,7 @@ collect — mesuré ~7 % réaliste, négatif à 500 entrées), portage preview
 | #997 | viewport fix + NoColorConversion | OPEN, mergeable, 1 commit — ouvert le 17 août ~23:20, aucun retour | idem |
 | #998 | streamstats hidden throttle | OPEN, mergeable, 1 commit — ouvert le 17 août ~23:25, aucun retour | idem |
 | #999 | controller skip idle | OPEN, mergeable, 1 commit — ouvert le 17 août ~23:40, aucun retour | idem |
+| #1000 | structuredClone → référence | OPEN, mergeable, 1 commit — ouvert le 17 août ~23:55, aucun retour | idem |
 
 ## Branches prêtes en attente (PR #10-12)
 
@@ -104,11 +105,11 @@ ancêtre commun est #21 (checkForUpdate), déjà mergé depuis longtemps ; notre
 
 ## Rappel mainteneur (timing)
 
-**Aucun retour au 17 août ~23:40** sur les 7 PR (0 commentaire, 0 review,
+**Aucun retour au 17 août ~23:55** sur les 8 PR (0 commentaire, 0 review,
 0 review request). Le mainteneur répond en **semaines/mois** — voir
 `upstream-prs/reminder.md` (#468 attend depuis juillet 2024, #851 depuis
 décembre 2025, dernier commit typescript : 14 juillet). **Ne pas pinger
-avant le 24 août** ; le commentaire groupé prêt (sur #993, référence les 7)
+avant le 24 août** ; le commentaire groupé prêt (sur #993, référence les 8)
 est dans `upstream-prs/reminder.md`.
 
 Style observé du mainteneur : **« thank you. I'll take a look later. »** (PR
