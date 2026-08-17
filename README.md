@@ -70,10 +70,10 @@ détaillé dans `bench/preview/port/README.md`) :
 |---|---|---|
 | Rôle | Le fork optimisé classique — xbox.com/play (SPA Webpack, renderer WebGL2) | La variante du nouveau client web (React Router 7 + rolldown, renderer Babylon.js) |
 | Fichier | `better-xcloud.user.js` | `better-xcloud-preview.user.js` (+ `.meta.js`) |
-| Version | `1.8.0` | `1.8.0-preview2` (prerelease) |
+| Version | `1.8.0` | `1.8.0-preview3` (prerelease) |
 | @name | `Better xCloud` | `Better xCloud (Preview)` |
 | @match | `www.xbox.com/*/play*` | `play.xbox.com/*` uniquement |
-| Auto-update | `releases/latest` (canal stable) | tag dédié `better-xcloud-perf-1.8.0-preview2` (jamais le `latest`) |
+| Auto-update | `releases/latest` (canal stable) | tag dédié `better-xcloud-perf-1.8.0-preview3` (jamais le `latest`) |
 
 Les deux builds **cohabitent sans se confondre** : identité distincte
 (name/version/updateURL) et matches disjoints (le preview ne s'exécute jamais
@@ -93,15 +93,17 @@ https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better
 Preview Features activé) :
 
 ```
-https://github.com/Endymi0n74/better-xcloud-perf/releases/download/better-xcloud-perf-1.8.0-preview2/better-xcloud-preview.user.js
+https://github.com/Endymi0n74/better-xcloud-perf/releases/download/better-xcloud-perf-1.8.0-preview3/better-xcloud-preview.user.js
 ```
 
 Le preview est **jouable et validé en réel (17 août)** : bouton settings dans le
 top bar + dialog ouvert (T4/T7 — résilience au remplacement du document par le
 shell), réécriture P2 de la session prouvée (`enableVibration`/mkb/mic dans la
 configuration de la session live). P1 (anti-kick idle) est en place via
-`wrapSession` — seuil d'idle serveur observé > 1 h. Le stable n'est jamais
-affecté.
+`wrapSession` — seuil d'idle serveur observé > 1 h. Depuis **preview3**, le
+build n'override plus `osName=tizen` (A/B mesuré : no-op en PC — résolution ET
+bitrate identiques au natif) — le play part sans réécriture. Le stable n'est
+jamais affecté.
 
 ## Optimisations perf11 + perf13
 

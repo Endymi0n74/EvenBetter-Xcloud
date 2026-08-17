@@ -1,7 +1,7 @@
 # Portage app-shell du preview (play.xbox.com)
 
 État : **v1 — infrastructure + détection + garde + entrée settings (candidats)**.
-La branche de travail porte le build `better-xcloud-preview.user.js` (v1.8.0-preview2).
+La branche de travail porte le build `better-xcloud-preview.user.js` (v1.8.0-preview3).
 
 ## Contrat « deux versions » (stable et preview distincts, toujours)
 
@@ -10,10 +10,10 @@ Le repo maintient **deux builds indépendants, jamais fusionnés** :
 | | Stable | Preview |
 |---|---|---|
 | Fichier | `better-xcloud.user.js` | `better-xcloud-preview.user.js` (+ `.meta.js`) |
-| Version | `1.8.0` | `1.8.0-preview2` |
+| Version | `1.8.0` | `1.8.0-preview3` |
 | @name | `Better xCloud` | `Better xCloud (Preview)` |
 | @match | `www.xbox.com/*/play*` (+ auth) | `play.xbox.com/*` **uniquement** |
-| Auto-update | `releases/latest` (stable) | `releases/download/better-xcloud-perf-1.8.0-preview2/*` (jamais le latest) |
+| Auto-update | `releases/latest` (stable) | `releases/download/better-xcloud-perf-1.8.0-preview3/*` (jamais le latest) |
 | Produit par | patches/ (baseline amont) | `build-preview.js` depuis le stable (overlay T1-T5) |
 
 La séparation est **garantie par le build** (`checkTwoVersionInvariants`) :
@@ -52,14 +52,14 @@ qui rend le build v1.8.0 sûr et utilisable sur play.xbox.com.
 | `session.md` | étude de la couche protocole de session (la surface partagée) : `clientStreamingConfigOverrides` wire-compatible 9/9, keep-alive `onServerDisconnectMessage` ancre identique, flags URL `session.configuration.*`, plan de portage P1-P3 |
 | `keepalive-idle.js` + `.test.js` | **P1 implémenté** : interception du `WarningForBeingIdle` (transform source du bundle + runtime userscript : hook fetch du module + `wrapSession`) — 14/14 tests, embarqué par le build (T5) |
 | `fetch-early.js` + `.test.js` | **Mesure document-start (P2/P3 côté userscript)** : prouve que le build preview (`@run-at document-start`) pose `window.fetch` AVANT entry.client, et que la classe `ub` du SDK capture NOTRE hook (`_baseFetchImpl === window.fetch`) — 17/17 tests. Rend P2/P3 possibles sans CDP (voir session.md) |
-| `userscript-rewrite.js` + `.test.js` | **Mesure réécriture userscript P2+P3 (14/14)** : `XcloudInterceptor` extrait du build preview réel, exécuté en vm — play → `osName=tizen` + `x-ms-device-info`, réponse `/configuration` → overrides fusionnés, sans CDP (voir session.md) |
+| `userscript-rewrite.js` + `.test.js` | **Mesure réécriture userscript P2+P3 (15/15)** : `XcloudInterceptor` extrait du build preview réel, exécuté en vm — play **inchangé** (T8 : `osName=tizen` retiré le 17 août, no-op mesuré), réponse `/configuration` → overrides fusionnés, sans CDP (voir session.md) |
 | `e2e-cdp.md` | **protocole de validation E2E** : interception CDP P3+P2 (deux runs comparés, 8 critères de succès, pièges de timing), **Validation P1** (fenêtre AFK, témoin vs T6, signaux monitor-idle) — commence par l'**Étape 0** hors-navigateur |
 | `run-e2e0.sh` | **Étape 0 en une commande** : gates fetch-early + userscript-rewrite + play-chain (échec si rouge ; play-chain soft sans bundles) + probe-page (informatif, ou gate dur avec `--strict-probe` : hookActif:true exigé) + `--self-test` (rejoue le chemin d'échec sur une copie corrompue, exit 1 vérifié, build réel intact) — à lancer avant chaque session CDP ; branché au step preview de bench.yml (`--skip-probe`) |
 | `monitor-idle.js` | **Validation P1 en session réelle** (`bench/preview/monitor-idle.js`) : surveille console/réseau/état vidéo pendant une fenêtre AFK — interception du `WarningForBeingIdle` (log BX keep-alive), heartbeat natif `/keepalive`, survie de la session — runs P1-A témoin / P1-B T6 dans e2e-cdp.md |
 
-## L'overlay (T1-T6)
+## L'overlay (T1-T8)
 
-1. **T1 — header** : `@match https://play.xbox.com/*`, version `1.8.0-preview2`.
+1. **T1 — header** : `@match https://play.xbox.com/*`, version `1.8.0-preview3`.
 2. **T2 — détection** : `var BX_PREVIEW` (hostname `play.xbox.com`).
 3. **T3 — garde du Patcher site** : `Patcher.init()` et `checkChunks` no-op sur
    preview → aucun patch site (chunkName/requireAsync) ne risque de matcher
