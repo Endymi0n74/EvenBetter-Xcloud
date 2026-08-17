@@ -47,7 +47,8 @@ amont `redphx/better-xcloud` (branche `typescript`, baseline 6.7.12) via des
 | 10 | settings Set + validateValue | 02/03 | lookups O(1) | 🟡 **branche prête non ouverte** `feat/settings-set-prefs` (commit `19122a1`, 3 fichiers : `pref-keys.ts` + `pref-utils.ts` + `base-settings-storage.ts`, build exit 0) |
 | 11 | checkForUpdate throttle 2 h | 05 | 1 fetch/2 h max (API GitHub) | 🟡 **branche prête non ouverte** `feat/checkforupdate-throttle` (commit `071bde7`, `utils.ts` seul — le fetch passe APRÈS le garde 2 h ; la baseline amont avait le garde mais fetchait quand même) |
 | 12 | BxSelect observer délégué + debugger | 06/10 | un seul MutationObserver | 🟡 **branche prête non ouverte** `feat/bxselect-delegated-observer` (commit `b6b49ac`, 2 fichiers : `bx-select.ts` observer global délégué + `translation.ts` debugger retiré, build exit 0) |
-| 13 | fixes (share-delete, opacity cache) | 11/07 | bug fixes | à faire |
+| 13 | fix share-delete | 11 | bug fix | ✅ **PR #1001 ouverte** (commit `2eaa2ac`, `controller-customization.ts` seul +6/−2 — `delete mapping['Share']` retiré : `mapping` est une référence live vers les settings stockés, le delete détruisait la config Share de l'utilisateur au premier press) |
+| 13b | opacity cache fix | 07 | bug fix | **annulé — no-op amont** : `_cachedOpacity`/`_cachedTextSize` n'ont **jamais existé** dans l'historique amont (`git log -S` vide) — le cache était un ajout du fork, retiré par son propre patch 07 ; `refreshStyles()` amont lit déjà `getStreamPref` directement. Rien à porter (comme #4/#11) |
 
 **À NE PAS proposer** : patch 01 (header/version fork), patch 09 (single-pass
 collect — mesuré ~7 % réaliste, négatif à 500 entrées), portage preview
@@ -65,6 +66,7 @@ collect — mesuré ~7 % réaliste, négatif à 500 entrées), portage preview
 | #998 | streamstats hidden throttle | OPEN, mergeable, 1 commit — ouvert le 17 août ~23:25, aucun retour | idem |
 | #999 | controller skip idle | OPEN, mergeable, 1 commit — ouvert le 17 août ~23:40, aucun retour | idem |
 | #1000 | structuredClone → référence | OPEN, mergeable, 1 commit — ouvert le 17 août ~23:55, aucun retour | idem |
+| #1001 | fix share-delete | OPEN, mergeable, 1 commit — ouvert le 18 août ~00:20, aucun retour | idem |
 
 ## Branches prêtes en attente (PR #10-12)
 
@@ -132,11 +134,11 @@ PR merge d'abord (probabilité faible — #908 attend depuis mars, #468 depuis
 
 ## Rappel mainteneur (timing)
 
-**Aucun retour au 17 août ~23:55** sur les 8 PR (0 commentaire, 0 review,
+**Aucun retour au 18 août ~00:20** sur les 9 PR (0 commentaire, 0 review,
 0 review request). Le mainteneur répond en **semaines/mois** — voir
 `upstream-prs/reminder.md` (#468 attend depuis juillet 2024, #851 depuis
 décembre 2025, dernier commit typescript : 14 juillet). **Ne pas pinger
-avant le 24 août** ; le commentaire groupé prêt (sur #993, référence les 8)
+avant le 24 août** ; le commentaire groupé prêt (sur #993, référence les 9)
 est dans `upstream-prs/reminder.md`.
 
 Style observé du mainteneur : **« thank you. I'll take a look later. »** (PR

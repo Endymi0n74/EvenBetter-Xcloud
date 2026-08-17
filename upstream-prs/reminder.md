@@ -14,6 +14,7 @@ Le mainteneur (redphx) répond en **semaines/mois** — pas en heures :
 | #998 hidden throttle | 17 août 21:23 UTC | idem |
 | #999 controller skip idle | 17 août 21:40 UTC | idem |
 | #1000 structuredClone → réf. | 17 août 21:55 UTC | idem |
+| #1001 fix share-delete | 17 août 22:20 UTC | idem |
 
 Contexte : #468 (record) ouverte depuis **juillet 2024**, #851 depuis
 **décembre 2025**, #908 depuis **mars 2026** — toutes sans merge. Dernier
@@ -22,7 +23,7 @@ Un ping à +3-5 h serait perçu comme de l'impatience et contre-productif.
 
 **Décision** : ne PAS poster avant le 24 août. Si toujours aucun retour le
 24 août, poster UN commentaire sur **#993** (la plus ancienne) qui référence
-les 8 PR — un seul commentaire, pas 8.
+les 9 PR — un seul commentaire, pas 9.
 
 ## Commentaire groupé (prêt, en anglais)
 
@@ -48,6 +49,9 @@ les 8 PR — un seul commentaire, pas 8.
 >   input is active (idle poll 327 ns → 34 ns, **×9.5**, zero allocation at rest)
 > - **#1000** perf(controller): drop the defensive `structuredClone` on Home
 >   release (1236 ns → 280 ns, **−77 %**, zero allocation)
+> - **#1001** fix(controller): don't `delete` the Share mapping — it's a live
+>   reference to the stored settings, the delete wiped the user's config after
+>   the first press
 >
 > Happy to rebase, split further, or adjust anything you'd like — just say
 > the word.
