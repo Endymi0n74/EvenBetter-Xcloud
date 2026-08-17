@@ -85,6 +85,25 @@ Aucune régression mesurée : hot loops au plancher, startup plat, parse
 négligeable. Les bornes CI (build plat, perf10 dominé par `getSupportedCodecProfiles`)
 restent valides pour alerter si le startup régresse.
 
+### Re-baseline du 18 août ~01:00 (post-séquence upstream) — mêmes bornes
+
+Harnais **complet** cette fois : `run-all.sh --cold-page-eval` (parse + hot
+loops + éval page à froid + profil startup + cold-getcap), build stable
+inchangé (481 772 o — la séquence de PR upstream n'a touché que le clone).
+Verdict `check-ratios.js` : **PASS 6/6**.
+
+| Harnais | perf10 | build | Verdict CI |
+|---|---|---|---|
+| Parse/compile | 0,123 ms | 0,110 ms | négligeable (sub-ms bruité) |
+| Hot loop controller IDLE | 389,7 ns | 53,4 ns (30,2 au 2e run) | ×7,3–9,5 [≥ 4] ✅ |
+| poll_gamepad relâchement Home | 1 448,6 ns | 168,2 ns | ×8,6 [≥ 4] ✅ |
+| updateCanvas (chemin 60 Hz) | 268,8 ns | 12,6 ns | ×21,3 [≥ 12] ✅ + flag dirty (4 vs 860 004 uniform1f) |
+| updateFrame | 187,7 ns | 181,8 ns | stable [0,5–2] ✅ |
+| ACTIF / commun | — | — | 0,91–0,94 [0,5–2] ✅ |
+| Éval page à froid (20 runs) | 630,8 ms | **24,6 ms** | build ≤ 50 ms ✅ · perf10 ∈ [300, 1200] ✅ (Δ −96,1 %) |
+| Profil startup | `getSupportedCodecProfiles` 76,4 % | plat, 81,2 % natif/GC | one-shot différé intact |
+| cold-getcap | 566,2 ms (one-shot) | eval 30,9 ms (Δ −94,7 %) | one-shot stable, 2e appel 0,1 ms |
+
 
 
 ## Profil CPU du startup (fonction-par-fonction)
