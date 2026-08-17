@@ -66,11 +66,84 @@ collect — mesuré ~7 % réaliste, négatif à 500 entrées), portage preview
 
 ## Rappel mainteneur (timing)
 
-**Aucun retour au 17 août ~23:20** sur les 5 PR (0 commentaire, 0 review).
-Le mainteneur répond en **semaines/mois** — voir `upstream-prs/reminder.md`
-(#468 attend depuis juillet 2024, #851 depuis décembre 2025, dernier commit
-typescript : 14 juillet). **Ne pas pinger avant le 24 août** ; le commentaire
-groupé prêt (sur #993, référence les 5) est dans `upstream-prs/reminder.md`.
+**Aucun retour au 17 août ~23:30** sur les 6 PR (0 commentaire, 0 review,
+0 review request). Le mainteneur répond en **semaines/mois** — voir
+`upstream-prs/reminder.md` (#468 attend depuis juillet 2024, #851 depuis
+décembre 2025, dernier commit typescript : 14 juillet). **Ne pas pinger
+avant le 24 août** ; le commentaire groupé prêt (sur #993, référence les 6)
+est dans `upstream-prs/reminder.md`.
+
+Style observé du mainteneur : **« thank you. I'll take a look later. »** (PR
+#908, 24 mars) puis silence de plusieurs mois ; la plupart de ses merges
+récentes (avril-juin) sont des PR de custom touch controls (json/ids), la
+dernière merge = #959 le 20 juin. Aucun commit sur `typescript` depuis le
+14 juillet (bump 6.7.12). Ne pas insister : répondre si interrogé, sinon
+laisser le rappel du 24 août faire le travail.
+
+## Réponses préparées (si le mainteneur interroge)
+
+**PR #993 — codecProfile lazy**
+
+- **Pourquoi lire la valeur brute dans `STORAGE.Global.settings` au lieu de
+  `getGlobalPref()` ?** `getGlobalPref(STREAM_CODEC_PROFILE)` déclenche
+  `validateValue` → l'accesseur `options` (désormais paresseux) →
+  `getSupportedCodecProfiles()` → `RTCRtpReceiver.getCapabilities()` = init
+  de la pile WebRTC (~600 ms one-shot à froid). La valeur stockée brute vaut
+  `'default'` sauf si l'utilisateur a configuré le réglage. Dans
+  `patchRtcCodecs`, `'default'` court-circuite (retour immédiat). Dans
+  `patchRtcPeerConnection`, un profil configuré implique qu'une session
+  démarre → l'init WebRTC est de toute façon inévitable juste après ; la
+  lecture brute n'enlève aucun coût utile.
+- **`ready()` n'est plus un vrai `ready` : les getters sont-ils
+  équivalents ?** Oui — `unsupported`, `unsupportedNote` et `suggest`
+  reprennent exactement la logique d'origine (`keys.length <= 1` →
+  unsupported ; `lowest`/`highest` identiques), calculés au premier accès.
+  La valeur rendue à l'UI est bit pour bit la même ; seul le moment du
+  calcul change.
+- **La mémoïsation est-elle sûre ?** Oui : `getSupportedCodecProfiles()`
+  était déjà évalué une seule fois (l'`options` était un objet calculé à
+  l'init du module). Le cache reproduit cette sémantique — le support
+  WebRTC d'un navigateur est constant pendant la session. Cas sans
+  `getCapabilities` (Firefox, anciens) : retour `{ default }`, également mis
+  en cache.
+- **Le coût one-shot a-t-il disparu ou seulement bougé ?** Il est **différé,
+  pas supprimé** : payé à la première ouverture des settings (rendu du
+  select) ou à la première validation — jamais au démarrage. Et si une
+  session démarre avant, l'init WebRTC est fait pour la session : le getter
+  ne coûte plus rien (memo).
+- **Preuves ?** Profil CDP du démarrage (navigateur neuf, 20 runs) : avant —
+  `getSupportedCodecProfiles` dominante à 19,7 ms (78 % du temps JS) ;
+  après — aucune fonction JS dominante, 76,8 % natif/GC. Build amont OK
+  (gate eslint+TS, exit 0).
+
+**PR #994-#997 — webgl2 (USM, dirty flag, texStorage, viewport/NoColor)**
+
+- **Pourquoi plusieurs PR sur le même fichier ?** Chacune est un sujet isolé
+  et indépendant (shader / uniforms / storage / viewport) ; elles
+  s'empilent proprement, chaque diff est lisible seul. Si tu préfères une
+  seule PR, dis-le — je les rebase en une série de commits.
+- **Comment les mesures sont-elles faites ?** Harnais rejouables sur un
+  vrai contexte WebGL2 (Edge/ANGLE, compteurs d'appels GL + GPU
+  timestamps), comparaison perf10 (baseline) vs build, médiane sur 3 passes
+  × seeds ; l'équivalence visuelle du shader USM est vérifiée pixel à pixel
+  (diff sur vidéo de texte fin, maxAbs 0 à sharpness identique).
+- **Le dirty flag et le cache uniforms (v1.5.0) se concurrencent-ils ?**
+  Non : le flag dirty (#995) remplace le cache de valeurs (compare 8 champs
+  par frame) par une lecture + branche — strictement supérieur ; c'est
+  l'état final du build v1.8.0 du fork.
+- **Pourquoi `gl.RGB8` et pas `gl.RGB` dans texStorage (#996) ?** `gl.RGB`
+  est un format non-sized : `texStorage2D` le rejette (INVALID_ENUM) →
+  storage jamais alloué → les uploads échouent → renderer noir.
+  `texSubImage2D` garde `gl.RGB` côté upload ; seul le storage est `RGB8`.
+
+**PR #998 — streamstats hidden throttle**
+
+- **Pourquoi `setTimeout` auto-réarmé plutôt que `setInterval` ?** Pour
+  réévaluer `document.hidden` à chaque tick (l'intervalle n'est pas figé au
+  `start`) et garantir qu'un `collect()` async ne se chevauche pas (guard
+  `isUpdating`). La constante `INTERVAL_BACKGROUND` existait déjà dans
+  `StreamStatsCollector`, inutilisée — aucun comportement visible quand
+  l'onglet est au premier plan.
 
 ## Conventions pour chaque PR
 
