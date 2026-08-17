@@ -48,6 +48,12 @@ check("sdk : build() → new ub(…, fetch) capture window.fetch", r.sdk.capture
 check("sdk : référence capturée === BX_FETCH (le hook du build)", r.sdk.capturedIsHook);
 check("sdk : NATIVE_FETCH préservé (pas de boucle infinie)", r.sdk.nativePreserved);
 
+// CONTROLE VOLONTAIRE (branche ci/control-comment-gate) : gate A forcé au rouge
+// pour vérifier que le step « Commente la PR » skip proprement (garde existsSync)
+// au lieu de crasher en ENOENT quand le job échoue avant check-ratios.
+// À RETIRER avec le merge.
+check("CONTROLE VOLONTAIRE — gate rouge attendu", false);
+
 // ---------- 4. synthèse ----------
 const ok = !r.guard.previewStream.threw && !r.guard.previewProducts.threw && !r.guard.previewRoot.threw &&
   r.guard.stablePlay.threw === false && r.guard.stableNoMatch.threw === true && r.build.ok && r.sdk.ok;
