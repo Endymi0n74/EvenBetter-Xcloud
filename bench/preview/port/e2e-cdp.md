@@ -346,6 +346,34 @@ seuil : jeu qui « bouge » tout seul, session trop courte) → allonger
 - Prochaine : fenêtre **1800 s** pour rattraper le warning natif et figer le
   timing du kick ; P1-B après branchement de `wrapSession`.
 
+#### Exécution 2 — P1-B fenêtre 3600 s (17 août, 09:10:59 → 10:10:59)
+
+- Contexte : profil edge-cdp, `hookActif:true`, stream Halo Campaign en cours
+  (`play.xbox.com/stream/9N683TDT5M7R/halo-campaign-evolved`), fenêtre
+  `monitor-idle.js --duration=3600`, zéro input pendant toute l'heure.
+- **Gate P1-B passé avant la fenêtre** : `wrapSession branchée ✅ — 3/3
+  sessions wrapées` (`_bxKeepAliveWrapped: true` sur la session trouvée dans
+  les fibers) — rendu possible par le fix du locator (fallback `document.body`,
+  le preview monte sans `#root` — commit `fa5fa6e`).
+- **Heartbeat natif `/keepalive` : 60 requêtes, toutes les 60 s**
+  (09:11:50 → 10:10:50) — la connexion de session n'a jamais bronché sans le
+  moindre input, avec P1 en place : **aucun conflit** entre le heartbeat natif
+  et P1 (P1 n'a rien émis, les deux mécanismes ne se sont pas marchés dessus).
+- **Warning d'idle : aucun** — ni `Warning for being idle;` (natif) ni
+  `BX keep-alive: idle warning intercepted` (P1 jamais exercé).
+- Vidéo : `readyState 4, paused:false` constant ; **session vivante à la fin**
+  (verdict monitor-idle : `session vivante à la fin : ✅ OUI`).
+- **Verdict : P1-B NON concluant pour l'interception** — le warning n'a pas
+  atteint son seuil dans **1 h** d'AFK totale → **seuil d'idle du preview
+  > 60 min** (ou pas de kick du tout sur cette session/ce jeu). Conséquence
+  pratique pour l'usage réel : le preview ne coupe pas après 1 h d'inactivité.
+  P1 reste branché comme filet de sécurité, mais sa preuve d'interception
+  nécessite une fenêtre au-delà du vrai seuil.
+- Prochaine : **chercher statiquement le seuil d'idle dans les bundles**
+  (constante serveur côté SDK, comme play-chain) au lieu d'une fenêtre de
+  2 h à l'aveugle — calibrer la fenêtre sur la valeur trouvée, ou conclure
+  « pas de kick idle preview ».
+
 ## Critères de succès
 
 | # | Où | Run 0 (témoin) | Run 1 (intercepté) | Statut |

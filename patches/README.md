@@ -3,7 +3,7 @@
 Les patches produisent le build `better-xcloud-perf-v1.7.0` (`@version 1.7.0`,
 série d'optimisations perf11 + perf13 + fix RGB8 + cache uniforms + flag dirty).
 
-21 patches individuels, chacun **vérifié applicable seul** sur la baseline
+22 patches individuels, chacun **vérifié applicable seul** sur la baseline
 `Better xCloud-6.7.12-perf10.js` (round-trip : `node --check` OK après application).
 
 ## Application d'un patch seul
@@ -41,34 +41,36 @@ l'application — conversion LF→CRLF du contexte).
 | `19-webgl2-uniform-cache.patch` | Cache des valeurs de uniforms dans `updateCanvas` (7 `gl.uniform*` sautés par frame au repos ; invalidation par comparaison de valeurs — état final `updateCanvas` v1.5.0) | webgl2 |
 | `20-webgl2-uniform-dirty-flag.patch` | `updateCanvas` skip par flag dirty (le recalcul des uniforms n'est relancé que si `updateOptions`/`refreshPlayer` invalide le flag — état final `updateCanvas` v1.6.0) | webgl2 |
 | `21-getcodecprofiles-lazy.patch` | `stream.video.codecProfile` évalué paresseusement (options en getter lazy, `ready` sans calcul — `RTCRtpReceiver.getCapabilities` plus appelé au chargement, ~667 ms à froid) + mémoïsation + gardes `patchRtcCodecs`/`patchRtcPeerConnection` sur valeur stockée brute | settings/rtc |
+| `22-webgl2-usm-4taps.patch` | Fragment shader WebGL2 : USM en 4 échantillons bilinéaires aux milieux des arêtes (±0,5 texel, gaussienne 3×3 exacte) au lieu de 9 fetches — draw GPU −30 % (10,24 → 7,17 µs seed 42) | webgl2 |
 
 ## Matrice de compatibilité (empilement par paires)
 
 Ligne i, colonne j : ✓ = j s'applique proprement après i, ✗ = conflit.
 
 ```
-    01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21
-  01  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✓
-  02  ✓  .  ✓  ✓  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✓
-  03  ✓  ✓  .  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✗
-  04  ✓  ✓  ✗  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✗
-  05  ✓  ✗  ✓  ✓  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✓
-  06  ✓  ✓  ✓  ✓  ✓  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✓
-  07  ✓  ✓  ✓  ✓  ✓  ✓  .  ✗  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✓
-  08  ✓  ✓  ✓  ✓  ✓  ✓  ✗  .  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✓
-  09  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✓
-  10  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✓
-  11  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✗  ✓  ✓  ✗  ✓  ✓  ✓  ✓  ✓ ✓
-  12  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  .  ✓  ✓  ✗  ✓  ✓  ✓  ✓  ✓ ✓
-  13  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✗  ✓  ✗  ✓  ✗  ✗  ✗ ✓
-  14  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  .  ✓  ✗  ✓  ✗  ✗  ✗ ✓
-  15  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  ✓  .  ✓  ✓  ✓  ✓  ✓ ✓
-  16  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  .  ✓  ✗  ✗  ✗ ✓
-  17  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✓  ✓  ✓ ✓
-  18  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  ✗  ✓  .  ✗  ✗ ✓
-  19  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  ✗  ✓  ✗  .  ✗ ✓
-  20  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  ✗  ✓  ✗  ✗  . ✓
-  21  ✓  ✓  ✗  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .
+    01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22
+  01  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✓ ✓
+  02  ✓  .  ✓  ✓  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✓ ✓
+  03  ✓  ✓  .  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✗ ✓
+  04  ✓  ✓  ✗  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✗ ✓
+  05  ✓  ✗  ✓  ✓  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✓ ✓
+  06  ✓  ✓  ✓  ✓  ✓  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✓ ✓
+  07  ✓  ✓  ✓  ✓  ✓  ✓  .  ✗  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✓ ✓
+  08  ✓  ✓  ✓  ✓  ✓  ✓  ✗  .  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✓ ✓
+  09  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✓ ✓
+  10  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓ ✓ ✓
+  11  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✗  ✓  ✓  ✗  ✓  ✓  ✓  ✓  ✓ ✓ ✓
+  12  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  .  ✓  ✓  ✗  ✓  ✓  ✓  ✓  ✓ ✓ ✓
+  13  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✗  ✓  ✗  ✓  ✗  ✗  ✗ ✓ ✗
+  14  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  .  ✓  ✗  ✓  ✗  ✗  ✗ ✓ ✗
+  15  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  ✓  .  ✓  ✓  ✓  ✓  ✓ ✓ ✓
+  16  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  .  ✓  ✗  ✗  ✗ ✓ ✗
+  17  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  .  ✓  ✓  ✓ ✓ ✓
+  18  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  ✗  ✓  .  ✗  ✗ ✓ ✗
+  19  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  ✗  ✓  ✗  .  ✗ ✓ ✗
+  20  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  ✗  ✓  ✗  ✗  . ✓ ✗
+  21  ✓  ✓  ✗  ✗  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  . ✓
+  22  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✗  ✗  ✓  ✗  ✓  ✗  ✗  ✗ ✓  .
 ```
 
 ### Zones incompatibles (mêmes lignes physiques du fichier minifié)
@@ -83,7 +85,7 @@ d'une même zone sur une branche :
   appliquer le patch global.
 - **streamstats (07→09)** : `07`, `08`, `09` sont mutuellement exclusifs entre eux.
 - **controller (11+12+15)** : mutuellement exclusifs (ligne `controller_customization_default`).
-- **webgl2 (13+14+16+17+18+19+20)** : mutuellement exclusifs (ligne `WebGL2Player`) — sauf 17 (hunk `DEFAULT_FLAGS` seul) qui s'empile avec les autres. 18 (fix RGB8) est l'état final `updateFrame` : préférer 18 à 16. 19 (cache uniforms) est l'état final `updateCanvas` v1.5.0 : préférer 19 pour le chemin uniforms v1.5.0. 20 (flag dirty) est l'état final `updateCanvas` v1.6.0 : préférer 20 pour le chemin uniforms v1.6.0.
+- **webgl2 (13+14+16+17+18+19+20+22)** : mutuellement exclusifs (ligne `WebGL2Player`) — sauf 17 (hunk `DEFAULT_FLAGS` seul) qui s'empile avec les autres. 18 (fix RGB8) est l'état final `updateFrame` : préférer 18 à 16. 19 (cache uniforms) est l'état final `updateCanvas` v1.5.0 : préférer 19 pour le chemin uniforms v1.5.0. 20 (flag dirty) est l'état final `updateCanvas` v1.6.0 : préférer 20 pour le chemin uniforms v1.6.0. 22 (USM 4 taps) touche le fragment shader dans `setupShaders` — même ligne physique : ✗ avec 13/14/16/18/19/20, ✓ avec 17. Le shader **WebGPU** (`WebGPUPlayer`) garde volontairement le 9 taps : la variante 4 taps y a été mesurée **PLUS LENTE** sur Dawn/D3D12 (+3 à +7 %, seeds 42/99, 17 août) — l'avantage bilinéaire était spécifique à ANGLE/D3D11 ; voir `bench/gpu/README.md` (section « USM WebGPU »). Pas de patch 23.
 - **ui (06+10)** : s'empilent sans problème.
 
 ### Pour tout porter d'un coup

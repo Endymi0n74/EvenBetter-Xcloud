@@ -38,6 +38,9 @@ function extractClass(src, marker) {
 }
 
 const src = fs.readFileSync(process.argv[2], "utf-8");
-const cls = extractClass(src, "class WebGL2Player extends BaseCanvasPlayer");
+// marqueur optionnel (argv[4]) : défaut WebGL2Player (compat rétro), ex.
+// "class WebGPUPlayer extends BaseCanvasPlayer" pour le chemin WebGPU.
+const marker = process.argv[4] || "class WebGL2Player extends BaseCanvasPlayer";
+const cls = extractClass(src, marker);
 fs.writeFileSync(process.argv[3], cls);
-console.log(`extracted ${cls.length} chars -> ${process.argv[3]}`);
+console.log(`extracted ${cls.length} chars (${marker.split(" ")[1]}) -> ${process.argv[3]}`);

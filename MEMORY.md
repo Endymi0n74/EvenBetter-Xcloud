@@ -69,6 +69,24 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
   warning intercepted » + session survivante) — à valider (P1-B). Prérequis :
   Étape 0 `--strict-probe` passée.
 
+## État stable v1.7.0 (17 août)
+
+- **USM 4 taps WebGL2 intégré** (patch 22) : re-mesure seed 42 du **build réel**
+  (`gpu-v170-usm-webgl2player.txt`) — draw 10,24 → 7,17 µs (**−30,0 %**),
+  identique au prototype. Patch généré dynamiquement
+  (`patches/gen-patch-22.js`) : numéro de ligne calculé depuis le patch global
+  (283, pas 281 codé en dur) + **hunk 3 lignes avec contexte** (un hunk
+  zéro-contexte est refusé par git apply sur ligne géante même contenu
+  identique). Piège : `git apply` **hors repo no-op silencieusement** — lancer
+  depuis la racine du repo.
+- **USM WebGPU : REJETÉ** — 4 taps mesuré **PLUS LENT** sur Dawn/D3D12 (s42
+  +7,1 %, s99 +3,0 % ; harnais `gpu-runner-webgpu.js`, batch hors-écran 1080p,
+  `onSubmittedWorkDone` car timestamp queries mortes sur Edge 152). Le gain
+  WebGL2 était spécifique à ANGLE/D3D11. Build reverté, pas de patch 23 —
+  le shader WebGPU garde le 9 taps.
+- **Reste pour boucler la v1.7.0** : validation visuelle du USM WebGL2 (texte
+  fin en session) + push du lot en attente (2 commits + intégration USM).
+
 ## Pièges mémorisés
 
 - URL **play SANS GUID** (`…/v5/sessions/cloud/play`) ; state/configuration

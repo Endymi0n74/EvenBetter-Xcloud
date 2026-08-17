@@ -27,7 +27,11 @@ chapitre Benchmarks du README principal.
 | `gpu-v140-webgl2player.txt` | Classe extraite du build v1.4.0 (contient déjà `gl.RGB8`) |
 | `gpu-v150-webgl2player.txt` | Classe extraite du build v1.5.0 (idem v1.4.0 + cache uniforms `updateCanvas` — chemin GPU identique, re-mesure ×2,10/×1,49) |
 | `gpu-v160-webgl2player.txt` | Classe extraite du build v1.6.0 (idem v1.5.0 + flag dirty `updateCanvas` — `updateFrame` et shader octet pour octet identiques, table GPU v1.4.0/v1.5.0 valide) |
-| `gpu-v170-webgl2player.txt` | **Prototype candidat v1.7.0** : classe v1.6.0 avec le chemin USM du fragment shader remplacé — gaussienne 3×3 exacte en 4 échantillons bilinéaires (±0,5 texel) au lieu de 9 fetches. Seed 42 : draw GPU 10,24 → 7,17 µs (−30 %), ratio perf10/build 1,43. Non intégré au build (prototype à valider visuellement) |
+| `gpu-v170-webgl2player.txt` | **Prototype v1.7.0** : classe v1.6.0 avec le chemin USM du fragment shader remplacé — gaussienne 3×3 exacte en 4 échantillons bilinéaires (±0,5 texel) au lieu de 9 fetches. Seed 42 : draw GPU 10,24 → 7,17 µs (−30 %), ratio perf10/build 1,43. **Intégré au build v1.7.0 le 17 août** (patch 22) — re-mesure du build confirmée, validation visuelle reste à faire |
+| `gpu-v170-usm-webgl2player.txt` | Classe extraite du **build v1.7.0 réel** (17 août, patch 22 appliqué) — re-mesure seed 42 : draw 10,24 → 7,17 µs (−30,0 %), identique au prototype sur les 3 passes |
+| `gpu-runner-webgpu.js` | Harnais **WebGPU** (`WebGPUPlayer`, Dawn/D3D12) : draw hors-écran en batch de N frames à 1080p, `onSubmittedWorkDone` comme barrière de complétion (timestamp queries mortes sur cet Edge), split émission/sync, passes croisées par seed |
+| `gpu-webgpu-9tap.txt` | Classe `WebGPUPlayer` extraite de HEAD (USM 9 fetches) |
+| `gpu-webgpu-4tap.txt` | Variante expérimentale 4 taps bilinéaires — mesurée **PLUS LENTE** sur Dawn/D3D12, build reverté (voir section « USM WebGPU ») |
 | `gpu-v130-webgl2player.txt` | Classe v1.3.0 (historique, bug `gl.RGB` non corrigé) |
 | `gpu-runner.js` | Harnais : serveur local, injection, instrumentation GL, GPU timestamps, agrégation par seed — upload décomposé **émission** (boucle tight) vs **sync** (readback `readPixels`) |
 | `machine-state.js` | Capture l'état machine avant/après chaque seed (GPU nvidia-smi : temp/util/clocks/puissance/P-state ; CPU : charge %, % de la fréquence de base si compteurs perf OK, fréquence base via WMI ; top 5 processus) — JSON tolérant (outil absent → champ null) |
@@ -184,7 +188,7 @@ de la section « Lecture des résultats » reste curé (il documente le protocol
 et les sessions, pas seulement des nombres).
 
 
-## Candidat v1.7.0-proto — draw GPU du shader (mesure seed de contrôle)
+## Draw GPU du shader — USM 4 échantillons bilinéaires (**INTÉGRÉ au build v1.7.0**, 17 août)
 
 Le draw GPU (10,24 µs à 640×360 dans toutes les sessions) est la dernière
 partie du hot path jamais touchée : le shader est resté octet pour octet
@@ -219,7 +223,39 @@ Résultat (16 août, soirée, upload en état haut ×1,8 — le draw n'en dépen
 
 Le gain est strictement GPU-side (compteurs GL identiques : texSubImage2D 1,
 drawArrays 1, 0 uniform/frame). À 1080p (9× les pixels) il extrapole ~30 µs/frame.
-Intégration au build = patch 21 (v1.7.0) après validation visuelle du rendu.
+**INTÉGRÉ au build v1.7.0 le 17 août** (patch 22 — le fragment shader WebGL2 de
+`better-xcloud.user.js` porte maintenant la variante 4 taps, vérifié identique au
+prototype). **Re-mesure du build réel confirmée le 17 août** (seed 42,
+`gpu-v170-usm-webgl2player.txt` via `extract-class.js`) : draw 10,24 → 7,17 µs,
+**−30,0 %** — identique au prototype sur les 3 passes. Reste : **validation
+visuelle du rendu** (le harnais GPU ne peut pas prouver l'équivalence visuelle —
+vérifier le USM en session sur du texte fin).
+
+## USM WebGPU — verdict : 4 taps PLUS LENT sur Dawn/D3D12 (17 août)
+
+Le shader WebGPU (`WebGPUPlayer`, flag `WebGPU` off par défaut) restait en 9
+fetches. Étendu le 17 août à la variante 4 taps bilinéaires (return USM placé
+**avant** les 9 fetches a-i — obligatoire en WGSL où les `let` sont
+inconditionnels), puis mesuré avec `gpu-runner-webgpu.js` : batch hors-écran de
+N frames à 1080p (import + draw isolés du pacing du compositor de
+présentation), `onSubmittedWorkDone` comme barrière de complétion. Piège du
+stack : les timestamp queries sont **mortes sur cet Edge 152** (`timestamp-query`
+annoncé mais stamps identiques en headed ET headless, `queue.writeTimestamp`
+absent) → mesure par batch/frame au lieu des queries.
+
+| Seed | 9 taps (HEAD) | 4 taps (expérimental) | Δ |
+|---|---|---|---|
+| 42 | 29,4 µs/frame | 31,5 µs/frame | **+7,1 %** |
+| 99 | 79,0 µs/frame | 81,4 µs/frame | **+3,0 %** |
+
+(Seed 99 en état machine plus haut — les absolus doublent, seuls les ratios
+comparent.) **Verdict : le bilinéaire régresse sur le backend Dawn/D3D12** : 4
+échantillons bilinéaires = 16 fetches de texels (4 taps × 4 texels) contre 9
+fetches directs — l'avantage constaté en WebGL2 était **spécifique à
+ANGLE/D3D11**. **Build reverté le 17 août** : le shader WebGPU garde le 9 taps,
+aucun patch 23. `gpu-webgpu-4tap.txt` est conservé pour rejouer la mesure ;
+`gpu-runner-webgpu.js` reste disponible pour de futures mesures WebGPU.
+
 ## Pièges du harnais
 
 - **Wrapper GL** : les méthodes instrumentées doivent **`return orig(...)`**
