@@ -103,6 +103,33 @@ rien à retirer de la queue, aucun conflit de sujet avec l'amont. Le seul
 ancêtre commun est #21 (checkForUpdate), déjà mergé depuis longtemps ; notre
 #11 est une optimisation de ce feature, pas une copie.
 
+### Vérification de conflits avec les PR ouvertes des autres contributeurs
+(18 août ~00:05)
+
+5 PR ouvertes hors les nôtres (#468, #851, #908, #938, #988) — croisement
+**bidirectionnel** des fichiers (`f===of || f.includes(of) || of.includes(f)`)
+avec les fichiers réels de nos 8 PR (récupérés via l'API) :
+
+| PR autre | Fichiers | Overlap avec nos 8 PR |
+|---|---|---|
+| #468 Record | screenshot.ts, translation.ts, game-bar… | **aucun** (nos 8 ne touchent pas ces fichiers) |
+| #851 touch-layout json | a-plague-tale-requiem.json | **aucun** |
+| #908 mkb zoom | pref-keys.ts, settings-dialog.ts, translation.ts, stream-settings-storage.ts | **aucun** sur les 8 ouvertes |
+| #938 co-op controllers | gamepad.ts, controller-extra.ts, local-co-op-enable.ts, translation.ts… | **aucun** (fichiers différents de controller-customization/poll-gamepad) |
+| #988 touch-layouts Halo | touch-layouts/*.json | **aucun** |
+
+**Verdict : aucun conflit possible** — zéro fichier partagé entre nos 8 PR
+(#993-1000) et les 5 PR ouvertes des autres contributeurs ; le test de merge
+(lignes) est trivialement vide puisqu'aucun fichier commun n'existe.
+
+⚠️ **Near-misses pour la queue non ouverte** : #10 (branche prête
+`feat/settings-set-prefs`) touche `pref-keys.ts`, fichier aussi modifié par
+**#908** (ouverte depuis mars, stale) ; #12 (`feat/bxselect-delegated-observer`)
+touche `translation.ts`, aussi dans #908/#938/#468. Au moment d'ouvrir
+#10-12 : le mentionner dans le corps et être prêt à rebaser si l'une de ces
+PR merge d'abord (probabilité faible — #908 attend depuis mars, #468 depuis
+2024).
+
 ## Rappel mainteneur (timing)
 
 **Aucun retour au 17 août ~23:55** sur les 8 PR (0 commentaire, 0 review,
