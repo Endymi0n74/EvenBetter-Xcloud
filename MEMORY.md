@@ -83,7 +83,11 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
 - Le preview CSP bloque raw.githubusercontent.com (listes native-mkb /
   local-co-op) → « Failed to fetch » (non fatals, rejets non gérés).
 - Conventions merge : rebase + fast-forward + suppression de branche ; badge
-  Closed/Merged trompeur (§5 mémo projet). Runner edge-cdp : port 9222,
+  Closed/Merged trompeur (§5 mémo projet).
+- Step « Commente la PR » (`always()` + readFileSync du résumé) : garde
+  `fs.existsSync` (`8bd1341`) — job échoué AVANT check-ratios → skip propre
+  « résumé absent … skippé », plus de crash ENOENT (validé PR #16, run
+  32002128606 ; journal dans e2e-cdp.md). Runner edge-cdp : port 9222,
   profil `C:\edge-cdp`, relance : `Start-Process msedge.exe -ArgumentList
   '--remote-debugging-port=9222','--user-data-dir=C:\edge-cdp','--no-first-run',
   '--load-extension=D:\Codex\better-xcloud-fork\.edge-inject'`.

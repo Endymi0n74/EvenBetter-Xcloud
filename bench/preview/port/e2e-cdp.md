@@ -372,6 +372,27 @@ est chirurgicale. C6/C8 = l'outil a bien vu le flux dans l'ordre attendu.
 - Journal des runs : date, résolution cible, options P2, URLs play/config,
   état final du stream.
 
+## Journal CI — garde existsSync du step commentaire (17 août)
+
+Le step « Commente la PR — section hot loops » (même logique pour startup /
+gpu) porte `always()` pour commenter même quand le bench échoue, mais lisait
+le résumé SANS garde : un échec AVANT `check-ratios` (ex. gate rouge au step
+Build preview) → `ENOENT: bench-summary.md` + crash du step (vu sur la PR
+#15 de contrôle).
+
+- **Fix `8bd1341`** : `fs.existsSync(sectionPath)` avant la lecture — résumé
+  absent → log « résumé absent (…) — échec avant sa production, commentaire
+  skippé (mode) » + return (aucun appel API → aucun commentaire partiel).
+  Résumé présent → comportement inchangé (commentaire même si le job échoue,
+  le `always()` garde sa valeur).
+- **Validation réelle (PR #16 de contrôle, run 32002128606, 17 août)** : gate
+  A volontairement rouge au step Build preview → job hotloops en échec, mais
+  le step « Commente la PR » **passe** avec la ligne
+  `résumé absent (/home/runner/work/_temp/bench-summary.md) — … skippé
+  (hotloops)`. Job startup-cold (succès) : commentaire normal émis — chemin
+  heureux intact.
+- PR #16 fermée sans merge — le commit de contrôle n'a jamais touché main.
+
 ## Pièges connus
 
 1. **Timing** : si `[P3]` n'apparaît pas dans les premières secondes, le
