@@ -4,7 +4,7 @@ Mesures **perf10 (baseline `055d3a0`)** vs **build v1.4.0** du renderer
 `WebGL2Player` dans un **vrai contexte WebGL2** : compteurs d'appels GL
 (instrumentation) et rasterisation mesurée par GPU timestamp
 (`EXT_disjoint_timer_query_webgl2`). C'est la source de la table « GPU » du
-chapitre Benchmarks du README principal.
+chapitre Benchmarks de `bench/README.md`.
 
 ## Prérequis
 
@@ -416,5 +416,5 @@ machine réelle :
 [--build-upload-max=…] [--build-wall-max=…] [--build-draw-max=…]`.
 
 Le harnais CPU (parse, hot loops, éval page) vit dans `bench/` — voir
-`bench/README.md`. La section « Repro » du README principal documente les
+`bench/README.md`. La section « Repro » de `bench/README.md` documente les
 deux protocoles.

@@ -10,7 +10,7 @@
 //
 // Usage :
 //   node gpu-runner.js ... --seed=100 > run-s100.json   (× les seeds)
-//   node gpu-update-readme.js 100 200 300 400 500 600 [--readme=D:\Codex\better-xcloud-fork\README.md]
+//   node gpu-update-readme.js 100 200 300 400 500 600 [--readme=D:\Codex\better-xcloud-fork\bench\README.md]
 //   node gpu-update-readme.js 100 200 300 400 500 600 --print-only
 "use strict";
 
@@ -21,7 +21,7 @@ const argv = process.argv.slice(2);
 const seeds = argv.filter((a) => !a.startsWith("--"));
 const PRINT_ONLY = argv.includes("--print-only");
 const readmePath = (argv.find((a) => a.startsWith("--readme=")) || "").split("=").slice(1).join("=")
-  || path.join(__dirname, "..", "..", "README.md");
+  || path.join(__dirname, "..", "..", "bench", "README.md");
 
 // ---------- lecture des runs ----------
 function loadRuns() {

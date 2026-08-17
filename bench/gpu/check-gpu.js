@@ -217,7 +217,7 @@ if (markdownFile) {
   }
   // Ligne de session prête à coller dans le tableau « Sessions GPU » du README
   // (même en-tête, même format : plages, ratio, état, draw).
-  lines.push("", "**Session — ligne prête à insérer dans le tableau « Sessions GPU » du README** (`--update-readme` l'insère automatiquement) :");
+  lines.push("", "**Session — ligne prête à insérer dans le tableau « Sessions GPU » de bench/README.md** (`--update-readme` l'insère automatiquement) :");
   lines.push("", "| Session | Version | Upload perf10 (µs) | Upload build — émission (µs) | Ratio upload | État | Sync build (µs) | Total build (µs) | Draw (µs) |");
   lines.push("|---|---|---|---|---|---|---|---|---|");
   lines.push(readmeSessionLine);
@@ -230,13 +230,13 @@ if (markdownFile) {
 
 // ---------- insertion automatique dans le tableau « Sessions GPU » du README ----------
 // --update-readme[=chemin] : ajoute la ligne de session au tableau du README
-// (défaut : README.md à la racine du repo). Idempotent : si une ligne porte
+// (défaut : bench/README.md — les tables ont migré hors du README racine). Idempotent : si une ligne porte
 // déjà le même label de session, l'insertion est sautée. EOL préservée (CRLF
 // pour le README du repo).
 const updateReadmeArg = argv.find((a) => a.startsWith("--update-readme"));
 if (updateReadmeArg !== undefined) {
   const readmePath = (updateReadmeArg.split("=").slice(1).join("=").trim() ||
-    path.join(__dirname, "..", "..", "README.md")).replace(/\\/g, "/");
+    path.join(__dirname, "..", "..", "bench", "README.md")).replace(/\\/g, "/");
   if (!fs.existsSync(readmePath)) {
     console.error(`README introuvable : ${readmePath}`);
     process.exit(1);

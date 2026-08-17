@@ -1,9 +1,9 @@
 #!/bin/bash
 # Rejoue EXACTEMENT le protocole figé (cf. bench/README.md « Protocole figé »)
-# et formate la sortie en tableaux markdown prêts à coller dans le README
+# et formate la sortie en tableaux markdown prêts à coller dans bench/README.md
 # (chapitre Benchmarks).
 #
-# Le script exécute les mêmes commandes que la section Repro du README :
+# Le script exécute les mêmes commandes que la section Repro de bench/README.md :
 #   - hotloops : 3 seeds (42/2024/999) × 3 passes × 200 000 itérations
 #   - parse    : mêmes seeds × 3 passes × 300 itérations
 #   - éval page (optionnel, --with-page-eval) : 20 runs Edge
@@ -25,7 +25,7 @@ SEEDS="42 2024 999"
 PASSES=3
 WITH_PAGE_EVAL=0
 UPDATE_README=0
-README_PATH="README.md"
+README_PATH="bench/README.md"
 STATE=1
 for arg in "$@"; do
   case "$arg" in

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Formate la sortie brute du protocole figé (produite par bench/freeze.sh)
- * en tableaux markdown prêts à coller dans le README (chapitre Benchmarks).
+ * en tableaux markdown prêts à coller dans bench/README.md (chapitre Benchmarks).
  *
  * Lit le dossier de runs (argument 1) : hotloops-<seed>.txt (un par seed),
  * parse-<seed>.txt (un par seed), page-eval.txt (optionnel).
@@ -266,7 +266,7 @@ function chargementSection() {
 // ---------- mode --update-readme : régénère les sections du README en place ----------
 const updArg = process.argv.find((a) => a.startsWith("--update-readme"));
 if (updArg) {
-  const readmePath = updArg.includes("=") ? updArg.split("=").slice(1).join("=") : "README.md";
+  const readmePath = updArg.includes("=") ? updArg.split("=").slice(1).join("=") : "bench/README.md";
   let content = fs.readFileSync(readmePath, "utf-8");
 
   // ancres tolérantes LF/CRLF (le README de travail est CRLF sous Windows)

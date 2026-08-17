@@ -229,7 +229,7 @@ if (markdownFile) {
   }
   const totalFail = failures + structuralFail + startupFail;
   const verdict = totalFail === 0 ? "✅ PASS (6/6)" : `❌ ÉCHEC (${totalFail} vérification(s) en échec)`;
-  lines.push("", "**Session — ligne prête à insérer dans le tableau « Sessions hot loops » du README :**");
+  lines.push("", "**Session — ligne prête à insérer dans le tableau « Sessions hot loops » de bench/README.md :**");
   lines.push("", "| Session | perf10 IDLE (ns/poll) | build IDLE (ns/poll) | Ratio IDLE | État | Relâchement Home (perf10 → build) |");
   lines.push("|---|---|---|---|---|---|");
   lines.push(readmeSessionLine);
