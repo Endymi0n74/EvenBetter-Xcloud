@@ -44,9 +44,9 @@ amont `redphx/better-xcloud` (branche `typescript`, baseline 6.7.12) via des
 | 7 | streamstats hidden throttle | 08 | 59/60 des getStats() supprimés en arrière-plan | ✅ **PR #998 ouverte** (commit `0c22be3`, `stream-stats.ts` seul +45/−21 — `INTERVAL_BACKGROUND` existait déjà dans le collector amont, inutilisé ; `_cachedColors` du bundle fork NON porté, hors sujet #7) |
 | 8 | controller skip idle | 12 | zéro allocation au repos | partiel (controller-customization 15 août) |
 | 9 | structuredClone → référence | 15 | zéro allocation relâchement | à faire |
-| 10 | settings Set + validateValue | 02/03 | lookups O(1) | à faire |
-| 11 | checkForUpdate throttle 2 h | 05 | 1 fetch/jour max | à faire |
-| 12 | BxSelect observer délégué + debugger | 06/10 | un seul MutationObserver | à faire |
+| 10 | settings Set + validateValue | 02/03 | lookups O(1) | 🟡 **branche prête non ouverte** `feat/settings-set-prefs` (commit `19122a1`, 3 fichiers : `pref-keys.ts` + `pref-utils.ts` + `base-settings-storage.ts`, build exit 0) |
+| 11 | checkForUpdate throttle 2 h | 05 | 1 fetch/2 h max (API GitHub) | 🟡 **branche prête non ouverte** `feat/checkforupdate-throttle` (commit `071bde7`, `utils.ts` seul — le fetch passe APRÈS le garde 2 h ; la baseline amont avait le garde mais fetchait quand même) |
+| 12 | BxSelect observer délégué + debugger | 06/10 | un seul MutationObserver | 🟡 **branche prête non ouverte** `feat/bxselect-delegated-observer` (commit `b6b49ac`, 2 fichiers : `bx-select.ts` observer global délégué + `translation.ts` debugger retiré, build exit 0) |
 | 13 | fixes (share-delete, opacity cache) | 11/07 | bug fixes | à faire |
 
 **À NE PAS proposer** : patch 01 (header/version fork), patch 09 (single-pass
@@ -63,6 +63,15 @@ collect — mesuré ~7 % réaliste, négatif à 500 entrées), portage preview
 | #996 | texStorage2D/RGB8 + bindTexture | OPEN, mergeable, 1 commit — ouvert le 17 août, aucun retour | idem |
 | #997 | viewport fix + NoColorConversion | OPEN, mergeable, 1 commit — ouvert le 17 août ~23:20, aucun retour | idem |
 | #998 | streamstats hidden throttle | OPEN, mergeable, 1 commit — ouvert le 17 août ~23:25, aucun retour | idem |
+
+## Branches prêtes en attente (PR #10-12)
+
+Les branches **#10, #11, #12** sont commitées en local sur le clone (aucune
+poussée, aucune PR ouverte — décision : ne pas empiler les PR avant un
+retour du mainteneur sur #993-998). Au premier retour, l'envoi est
+immédiat : `git push mine <branche>` puis `gh pr create --base typescript
+--head Endymi0n74:<branche>` avec le corps du commit. Les commits de corps
+sont dans chaque commit (message complet quoi/pourquoi/sécurité).
 
 ## Rappel mainteneur (timing)
 
