@@ -63,6 +63,14 @@ collect — mesuré ~7 % réaliste, négatif à 500 entrées), portage preview
 | #996 | texStorage2D/RGB8 + bindTexture | OPEN, mergeable, 1 commit — ouvert le 17 août, aucun retour | idem |
 | #997 | viewport fix + NoColorConversion | OPEN, mergeable, 1 commit — ouvert le 17 août ~23:20, aucun retour | idem |
 
+## Rappel mainteneur (timing)
+
+**Aucun retour au 17 août ~23:20** sur les 5 PR (0 commentaire, 0 review).
+Le mainteneur répond en **semaines/mois** — voir `upstream-prs/reminder.md`
+(#468 attend depuis juillet 2024, #851 depuis décembre 2025, dernier commit
+typescript : 14 juillet). **Ne pas pinger avant le 24 août** ; le commentaire
+groupé prêt (sur #993, référence les 5) est dans `upstream-prs/reminder.md`.
+
 ## Conventions pour chaque PR
 
 - Branche `feat/<sujet>` depuis `typescript`, **un seul sujet par PR**.
