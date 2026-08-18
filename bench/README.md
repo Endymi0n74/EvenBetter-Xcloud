@@ -211,6 +211,18 @@ mais le serveur ne peut pas l'encoder — l'A/B mesuré le prouve.
 | MediaCapabilities AV1 webrtc (recevoir) | `supported:true` · `powerEfficient:true` |
 | `getSupportedCodecProfiles()` (bundle) | **n'expose que H.264** low/normal/high — AV1 jamais proposé dans le setting |
 
+**Liste RTP complète observée** (`RTCRtpReceiver.getCapabilities("video")`,
+Edge 152 — identique côté preview) :
+
+```
+video/VP8 · video/rtx · video/VP9 (profile 0/1/2/3) · video/H264 (×9) ·
+video/AV1 (×2) · video/red · video/ulpfec · video/flexfec-03
+```
+
+➡️ **Pas de HEVC (H.265)** dans la pile WebRTC — ni offert, ni négociable.
+H.264 est le seul codec que le serveur retient (AV1/VP9 présents dans l'offre,
+absents de la réponse).
+
 ### 2. A/B mesuré sur un stream réel (As Dusk Falls, 20 s, premier plan)
 
 | Métrique | Run A (défaut) | Run B (offre AV1 forcée) |
