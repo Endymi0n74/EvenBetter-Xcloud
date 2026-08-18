@@ -121,6 +121,32 @@ l'APK (BlueStacks, déconnecté) : badge `EvenBetterXcloud 1.9.0` + groupe
 controller IDLE 37,6 ns (×8,7), updateCanvas 13 ns (×19), updateFrame
 162 ns stable — aucune régression.
 
+## Profil runtime en session réelle — VERDICT (18 août ~19:45, v1.9.0)
+
+`node bench/live-profile.js --port=9225 --duration=15/20` sur un stream réel
+(As Dusk Falls, www.xbox.com/play, build v1.9.0 injecté par extension
+`.edge-inject-stable`, profil guard-badge connecté) :
+
+| Run | Durée | JS total sur le main thread | Dominantes |
+|---|---|---|---|
+| 15 s | 15,9 s | ~3,5 ms (0,02 %) | fetch 2,0 ms · ls 1,5 ms |
+| 20 s | 20,4 s | ~3,2 ms (0,02 %) | getGamepads 1,7 ms · Yt 1,5 ms |
+
+**Verdict : le main thread JS du renderer est ~99,98 % inactif/natif pendant
+un stream.** Aucune dominante JS exploitable : la charge réelle (décodage
+vidéo, rendu WebGL2) vit dans les process natifs/GPU, invisibles au CDP
+Profiler du renderer. Le script EvenBetterXcloud (updateFrame/updateCanvas/
+draw ~0,2 µs/frame) est sous le seuil d'échantillonnage — **la queue
+d'optimisations JS du stable est au plancher, il n'y a plus de gain
+mesurable côté script**. Le seul item JS visible est le polling
+`navigator.getGamepads` (client xcloud + script, ~0,1 ms/s) — déjà couvert
+par les PR upstream #999/#1000 et le hot loop bench (137 ns).
+
+⚠️ Caveat rendu : l'onglet piloté par CDP est en arrière-plan → Edge throttle
+le rendu (86 % de frames dropped sur 20 s, downscale 2560×1440 → 1280×720
+par moments). Le profil JS (sampling wall-clock) reste valide ; pas de
+conclusion sur la qualité de rendu depuis ce setup.
+
 ## Re-baseline du 17 août (v1.8.0) — bornes confirmées
 
 Run complet sur le build v1.8.0 (`better-xcloud.user.js`, 481 772 o — inchangé

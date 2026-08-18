@@ -355,6 +355,23 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
   '--no-first-run',
   '--load-extension=D:\Codex\better-xcloud-fork\.edge-inject'`.
 
+## Profil runtime en session réelle — VERDICT (18 août ~19:45, v1.9.0)
+
+`bench/live-profile.js` exécuté sur un stream réel (As Dusk Falls,
+www.xbox.com/play, build v1.9.0 injecté via `.edge-inject-stable` sur le
+profil guard-badge, lancé depuis la page play par clic CDP sur « JOUER
+MAINTENANT ») : 15 s → ~3,5 ms de JS total ; 20 s → ~3,2 ms (getGamepads
+1,7 ms · Yt 1,5 ms). **Le main thread JS du renderer est ~99,98 %
+inactif/natif pendant un stream** — la dominante réelle (décodage vidéo,
+WebGL2) est côté process natifs/GPU, invisible au CDP Profiler. Verdict :
+**la queue d'optimisations JS du stable est au plancher**, plus de gain
+mesurable côté script (nos hot loops ~0,2 µs/frame sont sous le seuil
+échantillonnage). Seul item JS visible : le polling getGamepads (~0,1 ms/s),
+déjà couvert (PR #999/#1000 + bench 137 ns). Journal dans bench/README.md
+(« Profil runtime — VERDICT »). ⚠ Caveat : onglet CDP en arrière-plan →
+throttling rendu (86 % dropped, downscale 1440p→720p), le profil JS reste
+valide, pas de conclusion qualité.
+
 ## SNAPSHOT 18 août ~20:00 — avant reboot (tout commité + poussé)
 
 **État git** : `main` == `origin/main` @ **`66ef734`** (verify-badge --banner).
