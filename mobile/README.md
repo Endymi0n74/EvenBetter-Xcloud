@@ -54,6 +54,21 @@ nouvelle clé ne serait générée que si aucun keystore n'est trouvé.
 Pipeline sans Gradle : `aapt2 compile/link` → `javac` → `d8` → assemblage
 (`jar` du JDK, pas de `zip` en Git Bash) → `zipalign` → `apksigner`.
 
+## Robustesse (18 août)
+
+- **Erreurs réseau / HTTP / SSL** de la frame principale → **page d'erreur
+  lisible** (plus d'écran blanc) : titre + message + bouton « Réessayer ».
+- **Retry automatique 3× avec backoff 5 s / 15 s / 30 s**, remis à zéro
+  dès qu'une vraie page xbox.com se charge ; un retry en attente est
+  annulé si la page revient entre-temps.
+- **Liens externes** (hors xbox.com / login.live.com / account.microsoft.com)
+  → navigateur système (la session de jeu n'est pas quittée).
+- Piège corrigé : `onPageFinished` est appelé aussi pour les navigations
+  ÉCHOUÉES (avec l'URL fautive) — l'état d'erreur (`errorPageShowing`)
+  garde le retry vivant jusqu'à un vrai succès.
+- Logs de diagnostic tagués `BXPerf` (logcat) sur chaque étape du cycle
+  erreur → retry → succès.
+
 ## Validation (émulateur, 18 août 2026)
 
 Overlay vérifié en réel dans le WebView de l'APK (émulateur Android 9,
@@ -64,9 +79,15 @@ Overlay vérifié en réel dans le WebView de l'APK (émulateur Android 9,
   `BX_EXPOSED=object` (script initialisé), `BX_FETCH=function` (hook
   posé), **bouton settings `.bx-header-settings-button` présent ET
   visible** (`settingsBtnVisible:true`).
-- Preuves commitées : `validation-apk-overlay.png` (screenshot 1920×1080),
-  `validation-apk-probe.json` (sonde CDP), `validation-apk-2026-08-18.txt`
-  (état logcat).
+- **Cycle panne → récupération validé** : navigation vers un port fermé
+  (`www.xbox.com:444`) → page d'erreur affichée (screenshot
+  `validation-apk-errorpage.png`) → **retry auto à +5 s → retour sur
+  `/fr-FR/play` avec l'overlay** (screenshot `validation-apk-recovered.png`,
+  logs `BXPerf` : `showErrorPage → scheduleAutoRetry → AutoRetry.run →
+  resetLoadState`).
+- Preuves commitées : `validation-apk-overlay.png`, `validation-apk-probe.json`,
+  `validation-apk-2026-08-18.txt`, `validation-apk-errorpage.png`,
+  `validation-apk-recovered.png`.
 - Le debug WebView (`WebView.setWebContentsDebuggingEnabled(true)` dans
   MainActivity) reste activé pour rejouer cette validation à tout moment.
 

@@ -378,8 +378,8 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
     24 août** (rythme mainteneur = semaines/mois, #468 attend depuis juillet
     2024), un seul commentaire sur #993 référençant les 13. Programme détaillé
     dans `upstream-prs/README.md`.
-13. ✅ **Fait (18 août ~00:10 puis ~08:15) — APK Android du build stable** :
-    wrapper WebView `mobile/better-xcloud-perf-1.8.0.apk` (~140 Ko, package
+13. ✅ **Fait (18 août ~00:10 puis ~08:30) — APK Android du build stable** :
+    wrapper WebView `mobile/better-xcloud-perf-1.8.0.apk` (~144 Ko, package
     `com.bxperf.app`, signé keystore local, minSdk 24/target 34). Injecte le
     userscript stable (v1.8.0, `@grant none`, zéro GM_*) via
     `evaluateJavascript` en `onPageStarted` — équivalent document-start,
@@ -390,12 +390,25 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
     dex sortait SANS `MainActivity$1/$2` (WebViewClient/WebChromeClient) et
     l'app crasheait au lancement sur TOUT appareil (`NoClassDefFoundError
     MainActivity$1`, MainActivity.java:67). Fix : classes internes STATIQUES
-    nommées (`BxWebViewClient`/`BxWebChromeClient`, référence d'activité au
-    constructeur) + **gate dex dans build.sh** (dexdump + vérification des 4
-    classes attendues, exit 1 sinon — plus jamais d'APK cassé). Validé sur
-    émulateur Android 9 : 0 FATAL, activity resumed, Chromium/WebRTC actif
-    (page xbox.com chargée), screenshot non vide. **Attaché comme asset de
-    la release v1.8.0** (lien direct
+    nommées (`BxWebViewClient`/`BxWebChromeClient`/`AutoRetry`, référence
+    d'activité au constructeur) + **gate dex dans build.sh** (dexdump +
+    vérification des classes attendues, exit 1 sinon — plus jamais d'APK
+    cassé). **Robustesse (18 août ~08:30)** : erreurs réseau/HTTP/SSL de la
+    frame principale → **page d'erreur lisible** (plus d'écran blanc) avec
+    bouton « Réessayer » ; **retry auto 3× backoff 5/15/30 s** ; liens
+    externes → navigateur système. Pièges corrigés en test : (1) lambda
+    interdite (`-source 8` + bootclasspath android.jar n'a pas
+    LambdaMetafactory) → classe nommée `AutoRetry implements Runnable` ;
+    (2) `onPageFinished` est appelé AUSSI pour les navigations ÉCHOUÉES
+    (URL fautive) → annulait le retry — machine à états `errorPageShowing`
+    (markRealPageStarted/onPageFinished garde). **Cycle panne→récupération
+    validé sur l'émulateur** (navig CDP vers `www.xbox.com:444`) : page
+    d'erreur affichée puis retry auto +5 s → retour `/fr-FR/play` avec
+    overlay (`bx:true`), logs `BXPerf` complets. **Overlay validé** :
+    BX_EXPOSED=object, BX_FETCH=function, bouton settings visible (sonde
+    CDP via `adb forward` + debug WebView activé). Preuves dans
+    `mobile/validation-*.png/json/txt` (overlay, page d'erreur, récupéré).
+    **Attaché comme asset de la release v1.8.0** (lien direct
     `releases/download/better-xcloud-perf-v1.8.0/better-xcloud-perf-1.8.0.apk`,
     re-uploadé et vérifié byte-identique). `mobile/build.sh` : prépare
     l'asset tout seul (copie du stable courant) et **réutilise le keystore
