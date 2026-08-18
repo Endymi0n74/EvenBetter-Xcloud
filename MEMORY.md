@@ -504,6 +504,23 @@ getStats met les codec AVANT inbound-rtp), sdp-inspect.js, page-probe.js,
 kill-edge-profile.ps1 (tue un profil Edge précis — `$_` mangé par bash →
 fichier .ps1 obligatoire).
 
+## Préférences utilisateur mesurées — maxBitrate fiable, résolution 720p seule efficace (18 août ~23:30)
+
+- **`stream.video.maxBitrate` (SDP b=AS:) honoré par l'encodeur** : défaut
+  24,2 Mbps (1440p30) → cap 10 Mbps = **6,6 Mbps**, cap 5 Mbps = **4,7 Mbps**,
+  résolution inchangée (1440p), 0 drop. Réglage recommandé pour économiser
+  la bande passante : cap 10-15 Mbps (préférence utilisateur, pas une opti).
+- **`stream.video.resolution` = spoof osName** (handlePlay, même mécanisme
+  P3 retiré du preview) : `720p`→android (**1280×720, 6,4 Mbps — fonctionne**),
+  `1080p`→windows = natif → **no-op** (1440p), `1080p-hq`→tizen = **no-op sur
+  PC** (1440p, cohérent avec l'A/B P3 preview). Seul 720p change quelque
+  chose ; 1080p/1080p-hq sont trompeurs sur PC.
+- Harnais ajouté : `bench/set-pref.js` (fusion préférence dans
+  localStorage["BetterXcloud"] + reload + attente bundle) — la clé est un
+  objet plat de settings. Valeur « unlimited » stockée = 15360000 (max).
+  Piège : la home xbox.com peut atterrir sur le shell complet après un
+  reload — renaviguer explicitement vers /play.
+
 ## Publication v1.10.0 (18 août ~22:30) — feature latence + releases
 
 - **Feature** : « 📡 Tester la latence » (groupe SERVER) — ping des 19 régions

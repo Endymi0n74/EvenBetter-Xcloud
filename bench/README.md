@@ -238,6 +238,51 @@ correct). Harnais ajoutés : `bench/av1-probe.js` (support navigateur),
 `bench/sdp-inspect.js` (SDP local/remote), `bench/page-probe.js` (sonde DOM),
 `bench/kill-edge-profile.ps1` (fermeture propre d'un profil Edge).
 
+## Effet réel des préférences utilisateur — maxBitrate + résolution mesurés (18 août ~23:30, v1.10.0)
+
+Même jeu (As Dusk Falls), sessions de 15-20 s au premier plan, préférence
+posée dans `localStorage["BetterXcloud"]` avant le lancement
+(`bench/set-pref.js` — merge + reload + attente du bundle) :
+
+| Config posée | Résolution effective | Bitrate reçu | Décodage | Drops |
+|---|---|---|---|---|
+| Défaut (`auto`, sans cap) | **2560×1440@30** | **24,2 Mbps** | 0,51 ms/f | 0 |
+| `maxBitrate` 10 Mbps | 2560×1440@30 | **6,6 Mbps** | 0,42 ms/f | 0 |
+| `maxBitrate` 5 Mbps | 2560×1440@30 | **4,7 Mbps** | 0,43 ms/f | 0 |
+| `resolution` **720p** | **1280×720@30** | **6,4 Mbps** | 0,40 ms/f | 0 |
+| `resolution` 1080p | 2560×1440@30 (**no-op**) | 24,4 Mbps | 0,48 ms/f | 0 |
+| `resolution` 1080p-hq | 2560×1440@30 (**no-op**) | 20,6 Mbps | 0,51 ms/f | 0 |
+
+### Mécanisme (vérifié dans `handlePlay` du bundle)
+
+`XcloudInterceptor.handlePlay` applique la résolution par **spoof
+`osName`** (le même mécanisme P3 qu'on a retiré du preview) :
+`x-ms-device-info` + `body.settings.osName` selon
+`getOsNameFromResolution()` — **`720p`→android**, **`1080p`→windows**,
+**`1080p-hq`→tizen**.
+
+- **720p fonctionne** : android → le serveur envoie 1280×720 (6,4 Mbps).
+- **1080p = no-op sur PC** : windows = natif → le serveur garde 1440p.
+- **1080p-hq = no-op sur PC** : tizen ignoré (cohérent avec l'A/B P3 du
+  preview — osName=tizen ne change rien sur un client PC).
+
+### Verdict — réglage recommandé
+
+1. **`stream.video.maxBitrate` est fiable et sans perte de résolution** : le
+   cap SDP `b=AS:` est honoré par l'encodeur (10 Mbps → 6,6 reçus, 5 Mbps →
+   4,7). Recommandé pour économiser la bande passante tout en gardant la
+   définition native : **cap 10-15 Mbps**.
+2. **`resolution` 720p** : le seul réglage de résolution qui change
+   réellement quelque chose sur PC (6,4 Mbps) — utile pour très faible débit.
+3. **1080p / 1080p-hq trompeurs sur PC** : ils ne changent rien (toujours
+   1440p natif). Ne pas les recommander.
+4. Décodage constant (~0,4-0,5 ms/frame) dans tous les cas — le décodage
+   n'est jamais le goulot, même à 1440p.
+
+Caveat : bitrate variable selon le contenu (jeu à faible mouvement) — les
+chiffres comparent le même jeu/scène, l'ordre de grandeur est fiable.
+Harnais ajoutés : `bench/set-pref.js` (pose de préférence + reload).
+
 ## Feature v1.10.0 — 📡 Test de latence serveur (18 août ~21:30)
 
 Bouton « 📡 Tester la latence des serveurs » dans le groupe **SERVER** des
