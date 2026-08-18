@@ -56,7 +56,9 @@ import java.nio.charset.StandardCharsets;
  */
 public class MainActivity extends Activity {
 
-    private static final String START_URL = "https://www.xbox.com/play";
+    // URL de départ : générée par build.sh (BuildConfig.START_URL) selon le
+    // variant — stable = https://www.xbox.com/play, preview = https://play.xbox.com.
+    private static final String START_URL = BuildConfig.START_URL;
 
     // Domaine(s) qui restent DANS le WebView (session de jeu + connexion Xbox)
     private static final String[] KEEP_IN_WEBVIEW = {

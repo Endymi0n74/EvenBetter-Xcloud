@@ -54,6 +54,36 @@ nouvelle clé ne serait générée que si aucun keystore n'est trouvé.
 Pipeline sans Gradle : `aapt2 compile/link` → `javac` → `d8` → assemblage
 (`jar` du JDK, pas de `zip` en Git Bash) → `zipalign` → `apksigner`.
 
+## Deux variants (stable / preview, 18 août)
+
+`build.sh` build **deux APK distincts, installables côte à côte** (même
+signature, packages différents) :
+
+| Variant | `VARIANT=stable` (défaut) | `VARIANT=preview` |
+|---|---|---|
+| START_URL | `https://www.xbox.com/play` | `https://play.xbox.com` |
+| Asset embarqué | `better-xcloud.user.js` (stable) | `better-xcloud-preview.user.js` (preview) |
+| Package | `com.bxperf.app` | `com.bxperf.preview` |
+| Label | « Better xCloud Perf » | « Better xCloud Perf Preview » |
+| APK | `better-xcloud-perf-1.8.0.apk` | `better-xcloud-perf-1.8.0-preview.apk` |
+
+```bash
+bash build.sh                    # stable
+VARIANT=preview bash build.sh    # preview → out/better-xcloud-perf-1.8.0-preview.apk
+```
+
+Mécanique du variant : le START_URL est injecté via une classe `BuildConfig`
+générée au build (pas de placeholder manifest), le label/package via le
+template `AndroidManifest.template.xml`. Le chemin de `R.java` généré par
+aapt2 suit le package du manifest — il est résolu dynamiquement (sinon
+`javac: file not found` sur le variant preview), idem pour le glob d8 et la
+vérification apksigner. Le dex est auto-vérifié (8 classes attendues, dont
+`R` dans le package du variant).
+
+**Validé sur BlueStacks le 18 août** : les deux APK s'installent côte à
+côte, le preview ouvre `play.xbox.com` et le script preview s'exécute
+(`BX_EXPOSED=object`, `BX_FETCH=function`, bouton overlay présent).
+
 ## Robustesse (18 août)
 
 - **Erreurs réseau / HTTP / SSL** de la frame principale → **page d'erreur

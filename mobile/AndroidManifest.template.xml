@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="@PACKAGE@"
+    android:versionCode="1"
+    android:versionName="1.8.0">
+
+    <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="34" />
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Le START_URL n'est pas un élément manifest : c'est une valeur de
+         BuildConfig (com.bxperf.app.BuildConfig.START_URL), générée par
+         build.sh. @START_URL@ sert ici de documentation et de garde-fou
+         (assert au build : le placeholder doit être substitué). -->
+    <application
+        android:label="@APP_LABEL@"
+        android:icon="@drawable/ic_launcher"
+        android:usesCleartextTraffic="false"
+        android:theme="@android:style/Theme.Material.NoActionBar">
+
+        <!-- Nom de classe COMPLET (com.bxperf.app.MainActivity) : le package
+             du manifest change selon le variant (com.bxperf.app /
+             com.bxperf.preview) mais les classes Java restent dans
+             com.bxperf.app — ".MainActivity" serait résolu dans le package
+             du manifest et casserait le variant preview. -->
+        <activity
+            android:name="com.bxperf.app.MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize|uiMode">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

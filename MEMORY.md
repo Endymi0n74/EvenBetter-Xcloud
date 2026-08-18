@@ -483,3 +483,20 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
     byte-identique vérifié ; ⚠ cache CDN GitHub : après `--clobber`, le lien
     peut servir l'ancien asset quelques minutes — piège du nommage). esbuild
     ajouté en devDependency.
+17. ✅ **Fait (18 août ~16:25) — APK preview (deuxième version, contrat « Deux versions »)** :
+    `mobile/build.sh` build deux APK installables côte à côte via `VARIANT`
+    (env) : **stable** (défaut, `com.bxperf.app`, www.xbox.com/play +
+    better-xcloud.user.js) et **preview** (`VARIANT=preview`, `com.bxperf.preview`,
+    play.xbox.com + better-xcloud-preview.user.js, label distinct). START_URL
+    injecté par une classe `BuildConfig` générée au build (pas de placeholder
+    manifest) ; `AndroidManifest.template.xml` pour label/package ; **piège
+    corrigé** : `R.java` généré par aapt2 suit le package du manifest
+    (app/preview) → résolu dynamiquement, idem glob d8 (toutes les classes,
+    pas un glob en dur) + gate dex (`R` dans le package du variant) + verify
+    apksigner sur `$APK_NAME`. ⚠ L'output `out/` est écrasé à chaque build
+    (`rm -rf` au step 2) : copier l'APK preview ailleurs avant de rebuild
+    stable. **Validé BlueStacks (18 août)** : les deux APK installés côte à
+    côte, le preview ouvre play.xbox.com et le script preview s'exécute
+    (`BX_EXPOSED=object`, `BX_FETCH=function`, bouton overlay présent).
+    APK preview : `mobile/out/better-xcloud-perf-1.8.0-preview.apk` (148 077 o)
+    — à publier sur la release preview quand tu veux le tester sur téléphone.
