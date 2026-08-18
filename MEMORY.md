@@ -246,6 +246,13 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
   des deux côtés (fait dans le garde-fou). Tag preview1 réaligné sur main
   (servait des assets plus récents que son commit 6c1b42a → forcé sur
   077297e).
+- **SmartScreen supprime l'APK téléchargé (18 août)** : dans un Edge piloté
+  par CDP, le clic sur la bannière télécharge bien l'APK (événements
+  `Browser.downloadWillBegin` + `downloadProgress` 135788/135788 o reçus)
+  puis le téléchargement est ANNULÉ et le fichier retiré (hub « fichier
+  supprimé ») — vérification de sécurité d'Edge sur les APK. La preuve de
+  téléchargement passe donc par les événements CDP + le sha de l'asset servi
+  (vérifié par release-guard), jamais par le fichier sur disque.
 - **Lien stable de l'APK (18 août)** : la bannière Android du script
   (« 🔥 EvenBetterXcloud app for Android ») pointe vers
   `releases/latest/download/evenbetter-xcloud.apk` (téléchargement DIRECT,

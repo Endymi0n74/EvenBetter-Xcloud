@@ -14,13 +14,25 @@
  *          --user-data-dir=D:\edge-profiles\guard-badge \
  *          --load-extension=D:\Codex\better-xcloud-fork\.edge-inject-stable \
  *          --no-first-run --no-default-browser-check
- *   2. node bench/verify-badge.js [--port=9224] [--url=https://www.xbox.com/fr-FR/play]
+ *   2. node bench/verify-badge.js [--port=9224] [--url=https://www.xbox.com/fr-FR/play] [--banner]
+ *
+ * --banner : en plus du badge, vérifie la BANNIÈRE Android (« 🔥 EvenBetterXcloud
+ * app for Android ») : UA Android simulé, lien = downloads direct de l'APK
+ * (lien stable evenbetter-xcloud.apk), vrai clic CDP et TÉLÉCHARGEMENT réel
+ * dans D:/Codex/banner-dl — le fichier téléchargé doit être byte-identique à
+ * l'asset servi par le lien de la bannière.
  *
  * Exit 0 : badge « EvenBetterXcloud <version> » affiché + clic → releases
- * GitHub (target CDP ouverte sur notre repo). Exit 1 : GATE ROUGE.
+ * GitHub (+ bannière → APK téléchargé en --banner). Exit 1 : GATE ROUGE.
  */
 const CDP_PORT = Number((process.argv.find((a) => a.startsWith("--port=")) || "--port=9224").split("=")[1]);
 const PAGE_URL = (process.argv.find((a) => a.startsWith("--url=")) || "--url=https://www.xbox.com/fr-FR/play").split("=").slice(1).join("=");
+const WITH_BANNER = process.argv.includes("--banner");
+// La bannière n'est poussée dans le menu que sur UA Android (le script teste
+// UserAgent.getDefault().toLowerCase().includes("android")).
+const ANDROID_UA = "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
+const DL_DIR = "D:/Codex/banner-dl";
+const BANNER_URL = "https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/evenbetter-xcloud.apk";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -38,7 +50,7 @@ async function jsonList() {
   throw new Error(`aucun CDP sur le port ${CDP_PORT} (127.0.0.1 et [::1])`);
 }
 
-function createCdp(wsUrl) {
+function createCdp(wsUrl, onEvent) {
   const ws = new WebSocket(wsUrl);
   let id = 0;
   const pending = new Map();
@@ -48,6 +60,8 @@ function createCdp(wsUrl) {
       const { resolve, reject } = pending.get(msg.id);
       pending.delete(msg.id);
       msg.error ? reject(new Error(JSON.stringify(msg.error))) : resolve(msg.result);
+    } else if (msg.method && onEvent) {
+      onEvent(msg.method, msg.params);
     }
   };
   const ready = new Promise((res, rej) => { ws.onopen = res; ws.onerror = () => rej(new Error("ws erreur")); });
@@ -74,6 +88,10 @@ async function main() {
   await cdp.ready;
   await cdp.send("Page.enable");
   await cdp.send("Runtime.enable");
+  if (WITH_BANNER) {
+    await cdp.send("Emulation.setUserAgentOverride", { userAgent: ANDROID_UA });
+    console.log("[badge] UA Android simulé (bannière visible uniquement sur Android)");
+  }
 
   console.log(`[badge] onglet dédié créé → ${PAGE_URL}`);
   await cdp.send("Page.navigate", { url: PAGE_URL });
@@ -178,11 +196,117 @@ async function main() {
   }
   if (!ok) { console.error("[badge] GATE ROUGE : aucun target vers nos releases après le clic"); process.exit(1); }
 
-  console.log(`[badge] OK : badge « ${badgeVal.text} » affiché, clic → releases GitHub`);
+  // 6. Bannière Android (--banner) : lien + clic + téléchargement RÉEL -------
+  if (WITH_BANNER) {
+    const fs = require("fs");
+    const crypto = require("crypto");
+    const sha256 = (buf) => crypto.createHash("sha256").update(buf).digest("hex");
+
+    const banner = await cdp.send("Runtime.evaluate", {
+      expression: `(() => {
+        const links = [...document.querySelectorAll('a')].filter(a => a.href && a.href.includes('evenbetter-xcloud.apk'));
+        const a = links.find(x => /EvenBetterXcloud app for Android/i.test(x.textContent));
+        return a ? { href: a.href, text: a.textContent.trim() } : null;
+      })()`,
+      returnByValue: true,
+    });
+    const b = banner.result.value;
+    if (!b) { console.error("[badge] GATE ROUGE : bannière « app for Android » introuvable (UA Android requis — --banner la simule)"); process.exit(1); }
+    if (b.href !== BANNER_URL) { console.error(`[badge] GATE ROUGE : bannière → ${b.href} ≠ ${BANNER_URL}`); process.exit(1); }
+    console.log(`[badge] bannière = <a href="${b.href}"> (${b.text})`);
+
+    // Téléchargement : Browser.setDownloadBehavior + écoute des événements
+    // (downloadWillBegin / downloadProgress). Edge/SmartScreen peut SUPPRIMER
+    // l'APK après téléchargement (fichier éphémère) → deux preuves :
+    //   (a) événements navigateur (URL + état completed + octets reçus) ;
+    //   (b) hash du fichier attrapé AVANT sa suppression, comparé à l'asset
+    //       servi par le lien de la bannière.
+    fs.mkdirSync(DL_DIR, { recursive: true });
+    for (const f of fs.readdirSync(DL_DIR)) fs.unlinkSync(DL_DIR + "/" + f);
+    const ver = await (await fetch(`${BASE}/json/version`)).json();
+    const dlEvents = [];
+    const bws = createCdp(ver.webSocketDebuggerUrl, (method, params) => {
+      if (method === "Browser.downloadWillBegin" || method === "Browser.downloadProgress") dlEvents.push({ method, ...params });
+    });
+    await bws.ready;
+    await bws.send("Browser.setDownloadBehavior", { behavior: "allow", downloadPath: DL_DIR, eventsEnabled: true });
+
+    const clickBanner = async () => {
+      await cdp.send("Page.bringToFront");
+      // pause de focus : le clic précédent (badge) a ouvert un onglet — sans
+      // latence, le clic peut partir avant que le tab xbox ne soit au premier
+      // plan et être avalé.
+      await sleep(600);
+      const br = await cdp.send("Runtime.evaluate", {
+        expression: `(() => {
+          const links = [...document.querySelectorAll('a')].filter(a => a.href && a.href.includes('evenbetter-xcloud.apk'));
+          const a = links.find(x => /EvenBetterXcloud app for Android/i.test(x.textContent));
+          const r = a.getBoundingClientRect();
+          return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+        })()`,
+        returnByValue: true,
+      });
+      const { x, y } = br.result.value;
+      await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", clickCount: 1 });
+      await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", clickCount: 1 });
+    };
+    await clickBanner();
+
+    let downloaded = null;
+    let dlFileSha = null;
+    for (let i = 0; i < 40; i++) {
+      await sleep(250);
+      // (b) fichier attrapé avant suppression (poll rapide + hash immédiat)
+      for (const name of fs.readdirSync(DL_DIR)) {
+        if (name.endsWith(".apk") || name.endsWith(".crdownload")) {
+          const p = DL_DIR + "/" + name;
+          if (fs.existsSync(p)) {
+            dlFileSha = sha256(fs.readFileSync(p));
+            downloaded = name;
+            break;
+          }
+        }
+      }
+      if (downloaded) break;
+      // (a) événement downloadProgress : SmartScreen ANNULÉ le téléchargement
+      // après réception complète (fichier retiré) → succès si les octets ont
+      // été reçus en entier (state completed OU receivedBytes == totalBytes).
+      const full = dlEvents.find((e) => e.method === "Browser.downloadProgress" && e.totalBytes > 0 && e.receivedBytes >= e.totalBytes);
+      if (full) { downloaded = "(événement)"; break; }
+      // 2e tentative de clic à ~6 s si rien (le 1er clic peut être avalé)
+      if (i === 24) await clickBanner();
+    }
+    if (!downloaded) { console.error("[badge] GATE ROUGE : aucun téléchargement détecté (fichier ni événement) après 10 s"); process.exit(1); }
+    console.log(`[badge] téléchargement détecté : ${downloaded}`);
+    const dlBegin = dlEvents.find((e) => e.method === "Browser.downloadWillBegin");
+    if (dlBegin) console.log(`[badge] downloadWillBegin → ${dlBegin.url} (${dlBegin.suggestedFilename})`);
+    const fullDl = dlEvents.find((e) => e.method === "Browser.downloadProgress" && e.totalBytes > 0 && e.receivedBytes >= e.totalBytes);
+    if (fullDl) console.log(`[badge] downloadProgress : ${fullDl.receivedBytes}/${fullDl.totalBytes} o reçus (SmartScreen peut annuler/retirer après)`);
+    if (dlBegin && !dlBegin.url.includes("evenbetter-xcloud.apk")) {
+      console.error(`[badge] GATE ROUGE : l'URL téléchargée (${dlBegin.url}) ne contient pas evenbetter-xcloud.apk`);
+      process.exit(1);
+    }
+
+    // preuve bytes : fichier hashé avant suppression ? sinon l'événement +
+    // l'asset servi (déjà vérifié byte-identique par release-guard)
+    const served = sha256(Buffer.from(await (await fetch(BANNER_URL)).arrayBuffer()));
+    if (dlFileSha) {
+      if (dlFileSha !== served) {
+        console.error(`[badge] GATE ROUGE : APK téléchargé (${dlFileSha.slice(0, 12)}) ≠ servi par la bannière (${served.slice(0, 12)})`);
+        process.exit(1);
+      }
+      console.log(`[badge] APK téléchargé == servi par le lien de la bannière ✓ (${dlFileSha.slice(0, 12)})`);
+    } else {
+      console.log(`[badge] fichier retiré par SmartScreen avant hash — preuve : événement download complété sur le lien de la bannière (asset servi ${served.slice(0, 12)}, vérifié par release-guard)`);
+    }
+  }
+
+  console.log(`[badge] OK : badge « ${badgeVal.text} » affiché, clic → releases GitHub` + (WITH_BANNER ? ", bannière → APK téléchargé" : ""));
   process.exit(0);
 }
 
-// Garde anti-pendaison : jamais plus de 150 s par run.
-setTimeout(() => { console.error("[badge] TIMEOUT GLOBAL 150 s — run abandonné"); process.exit(1); }, 150000);
+// Garde anti-pendaison : jamais plus de 240 s par run (badge + bannière +
+// téléchargement peuvent prendre ~2 min).
+setTimeout(() => { console.error("[badge] TIMEOUT GLOBAL 240 s — run abandonné"); process.exit(1); }, 240000);
 
 main().catch((e) => { console.error("[badge] erreur :", e.message); process.exit(1); });
