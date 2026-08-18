@@ -91,6 +91,28 @@ Overlay vérifié en réel dans le WebView de l'APK (émulateur Android 9,
 - Le debug WebView (`WebView.setWebContentsDebuggingEnabled(true)` dans
   MainActivity) reste activé pour rejouer cette validation à tout moment.
 
+**Rejouer cette validation à chaque rebuild — une commande :**
+
+```bash
+bash bench/mobile-probe.sh                # build → install → forward → sonde CDP + cycle panne→récup
+bash bench/mobile-probe.sh --skip-build   # réutilise l'APK déjà buildé
+bash bench/mobile-probe.sh --manual       # récupération par clic « Réessayer » (au lieu du retry auto)
+bash bench/mobile-probe.sh --serial 127.0.0.1:5555   # BlueStacks (adb connect requis)
+```
+
+Le harnais (détaillé dans `bench/README.md`) vérifie les marqueurs BX +
+le bouton settings dans le WebView, puis rejoue le cycle
+`www.xbox.com:444` → page d'erreur → retour `/play` avec l'overlay, par le
+**retry auto (+5 s)** ou par le **clic sur « Réessayer »** (`--manual`).
+Sans émulateur : `node bench/mobile-probe.test.js` (faux endpoint CDP,
+5 cas, GATE ROUGE inclus).
+
+**Validé sur BlueStacks le 18 août** (émulateur `127.0.0.1:5555`, Android 9,
+profil Samsung SM-G998B) : build → install → sonde → panne → récupération
+→ logcat — `MOBILE PROBE OK` sur les **deux voies** (retry auto +5 s et
+clic « Réessayer » ; le clic annule le retry auto en attente, pas de double
+navigation).
+
 ## Limites connues
 
 - **WebView ≠ navigateur complet** : le client xCloud web s'affiche en plein

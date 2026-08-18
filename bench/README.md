@@ -788,6 +788,67 @@ node bench/gpu/gpu-update-readme.js 100 200 300 400 500 600   # patche bench/REA
 node bench/gpu/gpu-update-readme.js 100 200 300 400 500 600 --print-only
 ```
 
+### Mobile — APK (émulateur, `bench/mobile-probe.sh`)
+
+Harnais de validation rejouable de l'APK Android (`mobile/`), en une
+commande : **build → install → lancement → adb forward → sonde CDP → cycle
+panne→récupération**. Reproduit la validation du 18 août (overlay vérifié
+dans le WebView + page d'erreur + retry auto) à chaque rebuild.
+
+```bash
+bash bench/mobile-probe.sh               # tout : build + install + sonde + cycle
+bash bench/mobile-probe.sh --skip-build  # réutilise mobile/out/
+bash bench/mobile-probe.sh --no-cycle    # sonde seule (sans le test panne→récup)
+bash bench/mobile-probe.sh --manual      # récupération par clic « Réessayer » (au lieu du retry auto)
+bash bench/mobile-probe.sh --serial emulator-5554
+```
+
+Ce que fait le script :
+
+1. **device adb** — premier device `adb` connecté (`--serial` pour en choisir
+   un autre) ; échoue proprement si aucun.
+2. **build** — `mobile/build.sh` (asset = stable courant, keystore stable,
+   gate dex).
+3. **install + lancement** — `adb install -r` puis `am start` sur
+   `com.bxperf.app/.MainActivity`.
+4. **forward** — `adb forward tcp:9341 localabstract:webview_devtools_remote_<pid>`
+   (le socket devtools du WebView, activé par
+   `WebView.setWebContentsDebuggingEnabled(true)`).
+5. **sonde CDP** (`bench/mobile-probe.js`) — vérifie `pathname /play`,
+   `BX_EXPOSED=object`, `BX_FETCH=function`, `BX_CE=function`, bouton
+   settings `.bx-header-settings-button` présent **et visible** ; GATE ROUGE
+   (exit 1) si un point échoue.
+6. **cycle panne→récupération** (`--cycle`, défaut) — navigue le WebView
+   vers `https://www.xbox.com:444/` (port fermé → erreur réseau), attend la
+   page d'erreur « Connexion impossible », puis le **retry auto à +5 s** et
+   vérifie le retour sur `/play` avec l'overlay. Variante **`--manual`** :
+   clic CDP sur le bouton « Réessayer » de la page d'erreur (le lien absolu
+   vers START_URL) — la récupération manuelle quand le réseau revient ; le
+   logcat confirme que le clic **annule le retry auto en attente**
+   (`resetLoadState` avant le backoff de 5 s, pas de double navigation).
+7. **logcat** — dernières lignes `BXPerf` (trace du cycle
+   `showErrorPage → scheduleAutoRetry → AutoRetry.run → resetLoadState`).
+
+Test sans émulateur : `node bench/mobile-probe.test.js` valide la sonde et
+les deux récupérations contre un **faux endpoint CDP** (mini serveur
+WebSocket maison) — 5 cas : sonde OK, cycle OK, clic Réessayer OK, bouton
+invisible → GATE ROUGE, aucune page xbox.com → GATE ROUGE.
+
+**Validé en réel sur BlueStacks le 18 août** (`adb connect 127.0.0.1:5555`) :
+les deux voies passent — retry auto (`MOBILE PROBE OK (… auto (+5 s))`) et
+récupération manuelle (`… manuelle (Réessayer)`, `clic « Réessayer » → true`,
+retour `/fr-FR/play` + overlay, logcat `resetLoadState`).
+
+**Pièges rencontrés** (le 18 août, documentés pour les prochains runs) :
+
+- `spawnSync` bloque l'event loop → le mock CDP (même process) ne répond
+  jamais ; le test utilise `spawn` async.
+- Le faux serveur WS doit **relire la longueur étendue 16-bit** des frames
+  (un header `126` signifie « longueur sur 16 bits qui suit », pas une frame
+  de 126 octets) — sinon les grosses réponses CDP sont mal découpées.
+- Le probe doit faire un `process.exit(0)` explicite en fin de cycle : le
+  handle WS/HTTP keep-alive du mock garde le process vivant sinon.
+
 (ancré sur la ligne unique `| Appels GL par frame |` — la ligne `| Mesure |
 perf10 | v… | Δ |` existe deux fois dans ce fichier, table Chargement incluse.
 Seule la table est régénérée : le bullet « Protocole figé » de la section
