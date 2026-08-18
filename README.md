@@ -177,25 +177,28 @@ L'historique perf1–perf10 (Set O(1) du patcher, debounce localStorage, cache
 `getBattery()`, uniform locations pré-calculées, etc.) est conservé dans
 l'en-tête du script.
 
-## Benchmarks — synthèse
+## Queue d'optimisations terminée — réglages recommandés
 
-Mesures **perf10 (baseline)** vs **build courant**, même machine, harnais
-rejouables (protocoles, tables détaillées et historique des sessions dans
-[`bench/README.md`](bench/README.md)) :
+La queue d'optimisations du stable est **fermée** : le main thread JS a été
+profilé en session réelle (`live-profile`) à **99,98 % inactif** — les hot
+loops (updateCanvas ×19,4, controller IDLE ×9,5, startup froid −95 %) sont au
+plancher et le reste de la charge (décodage vidéo, rendu WebGL2, encodage
+serveur) vit dans les process natifs/GPU, hors de portée d'un userscript.
+Tout gain mesurable restant passe par les **préférences utilisateur** :
 
-| Mesure | perf10 | build | Gain |
-|---|---|---|---|
-| Parse/compile (Node) | ~0,117 ms | ~0,112 ms | négligeable |
-| Hot loop controller IDLE | 327 ns | 34 ns | **×9,5** |
-| updateCanvas (chemin 60 Hz) | 243 ns | 16 ns | **×15,6** |
-| Éval de page — chaud (Edge, 20 runs) | 26,5 ms | 24,2 ms | **−8,7 %** |
-| Éval de page — **froid** (navigateur neuf, pile RTC froide) | 657 ms | 33 ms | **−95 %** |
-| Upload vidéo GPU (WebGL2, µs/upload) | ~42–78 µs | ~8–12 µs | **×5,5** |
-| Draw GPU (shader USM 4 taps, v1.8.0) | 10,2 µs | 7,2 µs | **−30 %** |
+| Réglage (settings EvenBetterXcloud) | Effet mesuré en réel | Recommandation |
+|---|---|---|
+| `stream.video.maxBitrate` = **10-15 Mbps** | 24,2 → 6,6 Mbps (cap 10), **1440p conservé**, 0 drop | ✅ Économiser la bande passante sans perdre la définition |
+| `stream.video.resolution` = **720p** | 1280×720 @ 6,4 Mbps (vs 1440p @ 24,2) | ✅ Très faible débit / data mobile |
+| `stream.video.resolution` = 1080p / 1080p-hq | **Aucun effet sur PC** (toujours 1440p natif — no-op documenté) | ⚠️ Ne rien y toucher |
+| `server.region` + « 📡 Tester la latence » (v1.10.0) | Région au ping le plus bas (ex. CSE 30 ms ⭐ vs UKS 43 ms depuis la France) | ✅ Toujours utile |
 
-Tables « Chargement », « Hot loops » et « GPU » complètes, sessions
-(startup / hot loops / GPU, avec état haut-bas), protocole figé et repro :
-[`bench/README.md`](bench/README.md).
+Codec : le serveur encode en **H.264 uniquement** — AV1 est supporté par le
+navigateur (décodage hardware) mais le backend l'ignore (offre AV1 mesurée,
+réponse H.264).
+
+Chiffres perf10 → build (parse, hot loops, updateCanvas, startup froid, GPU),
+tables et protocoles de mesure complets : [`bench/README.md`](bench/README.md).
 
 ## Historique du dépôt
 

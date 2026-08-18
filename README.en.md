@@ -174,25 +174,28 @@ The perf1–perf10 history (patcher O(1) Set, localStorage debounce,
 `getBattery()` cache, precomputed uniform locations, etc.) is kept in the
 script header.
 
-## Benchmarks — summary
+## Optimization queue done — recommended settings
 
-Measurements **perf10 (baseline)** vs **current build**, same machine,
-replayable harnesses (full protocols, detailed tables and session history in
-[`bench/README.md`](bench/README.md)) :
+The stable optimization queue is **closed**: the JS main thread was profiled
+on a live session (`live-profile`) at **99.98 % idle** — hot loops
+(updateCanvas ×19.4, controller IDLE ×9.5, cold startup −95 %) are at the
+floor, and the remaining load (video decode, WebGL2 rendering, server
+encoding) lives in native/GPU processes, out of a userscript's reach. Any
+remaining measurable gain comes from **user preferences**:
 
-| Metric | perf10 | build | Gain |
-|---|---|---|---|
-| Parse/compile (Node) | ~0.117 ms | ~0.112 ms | negligible |
-| Hot loop controller IDLE | 327 ns | 34 ns | **×9.5** |
-| updateCanvas (60 Hz path) | 243 ns | 16 ns | **×15.6** |
-| Page eval — warm (Edge, 20 runs) | 26.5 ms | 24.2 ms | **−8.7 %** |
-| Page eval — **cold** (fresh browser, cold RTC stack) | 657 ms | 33 ms | **−95 %** |
-| GPU video upload (WebGL2, µs/upload) | ~42–78 µs | ~8–12 µs | **×5.5** |
-| GPU draw (USM 4-tap shader, v1.8.0) | 10.2 µs | 7.2 µs | **−30 %** |
+| Setting (EvenBetterXcloud settings) | Measured effect | Recommendation |
+|---|---|---|
+| `stream.video.maxBitrate` = **10-15 Mbps** | 24.2 → 6.6 Mbps (10 cap), **1440p kept**, 0 drop | ✅ Save bandwidth without losing definition |
+| `stream.video.resolution` = **720p** | 1280×720 @ 6.4 Mbps (vs 1440p @ 24.2) | ✅ Very low bandwidth / mobile data |
+| `stream.video.resolution` = 1080p / 1080p-hq | **No effect on PC** (always native 1440p — documented no-op) | ⚠️ Leave untouched |
+| `server.region` + "📡 Test latency" (v1.10.0) | Lowest-ping region (e.g. CSE 30 ms ⭐ vs UKS 43 ms from France) | ✅ Always useful |
 
-Full "Loading", "Hot loops" and "GPU" tables, sessions (startup / hot loops /
-GPU, with high/low state), frozen protocol and repro:
-[`bench/README.md`](bench/README.md).
+Codec: the server encodes in **H.264 only** — AV1 is supported by the
+browser (hardware decode) but the backend ignores it (AV1 offer measured,
+H.264 answer).
+
+Full perf10 → build numbers (parse, hot loops, updateCanvas, cold startup,
+GPU), tables and measurement protocols: [`bench/README.md`](bench/README.md).
 
 ## Repository history
 

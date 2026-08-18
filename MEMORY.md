@@ -521,6 +521,18 @@ fichier .ps1 obligatoire).
   Piège : la home xbox.com peut atterrir sur le shell complet après un
   reload — renaviguer explicitement vers /play.
 
+## Boucle fermée — queue d'optimisations stable terminée (18 août ~23:45)
+
+- **README principal** : la section « Benchmarks — synthèse » est remplacée
+  par « Queue d'optimisations terminée — réglages recommandés » (FR + EN) —
+  verdict live-profile (main thread 99,98 % inactif), tableau des réglages
+  recommandés mesurés (maxBitrate 10-15 Mbps, 720p, 1080p/1080p-hq no-op,
+  région + test latence) et note codec H.264-only. Les chiffres perf restent
+  dans bench/README.md (source unique).
+- **Fermeture de la queue** : plus d'optimisation script à chercher côté
+  stable — prochaines features = utilisateur (pattern feature-latency.js),
+  upstream = rappel ~24 août (13 PR).
+
 ## Publication v1.10.0 (18 août ~22:30) — feature latence + releases
 
 - **Feature** : « 📡 Tester la latence » (groupe SERVER) — ping des 19 régions
