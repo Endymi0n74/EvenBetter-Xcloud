@@ -80,7 +80,7 @@ Le même userscript fonctionne sur mobile — xCloud web est responsive et les
 
 | Plateforme | Navigateur | Installation |
 |---|---|---|
-| **Android** | **App native `evenbetter-xcloud-1.9.0.apk`** (wrapper WebView, ~140 Ko) | [Téléchargement direct](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.9.0/evenbetter-xcloud-1.9.0.apk) → sideload (voir `mobile/README.md`) — script embarqué, écran maintenu, fullscreen géré |
+| **Android** | **App native `evenbetter-xcloud.apk`** (wrapper WebView, ~140 Ko — lien stable, toujours le dernier build) | [Téléchargement direct](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/evenbetter-xcloud.apk) → sideload (voir `mobile/README.md`) — script embarqué, écran maintenu, fullscreen géré |
 | **Android** | Kiwi Browser (ou Edge Android) + Tampermonkey | Ouvrir le lien d'installation directe ci-dessus (section Installation) → Tampermonkey propose l'installation |
 | **iOS** | Safari + l'app **« Userscripts »** (gratuite, open source) | Dans Userscripts, « + » → coller l'URL `…/releases/latest/download/better-xcloud.user.js`, puis activer l'extension dans Safari |
 

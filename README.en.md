@@ -78,7 +78,7 @@ and the `@match` rules cover `xbox.com/play` on any device.
 
 | Platform | Browser | Install |
 |---|---|---|
-| **Android** | **Native app `evenbetter-xcloud-1.9.0.apk`** (WebView wrapper, ~140 KB) | [Direct download](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.9.0/evenbetter-xcloud-1.9.0.apk) → sideload (see `mobile/README.md`) — embedded script, keep-screen-on, fullscreen handled |
+| **Android** | **Native app `evenbetter-xcloud.apk`** (WebView wrapper, ~140 KB — stable link, always the latest build) | [Direct download](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/evenbetter-xcloud.apk) → sideload (see `mobile/README.md`) — embedded script, keep-screen-on, fullscreen handled |
 | **Android** | Kiwi Browser (or Edge Android) + Tampermonkey | Open the direct install link above (Installation section) → Tampermonkey offers to install |
 | **iOS** | Safari + the **"Userscripts"** app (free, open source) | In Userscripts, tap "+" → paste the `…/releases/latest/download/better-xcloud.user.js` URL, then enable the extension in Safari |
 

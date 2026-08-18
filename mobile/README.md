@@ -13,9 +13,10 @@ le keystore local (`bxperf.keystore`, réutilisé depuis `D:\Codex\bx-apk` par
 `build.sh` — la signature est stable d'un build à l'autre, les mises à jour
 passent par-dessus l'APK installé).
 
-**Téléchargement direct** (asset de la release v1.8.0) :
+**Téléchargement direct** (lien stable `evenbetter-xcloud.apk` — toujours le
+dernier build, re-uploadé sous ce nom à chaque release) :
 
-https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.9.0/evenbetter-xcloud-1.9.0.apk
+https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/evenbetter-xcloud.apk
 
 **Installation (sideload)** :
 

@@ -13,8 +13,11 @@
 #   3. les @version/@name servis sont cohérents : stable = VERSION du repo,
 #      preview = sa propre version, noms EvenBetterXcloud (détecte un
 #      re-upload du mauvais script) ;
-#   4. les liens APK (stable + preview) répondent 200 (noms dérivés de la
-#      version — pas de nom en dur à maintenir au bump).
+#   4. les liens APK répondent 200 — stable via le NOM STABLE
+#      `evenbetter-xcloud.apk` (le lien de la bannière Android ; cet asset est
+#      re-uploadé sous ce nom à CHAQUE release, en plus du nom versionné, pour
+#      que le lien de la bannière ne casse jamais au bump), preview via son
+#      tag pinné.
 #
 # GATE ROUGE (exit != 0) sur la première anomalie. Dans le workflow
 # release-guard.yml (cron quotidien + dispatch), un échec = Actions rouge +
@@ -140,7 +143,7 @@ check_link() { # $1 = label, $2 = url
     [ "$code" = "200" ] || gate "$1 → HTTP $code"
     log "$1 : HTTP 200 ✓"
 }
-check_link "APK stable (latest)"  "$DL/latest/download/evenbetter-xcloud-$EXPECT_VERSION.apk"
-check_link "APK preview (tag)"    "$DL/download/$PINNED_TAG/evenbetter-xcloud-$PREVIEW_VER.apk"
+check_link "APK stable (latest, bannière)" "$DL/latest/download/evenbetter-xcloud.apk"
+check_link "APK preview (tag)"             "$DL/download/$PINNED_TAG/evenbetter-xcloud-$PREVIEW_VER.apk"
 
 log "OK : release stable + tag présents, 4/4 liens byte-identiques, versions/names cohérents, APK 200"

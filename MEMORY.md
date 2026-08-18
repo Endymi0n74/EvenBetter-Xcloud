@@ -246,6 +246,16 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
   des deux côtés (fait dans le garde-fou). Tag preview1 réaligné sur main
   (servait des assets plus récents que son commit 6c1b42a → forcé sur
   077297e).
+- **Lien stable de l'APK (18 août)** : la bannière Android du script
+  (« 🔥 EvenBetterXcloud app for Android ») pointe vers
+  `releases/latest/download/evenbetter-xcloud.apk` (téléchargement DIRECT,
+  fini la page des releases). ⚠ **À chaque publication, uploader l'APK sous
+  le NOM STABLE `evenbetter-xcloud.apk`** (en plus du nom versionné
+  `evenbetter-xcloud-<v>.apk`) — sinon ce lien casse au prochain bump. Le
+  garde-fou release-guard vérifie ce lien (APK stable = nom stable ; le nom
+  versionné n'est plus vérifié). Tags v1.9.0 + preview1 réalignés sur
+  `4261a42` (commit bannière → APK direct) pour garder l'invariant
+  tag=bytes-servis.
 
 ## Pièges mémorisés
 
