@@ -56,8 +56,9 @@ qui rend le build v1.8.0 sûr et utilisable sur play.xbox.com.
 | `e2e-cdp.md` | **protocole de validation E2E** : interception CDP P3+P2 (deux runs comparés, 8 critères de succès, pièges de timing), **Validation P1** (fenêtre AFK, témoin vs T6, signaux monitor-idle) — commence par l'**Étape 0** hors-navigateur |
 | `run-e2e0.sh` | **Étape 0 en une commande** : gates fetch-early + userscript-rewrite + play-chain (échec si rouge ; play-chain soft sans bundles) + probe-page (informatif, ou gate dur avec `--strict-probe` : hookActif:true exigé) + `--self-test` (rejoue le chemin d'échec sur une copie corrompue, exit 1 vérifié, build réel intact) — à lancer avant chaque session CDP ; branché au step preview de bench.yml (`--skip-probe`) |
 | `monitor-idle.js` | **Validation P1 en session réelle** (`bench/preview/monitor-idle.js`) : surveille console/réseau/état vidéo pendant une fenêtre AFK — interception du `WarningForBeingIdle` (log BX keep-alive), heartbeat natif `/keepalive`, survie de la session — runs P1-A témoin / P1-B T6 dans e2e-cdp.md |
+| `t10-counters-test.js` | **Contre-test T10 sur Chromium** (`bench/t10-counters-test.js`) : navigue vers play.xbox.com et vérifie UA non spoofée + script actif + dialog absent — la moitié symétrique de la validation Firefox (T10 conditionné non-Chromium), rejouable sans session |
 
-## L'overlay (T1-T9)
+## L'overlay (T1-T10)
 
 1. **T1 — header** : `@match https://play.xbox.com/*`, version `1.8.0-preview4`.
 2. **T2 — détection** : `var BX_PREVIEW` (hostname `play.xbox.com`).
@@ -86,6 +87,12 @@ qui rend le build v1.8.0 sûr et utilisable sur play.xbox.com.
    n'a ni nav ni header (navs:[]) → `SettingsAction` (engrenage) injectée
    dans le GameBar, ouvre `SettingsDialog.getInstance().show()` — validé en
    session réelle (dialog complet ouvert depuis la bar).
+10. **T10 — auto-spoof UA non-Chromium (18 août)** : à `UserAgent.init()`, si
+    le navigateur réel n'est pas Chromium (`chrom(e|ium)|edg/|crios`) et que
+    `userAgent.profile` est « default », forcer le profil `windows-edge` — le
+    gate `isSupportedChromiumBasedBrowser` de play.xbox.com passe sans réglage
+    (validé : preview1 manuel = preview2 auto, sous Firefox). Sur Chromium
+    réel : regex ne matche pas → aucun spoof (contre-test `t10-counters-test.js`).
 
 ## Usage
 

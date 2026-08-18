@@ -763,6 +763,58 @@ bar des pages app + bouton Settings dans la game bar en session).
    intercepté montre `enableVibration` dans Network, c'est forcément le
    `fulfillRequest` CDP (C4 = preuve CDP, pas userscript).
 
+## Validation T10 — gate navigateur play.xbox.com (19 août) ✅ — Firefox OK sans réglage
+
+### Contexte : le gate est Chromium-only
+
+play.xbox.com affiche « Votre navigateur ne prend pas en charge la
+diffusion en continu » sur Firefox. Cause dans `entry.client` du site :
+`isSupportedChromiumBasedBrowser = (isChrome && >=106) || (isBlinkEngine &&
+>=106)`, fallback `satisfies(chrome/edge >=106, safari >=17)` — **Firefox
+n'est pas dans la liste**. Check basé sur l'UA détectée (Firefox n'a pas
+`userAgentData` → le site parse `navigator.userAgent`), donc **spoofable**.
+Le stream WebRTC H.264 fonctionne pourtant sous Firefox (support confirmé,
+r/xcloud fév. 2025 « play Xcloud on Firefox », décode hw).
+
+### T10 — auto-spoof UA non-Chromium (build-preview.js)
+
+Si le navigateur réel n'est pas Chromium (regex `chrom(e|ium)|edg/|crios`)
+ET que `userAgent.profile` = « default », forcer `windows-edge` par défaut à
+`UserAgent.init()`. Le setting garde la main (profil explicite jamais
+écrasé), guard `BX_PREVIEW` → stable inchangé. Vérifié statiquement (build,
+node --check, probes) et logiquement (Firefox/Safari → spoof ; Edge/Chrome →
+inchangé).
+
+### Validation réelle sous Firefox (utilisateur, 19 août ~01:00)
+
+| Build | Réglage UA | Résultat |
+|---|---|---|
+| **1.10.0-preview1** | `userAgent.profile` = « Edge + Windows » (manuel) | ✅ gate passé — stream OK |
+| **1.10.0-preview2** | `userAgent.profile` = « default » (T10 auto-spoof) | ✅ gate passé — stream OK, **sans réglage** |
+
+Le workaround manuel (preview1) et l'auto-spoof (preview2) sont tous les
+deux validés en réel : le dialog disparaît et le stream tourne sous Firefox.
+T10 = le même contournement, sans intervention. Release publiée :
+`evenbetter-xcloud-v1.10.0-preview2` (3 assets dont APK preview), garde-fou
+10/10 vert.
+
+### Contre-test Chromium (T10 ne casse rien sur Edge) — 18 août
+
+`node bench/t10-counters-test.js --port=9222` sur Edge 152 réel (profil
+edge-cdp + extension preview2) :
+
+| Vérification | Résultat |
+|---|---|
+| UA détectée | `Edg/152.0.0.0` — **intacte, non spoofée** |
+| Script chargé | `BX_EXPOSED` présent (build 1.10.0-preview2) |
+| Dialog « navigateur non pris en charge » | **absent** |
+| Home play.xbox.com | 10 cartes de jeux, chargement normal |
+
+**Verdict** : T10 est conditionné à la regex non-Chromium — sur un
+navigateur Chromium réel, aucun spoof, aucun effet de bord. Le comportement
+est donc symétrique : Firefox → auto-spoof (gate passé), Edge/Chrome →
+UA native (aucun changement). Validation T10 bouclée des deux côtés.
+
 ## Rejouabilité
 
 Le protocole est manuel (2 runs × ~2 min) tant que la session est
