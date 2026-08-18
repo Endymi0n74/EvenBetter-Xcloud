@@ -190,9 +190,11 @@ remaining measurable gain comes from **user preferences**:
 | `stream.video.resolution` = 1080p / 1080p-hq | **No effect on PC** (always native 1440p — documented no-op) | ⚠️ Leave untouched |
 | `server.region` + "📡 Test latency" (v1.10.0) | Lowest-ping region (e.g. CSE 30 ms ⭐ vs UKS 43 ms from France) | ✅ Always useful |
 
-Codec: the server encodes in **H.264 only** — AV1 is supported by the
-browser (hardware decode) but the backend ignores it (AV1 offer measured,
-H.264 answer).
+**Codec (final verdict, stable + preview)**: both clients negotiate
+**H.264 Constrained High** (`4d001f`) — the only codec the server keeps.
+AV1/VP9 are offered but ignored by the backend, and **H.265 (HEVC) does not
+even exist in the browser's WebRTC stack**: no codec choice is possible
+client-side (real measurements documented in `bench/README.md`).
 
 Full perf10 → build numbers (parse, hot loops, updateCanvas, cold startup,
 GPU), tables and measurement protocols: [`bench/README.md`](bench/README.md).
