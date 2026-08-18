@@ -485,6 +485,25 @@ dominante runtime réelle ; (d) upstream : 13 PR ouvertes (redphx), rappel
 prévu ~24 août ; (e) APK preview : overlay absent sur play.xbox.com en WebView
 (réservé, priorité basse).
 
+## Verdict AV1 (18 août ~23:00) — backend xCloud encode H.264 uniquement
+
+- **Support navigateur OK** (Edge 152, `bench/av1-probe.js`) : `video/AV1`
+dans les codecs RTP + MediaCapabilities `supported`/`powerEfficient` (hw)
+pour 1080p60/1440p60 file et webrtc. Mais `getSupportedCodecProfiles()` du
+bundle n'expose que H.264 (low/normal/high) — AV1 jamais proposé.
+- **A/B mesuré** (As Dusk Falls, 20 s, premier plan) : Run A défaut =
+video/H264 1440p30 **24,2 Mbps** 0,51 ms/frame ; Run B offre AV1 forcée
+(`bench/launch-game.js --av1` : reorder AV1 en tête du m=video + no-op
+setCodecPreferences) = **toujours video/H264** 24,7 Mbps. Preuve
+`bench/sdp-inspect.js` : l'offre contient AV1 mais la réponse serveur ne
+liste QUE du H.264 (VP8/VP9 aussi retirés) → **l'encodeur xCloud est
+H.264-only, AV1 = cul-de-sac** (stable ET preview). Aucune option à ajouter.
+- Harnais ajoutés (bench/) : av1-probe.js, launch-game.js (+`--av1`),
+stream-stats-capture.js (fix : codec lookup en 2 passes — l'ordre du report
+getStats met les codec AVANT inbound-rtp), sdp-inspect.js, page-probe.js,
+kill-edge-profile.ps1 (tue un profil Edge précis — `$_` mangé par bash →
+fichier .ps1 obligatoire).
+
 ## Publication v1.10.0 (18 août ~22:30) — feature latence + releases
 
 - **Feature** : « 📡 Tester la latence » (groupe SERVER) — ping des 19 régions

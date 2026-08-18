@@ -196,6 +196,48 @@ des optimisations — leurs mécanismes (patch SDP, codec prefs) fonctionnent
 déjà. Axe infra restant, hors script : **AV1** (non utilisé sur ce setup —
 H.264 High) via `stream.video.codecProfile` si le navigateur le supporte.
 
+## A/B codec AV1 vs H.264 — verdict : backend xCloud encode H.264 uniquement (18 août ~23:00, v1.10.0)
+
+Son **AV1 sur le client stable** : le navigateur le supporte parfaitement,
+mais le serveur ne peut pas l'encoder — l'A/B mesuré le prouve.
+
+### 1. Support navigateur (Edge 152, `bench/av1-probe.js`)
+
+| Sonde | Résultat |
+|---|---|
+| `RTCRtpReceiver.getCapabilities("video")` | **`video/AV1` présent** (avec VP8/VP9/H264) |
+| MediaCapabilities AV1 1080p60 file | `supported:true` · `powerEfficient:true` |
+| MediaCapabilities AV1 1440p60 file | `supported:true` · `powerEfficient:true` |
+| MediaCapabilities AV1 webrtc (recevoir) | `supported:true` · `powerEfficient:true` |
+| `getSupportedCodecProfiles()` (bundle) | **n'expose que H.264** low/normal/high — AV1 jamais proposé dans le setting |
+
+### 2. A/B mesuré sur un stream réel (As Dusk Falls, 20 s, premier plan)
+
+| Métrique | Run A (défaut) | Run B (offre AV1 forcée) |
+|---|---|---|
+| Codec négocié | **video/H264** | **video/H264** (le serveur ignore AV1) |
+| Résolution | 2560×1440@30 | 2560×1440@30 |
+| Bitrate | **24,2 Mbps** | **24,7 Mbps** |
+| Décodage | 0,51 ms/frame | 0,46 ms/frame |
+| Frames dropped | 0 | 0 |
+
+### 3. Preuve SDP (`bench/sdp-inspect.js`)
+
+Run B : l'**offre locale contient bien AV1** (payloads `AV1/90000` présents,
+patch `setLocalDescription` installé — reorder AV1 en tête + neutralisation
+`setCodecPreferences`) mais la **réponse serveur (`remoteDescription`) ne
+liste QUE du H.264** — le backend a même retiré VP8/VP9 de la réponse.
+L'encodeur xCloud côté serveur est **H.264 uniquement**.
+
+**Verdict : AV1 est un cul-de-sac pour le stable (et le preview) — le goulot
+est l'encodeur serveur, pas le client.** Pas d'option à ajouter au bundle ;
+le setting `codecProfile` reste limité aux profils H.264 (comportement
+correct). Harnais ajoutés : `bench/av1-probe.js` (support navigateur),
+`bench/launch-game.js` (lancement jeu + `--av1` patch SDP),
+`bench/stream-stats-capture.js` (stats getStats 20 s),
+`bench/sdp-inspect.js` (SDP local/remote), `bench/page-probe.js` (sonde DOM),
+`bench/kill-edge-profile.ps1` (fermeture propre d'un profil Edge).
+
 ## Feature v1.10.0 — 📡 Test de latence serveur (18 août ~21:30)
 
 Bouton « 📡 Tester la latence des serveurs » dans le groupe **SERVER** des
