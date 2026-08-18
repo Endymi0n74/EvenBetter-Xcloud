@@ -535,3 +535,16 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
     tag — il disparaîtra après publication). **Package Android conservé**
     (com.bxperf.app) : identité d'installation, sinon désinstallation requise.
     Anciens tags de release conservés (historique + liens stables).
+19. ✅ **Fait (18 août ~17:15) — rétention appliquée après le rebrand v1.9.0** :
+    `bench/release-prune.sh` exécuté (dry-run puis réel). État final : **3
+    releases conservées** — `evenbetter-xcloud-v1.9.0` (Latest), `evenbetter-
+    xcloud-v1.9.0-preview1` (prerelease, tag pinné par le @updateURL du build)
+    et `better-xcloud-perf-1.8.0-preview4` (cran de secours, sélectionné par le
+    tri "dernier preview" via capture `preview(?<n>)`). L'ancienne stable
+    `better-xcloud-perf-v1.8.0` a été purgée. **4/4 liens d'auto-update 200 +
+    byte-identiques** (latest/user+meta, tag preview/user+meta). ⚠ Piège
+    connu du tri preview : `preview(?<n>)` capture l'INDEX de preview
+    (preview4 > preview1) pas la version de base — le tag pinné compense
+    (source de vérité), mais le tri seul donnerait le mauvais preview si le
+    pinné manquait. À améliorer si la nomenclature évolue (capture semver
+    complet).
