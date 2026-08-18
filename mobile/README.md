@@ -54,6 +54,22 @@ nouvelle clé ne serait générée que si aucun keystore n'est trouvé.
 Pipeline sans Gradle : `aapt2 compile/link` → `javac` → `d8` → assemblage
 (`jar` du JDK, pas de `zip` en Git Bash) → `zipalign` → `apksigner`.
 
+## Validation (émulateur, 18 août 2026)
+
+Overlay vérifié en réel dans le WebView de l'APK (émulateur Android 9,
+`www.xbox.com/fr-FR/play`) :
+
+- **0 FATAL EXCEPTION**, activity resumed, app vivante.
+- Sonde CDP (debug WebView activé, `adb forward` → chrome://inspect) :
+  `BX_EXPOSED=object` (script initialisé), `BX_FETCH=function` (hook
+  posé), **bouton settings `.bx-header-settings-button` présent ET
+  visible** (`settingsBtnVisible:true`).
+- Preuves commitées : `validation-apk-overlay.png` (screenshot 1920×1080),
+  `validation-apk-probe.json` (sonde CDP), `validation-apk-2026-08-18.txt`
+  (état logcat).
+- Le debug WebView (`WebView.setWebContentsDebuggingEnabled(true)` dans
+  MainActivity) reste activé pour rejouer cette validation à tout moment.
+
 ## Limites connues
 
 - **WebView ≠ navigateur complet** : le client xCloud web s'affiche en plein

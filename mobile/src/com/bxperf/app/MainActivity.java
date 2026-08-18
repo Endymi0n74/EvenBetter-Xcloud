@@ -52,6 +52,10 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        // Remote debugging for validation: lets us probe the page (BX markers,
+        // overlay DOM) via CDP over `adb forward` (chrome://inspect).
+        WebView.setWebContentsDebuggingEnabled(true);
+
         webView = new WebView(this);
         setContentView(webView);
 

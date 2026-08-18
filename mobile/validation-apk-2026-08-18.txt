@@ -1,0 +1,5 @@
+=== validation APK 2026-08-18 08:16 ===
+FATAL EXCEPTION count: 0
+app pid: 8670
+top activity: mResumedActivity: ActivityRecord{aa36707 u0 com.bxperf.app/.MainActivity t41}
+webview cdp: url + title + BX probes (cf. probe JSON)
