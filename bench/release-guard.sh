@@ -13,11 +13,12 @@
 #   3. les @version/@name servis sont cohérents : stable = VERSION du repo,
 #      preview = sa propre version, noms EvenBetterXcloud (détecte un
 #      re-upload du mauvais script) ;
-#   4. les liens APK répondent 200 — stable via le NOM STABLE
-#      `evenbetter-xcloud.apk` (le lien de la bannière Android ; cet asset est
-#      re-uploadé sous ce nom à CHAQUE release, en plus du nom versionné, pour
-#      que le lien de la bannière ne casse jamais au bump), preview via son
-#      tag pinné.
+#   4. les liens APK répondent 200 ET le NOM STABLE `evenbetter-xcloud.apk`
+#      (le lien de la bannière Android, re-uploadé à CHAQUE release en plus du
+#      nom versionné) doit servir les MÊMES bytes que le nom versionné
+#      `evenbetter-xcloud-<v>.apk` — détecte un oubli de re-upload du nom
+#      stable au bump (il servirait l'ancien APK pendant que le versionné sert
+#      le nouveau). Preview via son tag pinné (200).
 #
 # GATE ROUGE (exit != 0) sur la première anomalie. Dans le workflow
 # release-guard.yml (cron quotidien + dispatch), un échec = Actions rouge +
@@ -136,14 +137,28 @@ EXP_P_META=$(sha_at "$PINNED_SHA" better-xcloud-preview.meta.js)
 check_bytes "user.js preview (tag)" "$DL/download/$PINNED_TAG/better-xcloud-preview.user.js" "$EXP_P_USER"
 check_bytes "meta.js preview (tag)"  "$DL/download/$PINNED_TAG/better-xcloud-preview.meta.js"  "$EXP_P_META"
 
-# --- 4. Liens APK (noms dérivés de la version — 200 suffit) ------------------
+# --- 4. APK : le lien stable et le lien versionné servent les MÊMES bytes ---
+#      -f : fait échouer curl sur un HTTP != 200 (404 inclus — le body d'une
+#      page d'erreur GitHub ne doit pas être hashé comme un APK valide).
+apk_sha() { # $1 = url → sha256 des bytes servis ; exit != 0 si HTTP != 200
+    curl --noproxy "*" -sfL --max-time 60 "$1" | sha256sum | awk '{print $1}'
+}
+STABLE_SHA=$(apk_sha "$DL/latest/download/evenbetter-xcloud.apk") \
+    || gate "APK stable (bannière) : téléchargement échoué (HTTP != 200 ou réseau)"
+VERSIONED_SHA=$(apk_sha "$DL/latest/download/evenbetter-xcloud-$EXPECT_VERSION.apk") \
+    || gate "APK versionné ($EXPECT_VERSION) : téléchargement échoué (HTTP != 200 ou réseau)"
+[ -n "$STABLE_SHA" ] || gate "APK stable (bannière) : téléchargement vide"
+[ -n "$VERSIONED_SHA" ] || gate "APK versionné : téléchargement vide"
+[ "$STABLE_SHA" = "$VERSIONED_SHA" ] \
+    || gate "APK stable ≠ versionné (${STABLE_SHA:0:12} vs ${VERSIONED_SHA:0:12}) — oubli de re-upload du nom stable au bump ?"
+log "APK stable (bannière) : HTTP 200 ✓, byte-identique au versionné ✓ (${STABLE_SHA:0:12})"
+
 check_link() { # $1 = label, $2 = url
     local code
     code=$(curl --noproxy "*" -s -o /dev/null -w "%{http_code}" -L --max-time 30 "$2")
     [ "$code" = "200" ] || gate "$1 → HTTP $code"
     log "$1 : HTTP 200 ✓"
 }
-check_link "APK stable (latest, bannière)" "$DL/latest/download/evenbetter-xcloud.apk"
-check_link "APK preview (tag)"             "$DL/download/$PINNED_TAG/evenbetter-xcloud-$PREVIEW_VER.apk"
+check_link "APK preview (tag)" "$DL/download/$PINNED_TAG/evenbetter-xcloud-$PREVIEW_VER.apk"
 
 log "OK : release stable + tag présents, 4/4 liens byte-identiques, versions/names cohérents, APK 200"

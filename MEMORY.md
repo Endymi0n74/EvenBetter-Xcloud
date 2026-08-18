@@ -252,8 +252,10 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
   fini la page des releases). ⚠ **À chaque publication, uploader l'APK sous
   le NOM STABLE `evenbetter-xcloud.apk`** (en plus du nom versionné
   `evenbetter-xcloud-<v>.apk`) — sinon ce lien casse au prochain bump. Le
-  garde-fou release-guard vérifie ce lien (APK stable = nom stable ; le nom
-  versionné n'est plus vérifié). Tags v1.9.0 + preview1 réalignés sur
+  garde-fou release-guard vérifie ce lien ET que le nom stable sert les
+  MÊMES bytes que le nom versionné (un oubli de re-upload du nom stable au
+  bump = GATE ROUGE « APK stable ≠ versionné »). Tags v1.9.0 + preview1
+  réalignés sur
   `4261a42` (commit bannière → APK direct) pour garder l'invariant
   tag=bytes-servis.
 - **CAUSE RÉELLE des deux disparitions de la v1.9.0 (18 août) — auto-prune !**
