@@ -232,6 +232,20 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
   l'ancien script (badge « Better xCloud 6.7.12 ») tourne encore dans son
   Greasemonkey — désinstaller l'ancien, réinstaller depuis
   `releases/latest/download/better-xcloud.user.js`, recharger.
+- **Garde-fou quotidien (18 août)** : `bench/release-guard.sh` + workflow
+  `release-guard.yml` (cron 05:17 UTC + dispatch) — détecte une disparition
+  silencieuse de release : pas de Latest, tag orphelin, lien 404, bytes servis
+  ≠ bundle du commit tagué, version/name incohérents, APK 404. Badge
+  « release guard » dans les README. Validé : run CI 32156497961 success,
+  chemin d'échec testé (exit 1). ⚠ Piège CI : `gh` sur le runner exige
+  `GH_TOKEN: ${{ github.token }}` explicite (le fallback implicite sur
+  GITHUB_TOKEN a échoué au 1er run — erreur avalée par 2>/dev/null,
+  maintenant propagée dans le GATE ROUGE). ⚠ Piège CRLF : le blob git des
+  bundles est en LF (autocrlf=true) mais les releases sont publiées depuis un
+  working tree Windows CRLF — toute comparaison sha doit normaliser CRLF→LF
+  des deux côtés (fait dans le garde-fou). Tag preview1 réaligné sur main
+  (servait des assets plus récents que son commit 6c1b42a → forcé sur
+  077297e).
 
 ## Pièges mémorisés
 
