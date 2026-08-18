@@ -1,0 +1,34 @@
+# Garde-fou quotidien des releases — EvenBetterXcloud
+#
+# Vérifie chaque jour que la release stable existe toujours (tag + 4 liens
+# d'auto-update 200 + byte-identique + versions/names cohérents). Un échec
+# (GATE ROUGE) rend le workflow rouge → notification email GitHub (réglage
+# par défaut du repo) : c'est l'alerte si une release disparaît ou dérive.
+#
+# Le cron ne s'exécute que sur la branche par défaut. workflow_dispatch pour
+# une vérification manuelle à tout moment.
+#
+# Pourquoi PAS de trigger push : la comparaison @version servi == VERSION du
+# repo gate tant que la prochaine version n'est pas publiée — sur push ce
+# serait un faux positif permanent pendant le dev d'un bump. Le quotidien
+# couvre l'incident (disparition silencieuse) sans bruit.
+name: release-guard
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+jobs:
+  release-guard:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout (historique complet — tags et bundles du commit tagué requis)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Garde-fou des releases (tag + 4 liens 200 + byte-identique + versions)
+        run: bash bench/release-guard.sh

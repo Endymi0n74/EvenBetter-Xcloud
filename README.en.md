@@ -2,7 +2,7 @@
 
 [![Release](https://img.shields.io/github/v/release/Endymi0n74/EvenBetter-Xcloud?style=for-the-badge&color=green)](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest)
 [![Install](https://img.shields.io/badge/Install-userscript-blue?style=for-the-badge)](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-xcloud.user.js)
-[![CI](https://img.shields.io/github/actions/workflow/status/Endymi0n74/EvenBetter-Xcloud/bench.yml?style=for-the-badge)](https://github.com/Endymi0n74/EvenBetter-Xcloud/actions/workflows/bench.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/Endymi0n74/EvenBetter-Xcloud/bench.yml?style=for-the-badge)](https://github.com/Endymi0n74/EvenBetter-Xcloud/actions/workflows/bench.yml) [![Release Guard](https://img.shields.io/github/actions/workflow/status/Endymi0n74/EvenBetter-Xcloud/release-guard.yml?style=for-the-badge&label=release%20guard)](https://github.com/Endymi0n74/EvenBetter-Xcloud/actions/workflows/release-guard.yml)
 
 **🇬🇧 English** · [🇫🇷 Français](README.md)
 

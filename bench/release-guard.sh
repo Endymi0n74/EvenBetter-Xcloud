@@ -1,0 +1,140 @@
+#!/usr/bin/env bash
+# ============================================================================
+# bench/release-guard.sh — Garde-fou quotidien des releases
+#
+# Détecte l'incident du 18 août (la release stable v1.9.0 avait disparu
+# silencieusement — release ET tag supprimés, tous les liens latest en 404).
+# Vérifie, en une passe :
+#   1. la release stable marquée Latest existe, et son TAG pointe sur un
+#      commit du repo (une release orpheline ne suffit pas) ;
+#   2. les 4 liens d'auto-update (user.js/meta.js × stable/preview) répondent
+#      200 ET servent les BYTES attendus — comparés aux bundles du commit
+#      tagué (`git show <sha>:<fichier>`, insensible au CRLF du checkout) ;
+#   3. les @version/@name servis sont cohérents : stable = VERSION du repo,
+#      preview = sa propre version, noms EvenBetterXcloud (détecte un
+#      re-upload du mauvais script) ;
+#   4. les liens APK (stable + preview) répondent 200 (noms dérivés de la
+#      version — pas de nom en dur à maintenir au bump).
+#
+# GATE ROUGE (exit != 0) sur la première anomalie. Dans le workflow
+# release-guard.yml (cron quotidien + dispatch), un échec = Actions rouge +
+# notification email GitHub (réglage par défaut du repo) — c'est l'alerte.
+#
+# Contrat vérifié : l'asset `better-xcloud.user.js` servi sur latest EST le
+# build ES2017 (politique v1.8.0) → comparé à better-xcloud.es2017.user.js du
+# commit tagué. Si le pipeline de publication change (ex. servir l'ESNext),
+# mettre à jour cette comparaison en même temps.
+#
+# Fin de ligne : les comparaisons sha normalisent CRLF→LF des DEUX côtés — le
+# blob git est stocké en LF (autocrlf=true) alors que les releases sont
+# publiées depuis un working tree Windows (CRLF) et le runner Linux (LF).
+# Sans normalisation, le garde-fou serait un faux positif permanent.
+#
+# Usage  : ./bench/release-guard.sh [--repo=owner/repo]
+#          depuis la racine du repo, avec l'historique complet (git show <tag>)
+#          et gh authentifié. En local : git fetch --tags origin au préalable.
+# ============================================================================
+set -euo pipefail
+
+REPO="Endymi0n74/EvenBetter-Xcloud"
+
+for arg in "$@"; do
+    case "$arg" in
+        --repo=*) REPO="${arg#--repo=}" ;;
+        *)
+            echo "usage: $0 [--repo=owner/repo]" >&2
+            exit 2
+            ;;
+    esac
+done
+
+log()  { echo "[guard] $*"; }
+gate() { echo "[guard] GATE ROUGE : $*" >&2; exit 1; }
+
+DL="https://github.com/$REPO/releases"
+
+# --- 1. La release stable existe et son tag pointe sur un commit ------------
+LATEST_TAG=$(gh release list --repo "$REPO" --limit 100 --json tagName,isLatest \
+    --jq '.[] | select(.isLatest == true) | .tagName' 2>/dev/null) \
+    || gate "impossible de lister les releases de $REPO"
+[ -n "$LATEST_TAG" ] \
+    || gate "aucune release Latest sur $REPO — le stable a disparu ou a perdu Latest"
+
+TAG_SHA=$(git rev-list -n 1 "$LATEST_TAG" 2>/dev/null) \
+    || gate "le tag $LATEST_TAG est introuvable dans git (release orpheline ?)"
+log "Latest : $LATEST_TAG → ${TAG_SHA:0:12}"
+
+# --- 2. Contrat du stable : version + nom + bytes ----------------------------
+EXPECT_VERSION=$(tr -d '\r' < VERSION)
+[ -n "$EXPECT_VERSION" ] || gate "fichier VERSION absent/illisible"
+
+SERVED_META=$(curl --noproxy "*" -s -L --max-time 30 "$DL/latest/download/better-xcloud.meta.js") \
+    || gate "échec de téléchargement du meta stable"
+[ -n "$SERVED_META" ] || gate "meta stable servi vide"
+SERVED_VER=$(echo "$SERVED_META" | grep -m1 '^// @version' | sed 's/^\/\/ @version *//' | tr -d '\r')
+SERVED_NAME=$(echo "$SERVED_META" | grep -m1 '^// @name' | sed 's/^\/\/ @name *//' | tr -d '\r')
+[ "$SERVED_VER" = "$EXPECT_VERSION" ] \
+    || gate "meta stable servi @version $SERVED_VER ≠ VERSION ($EXPECT_VERSION)"
+[ "$SERVED_NAME" = "EvenBetterXcloud" ] \
+    || gate "meta stable servi @name « $SERVED_NAME » ≠ EvenBetterXcloud"
+log "stable : @version $SERVED_VER = VERSION ✓, @name $SERVED_NAME ✓"
+
+# Byte-identique : user.js servi == build ES2017 du commit tagué, meta servi
+# == meta du commit tagué (comparaison sur les bytes du blob, pas du checkout).
+sha_at() { # $1 = sha commit, $2 = chemin dans le repo — sha normalisé CRLF→LF
+    git show "$1:$2" 2>/dev/null | tr -d '\r' | sha256sum | awk '{print $1}'
+}
+
+check_bytes() { # $1 = label, $2 = url, $3 = sha attendu (normalisé CRLF→LF)
+    local served
+    served=$(curl --noproxy "*" -s -L --max-time 60 "$2" | tr -d '\r' | sha256sum | awk '{print $1}')
+    [ -n "$served" ] || gate "$1 : téléchargement vide"
+    [ "$served" = "$3" ] \
+        || gate "$1 : bytes servis ≠ bundle du commit tagué (servi ${served:0:12}, attendu ${3:0:12})"
+    log "$1 : byte-identique ✓"
+}
+
+EXP_USER=$(sha_at "$TAG_SHA" better-xcloud.es2017.user.js)
+[ -n "$EXP_USER" ] || gate "better-xcloud.es2017.user.js absent du commit tagué (bundle ES2017 non commité ?)"
+EXP_META=$(sha_at "$TAG_SHA" better-xcloud.meta.js)
+[ -n "$EXP_META" ] || gate "better-xcloud.meta.js absent du commit tagué"
+
+check_bytes "user.js stable (latest)" "$DL/latest/download/better-xcloud.user.js" "$EXP_USER"
+check_bytes "meta.js stable (latest)"  "$DL/latest/download/better-xcloud.meta.js"  "$EXP_META"
+
+# --- 3. Preview : tag pinné par le build (source de vérité) ------------------
+PINNED_TAG=$(grep -o 'releases/download/[^/]*' better-xcloud-preview.user.js | head -1 | cut -d/ -f3)
+[ -n "$PINNED_TAG" ] || gate "aucun tag pinné dans better-xcloud-preview.user.js (@updateURL absent ?)"
+PINNED_SHA=$(git rev-list -n 1 "$PINNED_TAG" 2>/dev/null) \
+    || gate "le tag pinné $PINNED_TAG est introuvable dans git"
+log "preview pinné : $PINNED_TAG → ${PINNED_SHA:0:12}"
+
+PREVIEW_META=$(curl --noproxy "*" -s -L --max-time 30 "$DL/download/$PINNED_TAG/better-xcloud-preview.meta.js") \
+    || gate "échec de téléchargement du meta preview"
+[ -n "$PREVIEW_META" ] || gate "meta preview servi vide"
+PREVIEW_VER=$(echo "$PREVIEW_META" | grep -m1 '^// @version' | sed 's/^\/\/ @version *//' | tr -d '\r')
+PREVIEW_NAME=$(echo "$PREVIEW_META" | grep -m1 '^// @name' | sed 's/^\/\/ @name *//' | tr -d '\r')
+[ -n "$PREVIEW_VER" ] || gate "meta preview servi sans @version"
+[ "$PREVIEW_NAME" = "EvenBetterXcloud (Preview)" ] \
+    || gate "meta preview servi @name « $PREVIEW_NAME » ≠ EvenBetterXcloud (Preview)"
+log "preview : @version $PREVIEW_VER ✓, @name $PREVIEW_NAME ✓"
+
+EXP_P_USER=$(sha_at "$PINNED_SHA" better-xcloud-preview.user.js)
+[ -n "$EXP_P_USER" ] || gate "better-xcloud-preview.user.js absent du commit pinné"
+EXP_P_META=$(sha_at "$PINNED_SHA" better-xcloud-preview.meta.js)
+[ -n "$EXP_P_META" ] || gate "better-xcloud-preview.meta.js absent du commit pinné"
+
+check_bytes "user.js preview (tag)" "$DL/download/$PINNED_TAG/better-xcloud-preview.user.js" "$EXP_P_USER"
+check_bytes "meta.js preview (tag)"  "$DL/download/$PINNED_TAG/better-xcloud-preview.meta.js"  "$EXP_P_META"
+
+# --- 4. Liens APK (noms dérivés de la version — 200 suffit) ------------------
+check_link() { # $1 = label, $2 = url
+    local code
+    code=$(curl --noproxy "*" -s -o /dev/null -w "%{http_code}" -L --max-time 30 "$2")
+    [ "$code" = "200" ] || gate "$1 → HTTP $code"
+    log "$1 : HTTP 200 ✓"
+}
+check_link "APK stable (latest)"  "$DL/latest/download/evenbetter-xcloud-$EXPECT_VERSION.apk"
+check_link "APK preview (tag)"    "$DL/download/$PINNED_TAG/evenbetter-xcloud-$PREVIEW_VER.apk"
+
+log "OK : release stable + tag présents, 4/4 liens byte-identiques, versions/names cohérents, APK 200"
