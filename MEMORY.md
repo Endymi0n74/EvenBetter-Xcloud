@@ -9,7 +9,44 @@ Mémoire de travail des sessions. Détails dans `bench/preview/port/session.md`
 L'utilisateur demande une mise à jour de ce fichier **au moins toutes les
 ~2 h de travail cumulé** (et à chaque fin de session), sans attendre d'être
 relancé : après ~2 h d'actions, journaliser l'état (fichiers touchés,
-verdicts, pièges nouveaux, en attente). Dernière passe : 17 août ~22:50.
+verdicts, pièges nouveaux, en attente). Dernière passe : 18 août ~07:30.
+
+## Harnais preview — réécriture injection (18 août ~07:00)
+
+- **`inject-preview.js` réécrit en WebSocket CDP brut + wrapper IIFE** :
+  Playwright `newCDPSession` + `Page.addScriptToEvaluateOnNewDocument` ne
+  fonctionne PAS sur Edge 152 (script jamais appliqué aux nouveaux
+documents — vérifié par tests croisés ; le CDP brut WS, si).
+  **Wrapper IIFE obligatoire** (mécanique Tampermonkey) : le preview
+  déclare des classes top-level (`HeaderSection`, `KeyHelper`…) qui
+  **collident avec les bundles ESM du site** en injection directe et
+  cassent l'évaluation des modules (page blanche, `scripts:0`). Le probe
+  ne lit que `BX_FETCH`/`BX_EXPOSED`/`BX_CE` (assignés à window) → IIFE
+  sûr.
+- **Fixes document-start dans le build** (les deux se produisent quand
+  `document.documentElement` est null — jamais en Tampermonkey, mais le
+  contexte d'injection CDP les expose) :
+  - `BxSelectElement.ensureObserver()` : `observe(document.documentElement
+    || document, …)` — crash « parameter 1 is not of type 'Node' » qui
+    tuait `main()` avant le hook fetch → « aucun overlay ».
+  - `addCss()` : `if (document.documentElement) …appendChild($style);
+    else document.addEventListener("DOMContentLoaded", …)` — le premier
+    fix `|| document` (append direct sur le noeud document) **corrompait
+    l'arbre et vidait la page** (page blanche, uniquement notre `<style>`,
+    `scripts:0` — bisect 4 variantes : control/full/noaddcss/orig).
+    Le différé DOMContentLoaded est le bon fix : site boot 3297 nodes +
+    hook fetch installé.
+- **Validation finale sur profil D:** (18 août ~07:20) : injection WS brut
+  document-start sur onglet play.xbox.com neuf → site boot complet
+  (3297 nodes, 7 scripts), `bxFetch: function`, bouton présent. Les 4
+exceptions restantes viennent toutes du **document initial about:blank**
+(hostname vide → garde « Not xCloud page » + 3 fetch) — bruit attendu sur
+profil déconnecté, zéro exception sur la page réelle.
+- **Profil de test sur D:** (18 août) : `D:\edge-profiles\edge-cdp`
+  (plus jamais C:\edge-*) ; relance Edge : `powershell -Command
+  "Start-Process '…msedge.exe' -ArgumentList
+  '--remote-debugging-port=9222','--user-data-dir=D:\edge-profiles\edge-cdp',
+  '--no-first-run'"`.
 
 ## Projet
 
@@ -74,11 +111,14 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
   (timer d'idle = inactivité utilisateur).
 - **hookActif en réel (edge-cdp)** : le profil NE PEUT PAS exécuter d'userscript
   (Tampermonkey MV3 exige le mode développeur d'Edge, inactivable en CDP).
-  Solution : mini-extension `.edge-inject/` (`content_scripts` +
+  Solutions : (1) mini-extension `.edge-inject/` (`content_scripts` +
   `world:"MAIN"` + `document_start` — équivalent `@grant none`), lancée avec
-  `--load-extension=…\.edge-inject`. **Ne pas** injecter via Playwright
-  addInitScript / `Page.addScriptToEvaluateOnNewDocument` (realm : crash
-  « MutationObserver: parameter 1 is not of type Node »).
+  `--load-extension=…\.edge-inject` ; (2) **`inject-preview.js` (WS brut
+  + IIFE, 18 août)** — le Playwright `newCDPSession` n'applique pas
+  `addScriptToEvaluateOnNewDocument` sur Edge 152 ; le WS brut si.
+  **Wrapper IIFE requis** (collisions de classes top-level avec les bundles
+  du site) ; les crashs document-start (`ensureObserver`, `addCss`) sont
+  corrigés dans le build (voir section « Harnais preview »).
 
 ## Protocole E2E (e2e-cdp.md)
 
@@ -207,10 +247,11 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
   MV3 : après `cp` dans `.edge-inject/preview.js`, un reload ne suffit pas —
   **redémarrer Edge**.
 - **L'extension `.edge-inject` doit être relancée** : `taskkill //F //IM
-  msedge.exe //T` + `Start-Process` (PowerShell) avec profil `C:\edge-cdp` +
+  msedge.exe //T` + `Start-Process` (PowerShell) avec profil
+  `D:\edge-profiles\edge-cdp` +
   `--load-extension=D:\Codex\better-xcloud-fork\.edge-inject` (depuis bash,
   passer par `powershell -Command "Start-Process …"`, pas Start-Process
-  direct).
+  direct). Profils de test sur D: uniquement (18 août).
 - **Blip « You're offline » d'Edge** (vu 2× le 17 août) : le site se charge en
   « offline » alors que le réseau va bien (curl 200) → la page stream ne part
   pas, le play ne s'émet pas. Contournement : clic `retryButton` ou reload ;
@@ -238,10 +279,12 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
   Closed/Merged trompeur (§5 mémo projet).
 - Step « Commente la PR » (`always()` + readFileSync du résumé) : garde
   `fs.existsSync` (`8bd1341`) — job échoué AVANT check-ratios → skip propre
-  « résumé absent … skippé », plus de crash ENOENT (validé PR #16, run
+  « résumé absent … skippé », plus de crash ENOENT  (validé PR #16, run
   32002128606 ; journal dans e2e-cdp.md). Runner edge-cdp : port 9222,
-  profil `C:\edge-cdp`, relance : `Start-Process msedge.exe -ArgumentList
-  '--remote-debugging-port=9222','--user-data-dir=C:\edge-cdp','--no-first-run',
+  profil `D:\edge-profiles\edge-cdp`, relance : `Start-Process msedge.exe
+  -ArgumentList
+  '--remote-debugging-port=9222','--user-data-dir=D:\edge-profiles\edge-cdp',
+  '--no-first-run',
   '--load-extension=D:\Codex\better-xcloud-fork\.edge-inject'`.
 
 ## En attente / prochaines étapes
@@ -277,7 +320,8 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
    défense. Nouvelle fenêtre 1 h relancée 17 août 15:09 (monitor-afk-1h-v2.log,
    session CF49BC01) après que la 1re tentative (15:02) est morte à 4,5 min
    (reload du shell + dialog permission micro réapparu — cliqué Autoriser au
-   clavier, mémorisé dans le profil C:\edge-cdp). **DÉCISION P1 (17 août) :
+   clavier, mémorisé dans le profil D:\edge-profiles\edge-cdp). **DÉCISION
+  P1 (17 août) :
    validation clôturée.** Fenêtre longue (2 h) abandonnée — PC indisponible
    2 h de suite, et le timer d'idle serveur ne peut être ni accéléré ni
    simulé. Seuil > 60 min établi (exécution 2), wrapSession en place et
