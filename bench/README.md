@@ -147,6 +147,42 @@ le rendu (86 % de frames dropped sur 20 s, downscale 2560×1440 → 1280×720
 par moments). Le profil JS (sampling wall-clock) reste valide ; pas de
 conclusion sur la qualité de rendu depuis ce setup.
 
+## Hors main thread — leviers réseau/décodage mesurés (18 août ~20:15, v1.9.0)
+
+Session stable réelle (As Dusk Falls, www.xbox.com/play, onglet au premier
+plan) : lecture de la config d'input effective (`window.BX_EXPOSED.inputChannel.
+configuration`) + doubles échantillons `getStats` (deltas sur timestamps RTP,
+10 s) :
+
+| Métrique | Valeur mesurée | Scriptable ? |
+|---|---|---|
+| Main thread JS (live-profile) | **~0,02 %** du temps (3,2 ms/20 s) | plancher |
+| getGamepads polling | ~85 µs/s (0,0085 %), ~0,34 µs/appel | knob `controller.pollingRate` (déjà scripté) |
+| Décodage vidéo | **0,50 ms/frame** (16,2 ms/s) — H.264 High 2560×1440@30 | NON (media stack natif) |
+| Bitrate réseau | **~24,8 Mbps** (1440p30) | cap via `stream.video.maxBitrate` → patch SDP `b=AS:` (mécanisme vérifié dans le bundle) |
+| RTT / pertes | 22 ms · 0 paquet perdu · 0 frame dropped | non pertinent |
+| **Config input effective** | `useIntervalWorkerThreadForInput:true` · `enableVibration:true` · `useUnreliableInput:true` · `enableClientRenderedCursor:true` | **déjà tous actifs par défaut** |
+
+**Inventaire des leviers réseau/décodage du client stable (tous déjà scriptés
+par upstream, mécanismes vérifiés dans le bundle) :** `stream.video.maxBitrate`
+(SDP `b=AS:`), `stream.video.codecProfile` (`RTCRtpTransceiver.setCodecPreferences`
++ patch SDP), `stream.video.resolution`, `stream.video.preventResolutionDrops`
+(patchStreamMetadata), `video.maxFps`, `video.player.powerPreference`,
+`video.player.type` (renderer), `server.bypassRestriction`/`server.region`
+(routage), `stream.video.combineAudio` (streamCombineSources patch),
+`controller.pollingRate` (boucle pollGamepads).
+
+**Verdict : rien à optimiser côté script hors main thread.** Contrairement au
+preview (où la fusion P2 des overrides apportait `useIntervalWorkerThreadForInput`
+et `enableVibration`), le client stable les a **nativement activés** — la
+config d'input effective le prouve en session réelle. Le polling getGamepads
+est le seul item JS visible et son gain potentiel (~0,007 % du temps) est
+sous le bruit. Le décodage (0,50 ms/frame) est natif. Les seuls leviers
+restants (bitrate/résolution/FPS) sont des **préférences utilisateur**, pas
+des optimisations — leurs mécanismes (patch SDP, codec prefs) fonctionnent
+déjà. Axe infra restant, hors script : **AV1** (non utilisé sur ce setup —
+H.264 High) via `stream.video.codecProfile` si le navigateur le supporte.
+
 ## Re-baseline du 17 août (v1.8.0) — bornes confirmées
 
 Run complet sur le build v1.8.0 (`better-xcloud.user.js`, 481 772 o — inchangé

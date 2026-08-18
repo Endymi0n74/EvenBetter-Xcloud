@@ -372,6 +372,24 @@ déjà couvert (PR #999/#1000 + bench 137 ns). Journal dans bench/README.md
 throttling rendu (86 % dropped, downscale 1440p→720p), le profil JS reste
 valide, pas de conclusion qualité.
 
+## Hors main thread — VERDICT mesuré (18 août ~20:15, v1.9.0)
+
+Session stable réelle (As Dusk Falls, onglet premier plan) : config d'input
+effective lue dans `window.BX_EXPOSED.inputChannel.configuration` →
+`useIntervalWorkerThreadForInput:true` · `enableVibration:true` ·
+`useUnreliableInput:true` · `enableClientRenderedCursor:true` — **le client
+stable les a TOUS actifs nativement** (contrairement au preview où la fusion
+P2 les apportait). Double échantillon getStats (deltas timestamps RTP, 10 s) :
+bitrate **~24,8 Mbps** (1440p30 H.264 High), décodage **0,50 ms/frame**
+(natif, non scriptable), RTT 22 ms, 0 perte, 0 drop. getGamepads ~85 µs/s
+(0,0085 %) — gain potentiel sous le bruit. **Verdict : rien à optimiser côté
+script hors main thread** — les leviers réseau/décodage (maxBitrate → patch
+SDP b=AS:, codecProfile → setCodecPreferences, resolution, maxFps,
+powerPreference, region) existent et fonctionnent déjà (mécanismes vérifiés
+dans le bundle) ; ce sont des préférences utilisateur, pas des optimisations.
+Seul axe infra restant : AV1 (non utilisé sur ce setup, H.264 High) via
+`stream.video.codecProfile`. Détail : bench/README.md « Hors main thread ».
+
 ## SNAPSHOT 18 août ~20:00 — avant reboot (tout commité + poussé)
 
 **État git** : `main` == `origin/main` @ **`66ef734`** (verify-badge --banner).
