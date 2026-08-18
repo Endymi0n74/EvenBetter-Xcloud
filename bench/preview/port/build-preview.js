@@ -17,6 +17,9 @@
  *       (HeaderSection existant, dialog 100 % autonome) dans le shell du
  *       preview via MutationObserver délégué, avec sélecteurs candidats
  *       (anchors.md) à affiner depuis la capture runtime d'une session.
+ *   T10 Auto-spoof UA : quand le navigateur réel n'est pas Chromium (Firefox,
+ *       Safari Windows…), forcer le profil « windows-edge » par défaut pour
+ *       passer le gate navigateur de play.xbox.com (Chromium-only).
  *
  * Usage : node bench/preview/port/build-preview.js
  * Sortie : better-xcloud-preview.user.js (racine du repo, à côté du build perf)
@@ -41,7 +44,7 @@ const EOL = "\n";
 // ---- contrat « deux versions » : identité DISTINCTE du build preview ----
 // (rebrand 18 août : EvenBetterXcloud + tag evenbetter-xcloud-v* — les
 // ancres T1 ci-dessous matchent le stable REBRANDÉ par bench/rebrand-bundle.js)
-const PREVIEW_VERSION = "1.10.0-preview1";
+const PREVIEW_VERSION = "1.10.0-preview2";
 const PREVIEW_NAME = "EvenBetterXcloud (Preview)";
 const PREVIEW_TAG = "evenbetter-xcloud-v" + PREVIEW_VERSION; // releases/download/<tag>/...
 
@@ -263,6 +266,24 @@ ${entryAnchor}`;
   must(s, gameBarActionsAnchor, "T9 GameBar actions");
   s = s.replace(gameBarActionsAnchor, "this.actions = [new ScreenshotAction,new SettingsAction");
 
+  /* ---------- T10 : auto-spoof UA non-Chromium (gate play.xbox.com) ----------
+     Le client play.xbox.com bloque les navigateurs non-Chromium : check
+     isSupportedChromiumBasedBrowser dans entry.client (Chrome/Blink >=106 ou
+     fallback Chrome/Edge/Safari) — Firefox n'est pas dans la liste (dialog
+     « Votre navigateur ne prend pas en charge la diffusion en continu »).
+     Le stream WebRTC H.264 fonctionne pourtant sous Firefox. Auto-spoof :
+     si le navigateur reel n'est PAS Chromium (Firefox, Safari Windows...),
+     forcer le profil « windows-edge » par defaut — le gate passe sans reglage
+     manuel. Le setting userAgent.profile garde la main (un profil explicite
+     n'est jamais ecrase). Patch preview-only (BX_PREVIEW), stable inchange. */
+  const uaSpoofAnchor = 'if (!UserAgent.#config.custom) UserAgent.#config.custom = "";UserAgent.spoof();';
+  must(s, uaSpoofAnchor, "T10 UserAgent.init");
+  s = s.replace(uaSpoofAnchor,
+    'if (!UserAgent.#config.custom) UserAgent.#config.custom = "";' +
+    '/* T10 : gate play.xbox.com = Chromium-only (Firefox/Safari not listed). WebRTC H.264 works in Firefox: auto-spoof Edge by default. */' +
+    'if (BX_PREVIEW && UserAgent.#config.profile === "default" && !(/chrom(e|ium)|edg\\/|crios/i.test(navigator.userAgent))) UserAgent.#config.profile = "windows-edge";' +
+    'UserAgent.spoof();');
+
   /* ---------- T5 : keep-alive idle (P1) — inséré en FIN de script ----------
      Après main(); : window.fetch est alors le hook final (bloqueurs du script),
      le hook fetch de T5 se chaîne au bon maillon. */
@@ -356,6 +377,7 @@ for (const probe of [
   "if (BX_PREVIEW) {",
   "installKeepAliveIdle",
   "window.PreviewKeepAliveIdle",
+  "auto-spoof Edge by default",
 ]) {
   if (!out.includes(probe)) { console.error("[build-preview] probe manquante: " + probe); process.exit(1); }
 }

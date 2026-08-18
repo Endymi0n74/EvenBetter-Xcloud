@@ -578,6 +578,22 @@ fichier .ps1 obligatoire).
 - Sonde ajoutée : `bench/ua-spoof-probe.js` (UA Firefox via CDP
   Emulation → vérifie l'absence de dialog).
 
+## T10 — auto-spoof UA non-Chromium dans le preview (19 août ~00:45, preview2)
+
+- Le gate play.xbox.com est Chromium-only (`isSupportedChromiumBasedBrowser`
+  dans entry.client — Firefox non listé, dialog « ne prend pas en charge la
+  diffusion en continu »). Le stream WebRTC H.264 fonctionne pourtant sous
+  Firefox → **T10** dans build-preview.js : si le navigateur réel n'est pas
+  Chromium (regex `chrom(e|ium)|edg/|crios`, vérifiée : Firefox/Safari →
+  spoof, Edge/Chrome → inchangé) ET que `userAgent.profile` est « default »,
+  forcer `windows-edge` par défaut au moment de `UserAgent.init()` — le gate
+  passe sans réglage manuel. Le setting garde la main (profil explicite non
+  écrasé). Guard `BX_PREVIEW` → stable inchangé (vérifié 0 occurrence).
+- Bump preview → **1.10.0-preview2** (PREVIEW_VERSION, tag v1.10.0-preview2,
+  README Deux versions FR/EN). Ancre T10 :
+  `if (!UserAgent.#config.custom) UserAgent.#config.custom = "";UserAgent.spoof();`
+  (unique). Probes + node --check OK.
+
 ## Publication v1.10.0 (18 août ~22:30) — feature latence + releases
 
 - **Feature** : « 📡 Tester la latence » (groupe SERVER) — ping des 19 régions
