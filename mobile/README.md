@@ -113,6 +113,24 @@ profil Samsung SM-G998B) : build → install → sonde → panne → récupérat
 clic « Réessayer » ; le clic annule le retry auto en attente, pas de double
 navigation).
 
+### Validation téléphone réel (18 août soir, APK ES2017)
+
+**Validé par l'utilisateur sur un vrai téléphone** avec l'APK de test
+(`better-xcloud-perf-1.8.0-test.apk`, bundle **ES2017** re-minifié embarqué) :
+
+- **Les jeux se lancent** — le stream xCloud démarre dans le WebView.
+- **Le menu settings complet est là** après connexion Xbox dans l'appli
+  (le WebView a ses propres cookies, séparés du navigateur).
+- **Visual joypad actif** : les jeux nécessitant une manette utilisent le
+  touch controller de Better xCloud (comportement natif du script quand un
+  device tactile est détecté — pas un ajout du wrapper).
+
+**Piège documenté** : déconnecté, le menu settings est **réduit** (Langue /
+Région / Profil UA / Effacer les données) — c'est le comportement upstream
+`renderFullSettings = supportedRegion && isSignedIn`, pas un bug. Se
+connecter dans l'appli (bouton « CONNEXION » de la page) débloque toutes les
+options (résolution, bitrate, MKB, touch…).
+
 ## Limites connues
 
 - **WebView ≠ navigateur complet** : le client xCloud web s'affiche en plein

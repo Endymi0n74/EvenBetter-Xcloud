@@ -28,6 +28,7 @@ patchtest*/
 
 # Build APK mobile (généré par mobile/build.sh)
 mobile/assets/
+!mobile/assets/diag.js
 mobile/out/
 mobile/gen/
 mobile/bxperf.keystore

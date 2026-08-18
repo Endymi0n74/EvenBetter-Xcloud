@@ -694,6 +694,43 @@ préservées ; `--with-page-eval` pour conserver la ligne « Éval »).
   inclus), 20 runs, médiane/p95 (perf10 présente des outliers p95
   environnementaux, la médiane est stable).
 
+### Build ES2017 pour vieux WebView (`bench/es2017-build.mjs`)
+
+Le bundle stable (`better-xcloud.user.js`) est buildé par bun en **ESNext**
+(minify **syntaxe seule**, pas le whitespace). Un vieil Android System WebView
+(Chrome < 80 : pas de `?.` / `??` / class fields) ne peut pas le parser → script
+mort silencieusement. `bench/es2017-build.mjs` re-transpile le bundle en
+**ES2017** avec esbuild (`bun bench/es2017-build.mjs`, sortie
+`better-xcloud.es2017.user.js`) :
+
+- **Header userscript préservé** (esbuild supprimerait `// ==UserScript==` en
+  minifiant : le header est extrait avant transpile, ré-attaché après).
+- Downlevel complet hors template literals : `?.` → ternaires, `??` → `||`,
+  class/private fields → `defineProperty`/WeakMap. Les rares `?.` restants
+  sont des **snippets de patches dans des template literals** (évalués dans le
+  contexte du site, pas du script — non transpilables par esbuild).
+- Vérifications intégrées : `node --check` implicite (le fichier est
+  ré-écrit), compteurs de syntaxe ES2020+ résiduelle, header présent.
+
+**Mesures (18 août, build v1.8.0, Edge 152)** :
+
+| Build | Taille | Parse (Node) | Éval page (Edge) |
+|---|---|---|---|
+| `better-xcloud.user.js` (bun, ESNext) | 481 974 o | 0,110 ms | 23,1 ms |
+| esbuild ES2020 (minify complet) | 399 693 o | — | 10,8 ms |
+| esbuild ES2017 (minify complet) | 403 105 o | 0,092 ms | 11,4 ms |
+
+- **Le downlevel seul coûte peu** : +3,4 Ko (+0,9 %) et +0,6 ms (+5,6 %)
+  d'éval par rapport à l'ES2020 re-minifié esbuild (à minification égale).
+- **Le vrai gain vient de la re-minification complète** : le build bun ne
+  minifie que la syntaxe → esbuild `minify` (whitespace + identifiants)
+  ramène 481 → 400 Ko (**−17 %**) et l'éval page 23,1 → 10,8 ms
+  (**−53 %**), sans changer la cible ES.
+- Verdict : l'ES2017 est un **sous-produit quasi gratuit** de la
+  re-minification (gain de taille/startup identique à l'ES2020, coût
+  downlevel +0,9 %/+5,6 %) — c'est le build à embarquer dans l'APK pour
+  couvrir les vieux WebView **et** gagner sur tous les navigateurs.
+
 ### Hot loops ~60 Hz (`bench/hotloops.js`, Node)
 
 - Extraction des fragments injectés depuis le build : regex

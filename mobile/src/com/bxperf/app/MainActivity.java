@@ -66,6 +66,11 @@ public class MainActivity extends Activity {
         "xbox.com",
     };
 
+    // Badge de diagnostic — chargé depuis assets/diag.js (build de TEST
+    // uniquement) : affiche en haut à gauche ~10 s l'état de l'injection et
+    // de la session. ES5 pur, aucun échappement Java à gérer.
+    private String diagJs;
+
     private static final int MAX_AUTO_RETRIES = 3;
     private static final long[] RETRY_DELAYS_MS = { 5_000L, 15_000L, 30_000L };
 
@@ -95,6 +100,9 @@ public class MainActivity extends Activity {
         setContentView(webView);
 
         userscript = loadAsset("better-xcloud.user.js");
+        diagJs = loadAsset("diag.js");
+        Log.d("BXPerf", "assets: userscript=" + (userscript == null ? "NULL" : userscript.length())
+            + " diag=" + (diagJs == null ? "NULL" : diagJs.length()));
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -325,6 +333,13 @@ public class MainActivity extends Activity {
         public void onPageFinished(WebView view, String url) {
             super.onPageFinished(view, url);
             activity.onPageFinished(url);
+            // Badge de diagnostic : vraie page xbox.com chargée, pas une page
+            // d'erreur. Lecture seule — ne touche pas au userscript.
+            if (url != null && isXboxDomain(url) && !activity.errorPageShowing
+                    && activity.diagJs != null) {
+                Log.d("BXPerf", "inject diag badge on " + url);
+                view.evaluateJavascript(activity.diagJs, null);
+            }
         }
 
         @Override

@@ -455,3 +455,31 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
     (×22,0) · updateFrame 130,3 ns stable · éval page 17,3 ms méd (p95 28,4)
     · profil startup plat (one-shot codec différé intact) · cold-getcap eval
     23,6 ms (Δ −95,6 %). CI bench main : success (run 32114282345).
+16. ✅ **Fait (18 août ~16:00) — build ES2017 + validation téléphone réel APK** :
+    le bundle stable (build bun ESNext, 481 974 o, minify **syntaxe seule**)
+    est re-transpilé en **ES2017** par `bench/es2017-build.mjs` (esbuild,
+    `bun bench/es2017-build.mjs` → `better-xcloud.es2017.user.js`, 403 109 o
+    −16 %). Header userscript préservé (esbuild le supprimerait : extrait
+    avant transpile, ré-attaché après). Mesures (Edge 152) : bun ESNext éval
+    page 23,1 ms → esbuild ES2020 10,8 ms → **ES2017 11,4 ms** — le gain
+    vient de la **re-minification complète esbuild** (−17 % taille, −53 %
+    startup, tous navigateurs), le downlevel pur coûte +3,4 Ko / +0,6 ms.
+    Build à embarquer dans l'APK (couvre les vieux WebView Chrome < 80 :
+    `?.`/`??`/class fields transpilés ; les ~9 `?.` résiduels sont dans des
+    **template literals de patches**, évalués dans le contexte du site, non
+    transpilables — sans impact, le site exige déjà ES2020). **Badge de
+    diagnostic APK** (`mobile/assets/diag.js`, ES5, auto-masqué 10 s) :
+    WebView Chrome <N> / BX_EXPOSED / BX_FETCH / settings btn / signed in
+    / path — injecté en `onPageFinished` — répond « WebView trop vieux ? »
+    vs « pas connecté ? ». `mobile/build.sh` : `BUNDLE_SRC` (env) pour
+    embarquer un bundle alternatif. **VALIDATION TÉLÉPHONE RÉEL (18 août
+    soir, utilisateur, APK de test ES2017) : les jeux se lancent, le menu
+    settings COMPLET apparaît après connexion dans l'appli (WebView = ses
+    propres cookies), et le visual joypad est actif pour les jeux manette
+    (comportement natif du script sur device tactile).** Piège documenté :
+    déconnecté le menu est réduit (`renderFullSettings = supportedRegion &&
+    isSignedIn`, upstream) — se connecter dans l'appli débloque tout.
+    Release v1.8.0 basculée sur l'ES2017 (user.js + APK re-uploadés,
+    byte-identique vérifié ; ⚠ cache CDN GitHub : après `--clobber`, le lien
+    peut servir l'ancien asset quelques minutes — piège du nommage). esbuild
+    ajouté en devDependency.

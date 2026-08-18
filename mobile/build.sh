@@ -13,9 +13,12 @@ STORE_PASS="bxperf-keystore"
 ORIG_KEYSTORE="/d/Codex/bx-apk/bxperf.keystore"
 
 # Asset : le build stable à jour (la racine du repo), jamais une copie périmée.
+# BUNDLE_SRC (env) : bundle alternatif à embarquer (ex. better-xcloud.es2017.user.js
+# pour un APK de test compatible vieux WebView). Défaut : le stable courant.
 mkdir -p "$ROOT/assets"
-cp "$ROOT/../better-xcloud.user.js" "$ROOT/assets/better-xcloud.user.js"
-echo "    asset : $(wc -c < "$ROOT/assets/better-xcloud.user.js") o (stable courant)"
+BUNDLE_SRC="${BUNDLE_SRC:-$ROOT/../better-xcloud.user.js}"
+cp "$BUNDLE_SRC" "$ROOT/assets/better-xcloud.user.js"
+echo "    asset : $(wc -c < "$ROOT/assets/better-xcloud.user.js") o ($(basename "$BUNDLE_SRC"))"
 
 # Keystore : réutiliser la clé d'origine (D:\Codex\bx-apk) pour que les
 # mises à jour d'un APK déjà installé restent valides. Générer une nouvelle
