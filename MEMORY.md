@@ -548,6 +548,21 @@ fichier .ps1 obligatoire).
 - Le capture de stats lit maintenant le `profile-level-id` du codec
   (2e champ, sdpFmtpLine). Screenshots : bench/.h264-high.png / .h264-low.png.
 
+## Verdict codec preview (19 août ~00:05) — même backend H.264-only que le stable
+
+- Session preview réelle (play.xbox.com, Among Us) : codec négocié =
+  **video/H264 `4d001f` Constrained High — identique au stable**. L'offre
+  contient AV1 mais la réponse serveur non → le backend encode H.264 pour
+  les deux clients, rien d'autre (pas de VP9/HEVC). Sujet codec CLOS.
+- ⚠ Piège : l'extension `.edge-inject` (preview) était une copie pré-rebrand
+  — RESYNC après chaque build preview (même convention que
+  `.edge-inject-stable`). La page stream immersive du preview est en plein
+  écran → le cycle min/restore du capture exige d'abord un retour à
+  « normal » (fix dans stream-stats-capture.js).
+- Harnais ajoutés : `bench/launch-preview-game.js` (produit → Jouer → stream
+  sur play.xbox.com), `bench/preview-codec-probe.js` (codec + stats brutes +
+  présence AV1 dans les SDP).
+
 ## Publication v1.10.0 (18 août ~22:30) — feature latence + releases
 
 - **Feature** : « 📡 Tester la latence » (groupe SERVER) — ping des 19 régions

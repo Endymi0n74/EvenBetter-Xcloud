@@ -318,6 +318,25 @@ Screenshots de preuve : `bench/.h264-high.png` / `bench/.h264-low.png`
    meilleur profil disponible. Les seuls leviers utiles restent
    `maxBitrate` (cap) et `resolution` 720p.
 
+## Verdict codec preview (play.xbox.com) — même backend H.264-only (19 août ~00:05, v1.10.0-preview1)
+
+Session preview réelle (Among Us, `bench/launch-preview-game.js` + `bench/preview-codec-probe.js`) :
+
+- **Codec négocié : `video/H264` `4d001f` (Constrained High)** — **identique au
+  stable**. Le backend Azure encode en H.264 Constrained High pour les deux
+  clients.
+- **AV1 proposé, ignoré** : l'offre locale contient AV1
+  (`localSdpHasAV1:true`) mais la réponse serveur non (`remoteSdpHasAV1:false`)
+  — même verdict que le stable. Pas de VP9 ni HEVC dans la réponse non plus.
+- Liste RTP = la même pile navigateur (VP8/VP9×4/H264×9/AV1×2) — le
+  navigateur est identique, seule la couche SDK diffère, et elle négocie le
+  même H.264.
+- Détail : 1440p @ **60 fps** sur Among Us (le fps dépend du jeu, pas du
+  client — As Dusk Falls est en 30 fps).
+
+**Conclusion codec (stable ET preview) : H.264 Constrained High par défaut,
+rien d'autre proposé par le serveur. Le sujet codec est clos.**
+
 ## Feature v1.10.0 — 📡 Test de latence serveur (18 août ~21:30)
 
 Bouton « 📡 Tester la latence des serveurs » dans le groupe **SERVER** des

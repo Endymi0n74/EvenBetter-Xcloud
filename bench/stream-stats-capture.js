@@ -80,11 +80,16 @@ async function evalIn(cdp, expression) {
   if (!videoState || videoState.readyState < 3) throw new Error("pas de stream live (video readyState=" + (videoState && videoState.readyState) + ")");
 
   // 2. Forcer le premier plan (cycle minimiser→restaurer — recette documentée)
+  //    La page stream immersive du preview est en plein écran : repasser
+  //    d'abord en « normal » sinon le minimize est refusé par Chrome.
   const { windowId } = await cdp.send("Browser.getWindowForTarget", { targetId: page.id });
-  await cdp.send("Browser.setWindowBounds", { windowId, bounds: { windowState: "minimized" } });
-  await sleep(800);
-  await cdp.send("Browser.setWindowBounds", { windowId, bounds: { windowState: "normal" } });
-  await sleep(1500);
+  try { await cdp.send("Browser.setWindowBounds", { windowId, bounds: { windowState: "normal" } }); await sleep(500); } catch {}
+  try {
+    await cdp.send("Browser.setWindowBounds", { windowId, bounds: { windowState: "minimized" } });
+    await sleep(800);
+    await cdp.send("Browser.setWindowBounds", { windowId, bounds: { windowState: "normal" } });
+    await sleep(1500);
+  } catch (e) { console.log("[warn] cycle fenêtre impossible : " + e.message); }
   const vis = await evalIn(cdp, `document.visibilityState`);
   if (vis !== "visible") console.log(`[warn] visibilityState=${vis} — rendu possiblement throttlé`);
 
