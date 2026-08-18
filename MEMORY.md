@@ -355,6 +355,58 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
   '--no-first-run',
   '--load-extension=D:\Codex\better-xcloud-fork\.edge-inject'`.
 
+## SNAPSHOT 18 août ~20:00 — avant reboot (tout commité + poussé)
+
+**État git** : `main` == `origin/main` @ **`66ef734`** (verify-badge --banner).
+Arbre propre sauf : `.edge-inject-stable/` (extension d'injection LOCALE, NON
+commitée — convention comme `.edge-inject`) et `better-xcloud-perf-1.8.0-
+test.apk` (artefact périmé, à supprimer).
+
+**Versions / releases** (repo `Endymi0n74/EvenBetter-Xcloud`) :
+- `VERSION` = **1.9.0** ; bundle stable servi = ES2017 (`better-xcloud.user.js`, ~403 Ko).
+- Releases : **evenbetter-xcloud-v1.9.0** (Latest ; 4 assets : user.js ES2017,
+  meta, `evenbetter-xcloud-1.9.0.apk` versionné, **`evenbetter-xcloud.apk` =
+  nom STABLE**), **evenbetter-xcloud-v1.9.0-preview1** (prerelease),
+  `better-xcloud-perf-1.8.0-preview4` (cran de secours).
+- Liens : auto-update via `latest/download/*` ; **bannière Android →
+  `latest/download/evenbetter-xcloud.apk`** (le nom stable doit être re-uploadé
+  à CHAQUE release — le garde-fou vérifie stable == versionné).
+- Tags v1.9.0 + preview1 → commit `4261a42` (bundles servis).
+
+**Validations en réel terminées (18 août)** : badge « EvenBetterXcloud 1.9.0 »
+affiche + clic → releases (verify-badge.js) ; bannière Android (UA simulé) →
+APK direct, clic → téléchargement réel 135788/135788 o (preuve = événements
+CDP, SmartScreen retire le fichier) ; release-guard VERT (local + CI).
+
+**Outils clés** : `bench/release-guard.sh` + `.github/workflows/release-guard.yml`
+(cron 05:17 UTC + dispatch) ; `bench/verify-badge.js [--banner]` ;
+`bench/release-prune.sh` ; `bench/bump-version.sh` + `VERSION` racine ;
+`mobile/build.sh` (`VARIANT=preview`, `BUNDLE_SRC=…es2017.user.js`) ;
+`bench/preview/port/build-preview.js` (builds preview depuis le stable).
+
+**Chemins** : repo `D:\Codex\better-xcloud-fork` ; JDK `C:\Program Files\Zulu\zulu-21` ;
+SDK `/d/android-sdk` ; keystore `D:\Codex\bx-apk\bxperf.keystore` ; profils Edge
+`D:\edge-profiles\` (edge-cdp = play.xbox.com preview) ; extension locale
+`.edge-inject-stable/stable.js` = copie statique du bundle → **RESYNC après
+chaque changement de bundle**. PC : aucune instance Edge de test ouverte, rien
+en cours d'exécution.
+
+**Pièges récents (détail plus bas)** : publier une release stable de contrôle →
+l'auto-prune (release-prune.yml sur `release: published`) PURGE la stable
+courante ; SmartScreen supprime les APK téléchargés ; redirect web `latest` =
+cache CDN ~2-3 min (l'API est immédiate) ; blob git LF vs releases CRLF →
+normaliser CRLF→LF dans les comparaisons sha ; gh en CI exige `GH_TOKEN`
+explicite ; `gh release upload fichier#nom` non supporté (copier sous le bon
+nom) ; GitHub ne ré-attribue pas Latest après purge (`PATCH make_latest=true`).
+
+**Prochaines étapes candidates** : (a) valider la migration Greasemonkey chez
+l'utilisateur (badge 1.9.0 en Firefox — le build est bon, l'ancien script peut
+tourner encore) ; (b) supprimer `better-xcloud-perf-1.8.0-test.apk` ; (c)
+reprendre la queue du stable : `bench/live-profile.js` pour identifier la
+dominante runtime réelle ; (d) upstream : 13 PR ouvertes (redphx), rappel
+prévu ~24 août ; (e) APK preview : overlay absent sur play.xbox.com en WebView
+(réservé, priorité basse).
+
 ## En attente / prochaines étapes
 
 1. ✅ **Fait (17 août soir) — overlay preview validé en réel** : bouton
