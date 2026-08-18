@@ -9,7 +9,7 @@ Mémoire de travail des sessions. Détails dans `bench/preview/port/session.md`
 L'utilisateur demande une mise à jour de ce fichier **au moins toutes les
 ~2 h de travail cumulé** (et à chaque fin de session), sans attendre d'être
 relancé : après ~2 h d'actions, journaliser l'état (fichiers touchés,
-verdicts, pièges nouveaux, en attente). Dernière passe : 18 août ~07:30.
+verdicts, pièges nouveaux, en attente). Dernière passe : 18 août ~10:15.
 
 ## Harnais preview — réécriture injection (18 août ~07:00)
 
@@ -421,3 +421,37 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
     (update = rebuild), gains GPU desktop non transposables, iOS impossible
     sans Mac/Xcode. README FR/EN : ligne « App native » en tête du tableau
     mobile. Testé sur émulateur ; appareil réel Android toujours à valider.
+14. ✅ **Fait (18 août ~10:05) — harnais mobile-probe + validation BlueStacks** :
+    `bench/mobile-probe.sh` rejoue la validation APK en UNE commande (build →
+    install → adb forward → sonde CDP → panne→récup → logcat). `--skip-build`,
+    `--no-cycle`, `--manual` (récup par clic « Réessayer » au lieu du retry
+    auto), `--serial` (fixé : le `for` ne doit PAS être utilisé pour parser
+    `--serial <valeur>` — la valeur retombe dans `*)` → `while` + shift).
+    `bench/mobile-probe.js` : sonde BX_EXPOSED/BX_FETCH/BX_CE + bouton
+    settings **visible** (patience : la page peut démarrer en `readyState:
+    loading` sur émulateur → attendre /play + BX_EXPOSED + bouton, pas
+    d'assert au 1er essai) ; GATE ROUGE exit 1. `--cycle` = retry auto +5 s ;
+    `--manual` = clic `<a href="…xbox.com/play">Réessayer</a>` (annule le
+    retry auto en attente : logcat `resetLoadState` avant le backoff — pas de
+    double navigation). `bench/mobile-probe.test.js` : 5 cas contre un FAUX
+    endpoint CDP (mini serveur WebSocket maison, HTTP /json + handshake
+    SHA-1 + frames masquées) — pièges : `spawnSync` bloque l'event loop du
+    mock (utiliser `spawn` async) ; **relire la longueur étendue 16-bit des
+    frames** (header 126 = « longueur sur 16 bits qui suit », pas 126 octets) ;
+    `process.exit(0)` explicite en fin de probe (handle keep-alive).
+    **Validé en réel sur BlueStacks (18 août ~09:55) — `adb connect
+    127.0.0.1:5555`** (émulateur BlueStacks 5, profil Samsung SM-G998B
+    spoofé, Android 9, x86_64) : les DEUX voies passent (`MOBILE PROBE OK`
+    auto + manuelle), logcat BXPerf complet. BlueStacks expose son adb sur le
+    port 5555 (`adb connect`) — device `127.0.0.1:5555`. L'APK de la release
+    = build local (dex + asset byte-identiques ; les hash APK diffèrent par
+    les timestamps zip du rebuild uniquement, sans impact — vérifié par
+    extraction dex/asset avant de re-uploader).
+15. ✅ **Fait (18 août ~10:10) — re-baseline stable post-harnais** :
+    `run-all.sh` complet sur le build courant (481 974 o, fixes document-start
+    inclus) — toutes les bornes CI tiennent (table dans bench/README.md,
+    « Re-baseline du 18 août ~10:10 ») : parse 0,104 ms · controller IDLE
+    29,3 ns (×9,6) · poll_gamepad Home 137,5 ns (×8,8) · updateCanvas 9,5 ns
+    (×22,0) · updateFrame 130,3 ns stable · éval page 17,3 ms méd (p95 28,4)
+    · profil startup plat (one-shot codec différé intact) · cold-getcap eval
+    23,6 ms (Δ −95,6 %). CI bench main : success (run 32114282345).

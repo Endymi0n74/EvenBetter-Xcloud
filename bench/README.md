@@ -88,6 +88,26 @@ Aucune régression mesurée : hot loops au plancher, startup plat, parse
 négligeable. Les bornes CI (build plat, perf10 dominé par `getSupportedCodecProfiles`)
 restent valides pour alerter si le startup régresse.
 
+### Re-baseline du 18 août ~10:10 (post-harnais mobile, avant APK) — mêmes bornes
+
+Harnais complet `run-all.sh` (sans `--cold-page-eval`) sur le build stable
+courant (481 974 o, fixes document-start inclus) : **toutes les bornes CI
+tiennent**, aucune régression depuis la séquence upstream.
+
+| Harnais | perf10 | build | Verdict |
+|---|---|---|---|
+| Parse/compile | 0,103 ms | 0,104 ms | négligeable (sub-ms bruité) |
+| Hot loop controller IDLE | 281,2 ns | 29,3 ns | ×9,6 [≥ 4] ✅ |
+| poll_gamepad relâchement Home | 1 212,6 ns | 137,5 ns | ×8,8 [≥ 4] ✅ |
+| updateCanvas (chemin 60 Hz) | 209,3 ns | 9,5 ns | ×22,0 [≥ 12] ✅ |
+| updateFrame | 149,2 ns | 130,3 ns | stable [0,5–2] ✅ |
+| Éval page (20 runs) | 20,0 ms méd | 17,3 ms méd (p95 28,4) | build plat, p95 ≪ borne 50 ms ✅ |
+| Profil startup | one-shot codec 77,4 % | plat (76,8 % natif/GC) | différé intact ✅ |
+| cold-getcap | 535,8 ms (one-shot) | eval 23,6 ms (Δ −95,6 %) | one-shot stable, 2e appel 0,1 ms ✅ |
+
+Commandes exactes : `NODE_PATH=/d/Codex/koharu/node_modules bash bench/run-all.sh`
+(Edge 152.0.4191.19 headless, profil D:\edge-profiles).
+
 ### Re-baseline du 18 août ~01:00 (post-séquence upstream) — mêmes bornes
 
 Harnais **complet** cette fois : `run-all.sh --cold-page-eval` (parse + hot
