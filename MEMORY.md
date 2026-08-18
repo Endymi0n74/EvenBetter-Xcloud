@@ -372,6 +372,21 @@ déjà couvert (PR #999/#1000 + bench 137 ns). Journal dans bench/README.md
 throttling rendu (86 % dropped, downscale 1440p→720p), le profil JS reste
 valide, pas de conclusion qualité.
 
+## Rendu premier plan — 0 % de drop (18 août ~21:00, v1.9.0)
+
+Run de contrôle live-profile avec fenêtre au premier plan (As Dusk Falls,
+1440p30) : **599 frames reçues sur 20 s, 0 dropped (0,00 %), 29,9 fps
+effectifs**, `visibilityState:visible` — le 86 % de drops du run initial était
+bien le throttling d'onglet arrière-plan (confirme la correction du caveat).
+live-profile au premier plan : 99,3 % natif/inactif (même verdict JS), les
+callbacks SDK tournent réellement (scheduleTimer 2,7 ms · requestVideoFrame
+Callback 2,6 ms · calculateChanges 1,9 ms / 15 s) — toujours négligeable.
+⚠️ Opérationnel CDP retenu : (1) les clics `Input.dispatchMouseEvent` peuvent
+être interceptés par la page (banner z-999) → utiliser `element.click()` en
+JS ; (2) un onglet CDP reste hidden après `Page.bringToFront` si la fenêtre
+OS est occluse → **cycle minimiser→restaurer** (`Browser.setWindowBounds`
+minimized puis normal) force le premier plan et libère le rendu.
+
 ## Hors main thread — VERDICT mesuré (18 août ~20:15, v1.9.0)
 
 Session stable réelle (As Dusk Falls, onglet premier plan) : config d'input

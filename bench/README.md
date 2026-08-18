@@ -142,10 +142,23 @@ mesurable côté script**. Le seul item JS visible est le polling
 `navigator.getGamepads` (client xcloud + script, ~0,1 ms/s) — déjà couvert
 par les PR upstream #999/#1000 et le hot loop bench (137 ns).
 
-⚠️ Caveat rendu : l'onglet piloté par CDP est en arrière-plan → Edge throttle
-le rendu (86 % de frames dropped sur 20 s, downscale 2560×1440 → 1280×720
-par moments). Le profil JS (sampling wall-clock) reste valide ; pas de
-conclusion sur la qualité de rendu depuis ce setup.
+⚠️ Caveat rendu corrigé (18 août ~21:00) : le run initial était en onglet
+**arrière-plan** (86 % de frames dropped, downscale 1440p→720p). En relançant
+avec la fenêtre au premier plan (cycle minimiser→restaurer via
+`Browser.setWindowBounds` → `visibilityState:visible`, cf. plus bas) :
+**599 frames reçues sur 20 s, 0 dropped (0,00 %), 29,9 fps effectifs** — le
+rendu est propre, sans throttle. live-profile au premier plan : 99,3 %
+natif/inactif (même verdict JS), les callbacks du SDK tournent réellement
+(scheduleTimer 2,7 ms · requestVideoFrameCallback 2,6 ms · calculateChanges
+1,9 ms sur 15 s) — toujours négligeable. **Verdict rendu : 0 drop à 1440p30
+quand l'onglet est visible** — le rendu natif ne dégrade rien.
+
+⚠️ Opérationnel pour les futures sessions CDP : (1) les clics
+`Input.dispatchMouseEvent` peuvent être interceptés par la page (banner
+z-999) — utiliser `element.click()` en JS ; (2) un onglet CDP reste
+`visibilityState:hidden` même après `Page.bringToFront` si la fenêtre OS est
+occluse — le **cycle minimiser→restaurer** (`Browser.setWindowBounds`
+`minimized` puis `normal`) force le premier plan et libère le rendu.
 
 ## Hors main thread — leviers réseau/décodage mesurés (18 août ~20:15, v1.9.0)
 
