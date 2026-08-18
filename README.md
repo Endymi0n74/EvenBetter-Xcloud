@@ -1,4 +1,4 @@
-# EvenBetterXcloud — v1.9.0
+# EvenBetterXcloud — v1.10.0
 
 [![Release](https://img.shields.io/github/v/release/Endymi0n74/EvenBetter-Xcloud?style=for-the-badge&color=green)](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest)
 [![Install](https://img.shields.io/badge/Install-userscript-blue?style=for-the-badge)](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-xcloud.user.js)
@@ -7,8 +7,14 @@
 **🇫🇷 Français** · [🇬🇧 English](README.en.md)
 
 Fork performance du userscript [Better xCloud](https://github.com/redphx/better-xcloud)
-(redphx), orienté **performance**. Dernière release :
-[evenbetter-xcloud-v1.9.0](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/tag/evenbetter-xcloud-v1.9.0).
+(redphx), orienté **performance** + **fonctionnalités utilisateur**. Dernière
+release : [evenbetter-xcloud-v1.10.0](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/tag/evenbetter-xcloud-v1.10.0).
+
+**Nouveauté v1.10.0 — 📡 Test de latence serveur** : dans les settings →
+groupe *Server*, un bouton « Tester la latence des serveurs » mesure le RTT
+vers chacune des 19 régions xCloud (via l'hôte gssv de la région, `NATIVE_FETCH`
+pour une mesure pure) et marque la meilleure « ⭐ région recommandée » — pour
+choisir le bon `server.region` avec des chiffres réels au lieu de deviner.
 
 Ce dépôt contient le script **buildé** (`better-xcloud.user.js`) — c'est le
 fichier à installer tel quel dans un gestionnaire d'userscripts. Les

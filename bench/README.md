@@ -196,6 +196,33 @@ des optimisations — leurs mécanismes (patch SDP, codec prefs) fonctionnent
 déjà. Axe infra restant, hors script : **AV1** (non utilisé sur ce setup —
 H.264 High) via `stream.video.codecProfile` si le navigateur le supporte.
 
+## Feature v1.10.0 — 📡 Test de latence serveur (18 août ~21:30)
+
+Bouton « 📡 Tester la latence des serveurs » dans le groupe **SERVER** des
+settings globaux : ping chaque région gssv (`STATES.serverRegions`, la liste
+réelle chargée par le client) via `NATIVE_FETCH` (le fetch ORIGINAL capturé
+par le script — ni le hook BX_FETCH ni l'XcloudInterceptor), mesure le RTT
+(timeout 3 s), affiche le tri du meilleur au pire et marque « ⭐ région
+recommandée ». Objectif : choisir le meilleur `server.region` avec des
+mesures réelles.
+
+- Injection : `node bench/feature-latency.js <bundle.js> [--dry-run]
+  [--self-test]` — déterministe, gates (GATE ROUGE si une ancre a dérivé),
+  idempotent, self-test sur copie corrompue. À rejouer après chaque rebuild
+  upstream (comme rebrand-bundle.js).
+- ⚠ Pièges découverts en validation : (1) `shortName` contient l'emoji
+drapeau (« 🇺🇸 EUS ») → l'hôte dérivé est invalide — utiliser **`baseUri`**
+(`https://eus.core.gssv-play-prod.xboxlive.com`), le champ propre de la
+région ; (2) l'XcloudInterceptor route les URLs finissant par
+`/sessions/cloud/play` vers handlePlay → suffixe `?probe=1` + NATIVE_FETCH
+pour une mesure pure ; (3) `networkTestHostname` (gssv-fastlane) ne résout
+pas depuis ce PC — inutilisable. Libellés inline en anglais (pas de clé de
+traduction) — traduction à ajouter si besoin.
+- **Validé en réel (profil guard-badge, connecté, 19 régions)** : tous les
+RTT réels, cohérents géographiquement — ⭐ CSE (Suède) 30 ms, WEU
+(Pays-Bas) 41 ms, UKS (défaut) 43 ms, MXC 104 ms, Japan 804 ms. Preuve :
+`bench/.latency-feature-proof.png`. Aucun timeout, < 1 s par région.
+
 ## Re-baseline du 17 août (v1.8.0) — bornes confirmées
 
 Run complet sur le build v1.8.0 (`better-xcloud.user.js`, 481 772 o — inchangé

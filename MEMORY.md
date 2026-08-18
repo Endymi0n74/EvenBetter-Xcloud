@@ -372,6 +372,34 @@ déjà couvert (PR #999/#1000 + bench 137 ns). Journal dans bench/README.md
 throttling rendu (86 % dropped, downscale 1440p→720p), le profil JS reste
 valide, pas de conclusion qualité.
 
+## Feature v1.10.0 — 📡 Test de latence serveur (18 août ~21:30)
+
+Nouvelle fonctionnalité utilisateur (le JS étant au plancher) : bouton
+« Tester la latence des serveurs » dans le groupe SERVER des settings globaux
+— ping chaque région gssv (`STATES.serverRegions`, 19 régions réelles) via
+NATIVE_FETCH + `?probe=1` (mesure pure, l'XcloudInterceptor route les URLs
+finissant par /sessions/cloud/play vers handlePlay), timeout 3 s, tri du
+meilleur au pire, « ⭐ région recommandée ». Validé en réel (guard-badge,
+connecté) : RTT cohérents géographiquement — ⭐ CSE 30 ms, WEU 41 ms, UKS
+(défaut) 43 ms, Japan 804 ms. Preuve `bench/.latency-feature-proof.png`.
+
+Injection : `bench/feature-latency.js` (gates, idempotent, self-test sur
+copie corrompue — piège : corrompre le contenu PRÉ-injection sinon
+l'idempotence sort en no-op). ⚠ **Piège shortName** : `STATES.serverRegions[x]`
+a `shortName` = « 🇺🇸 EUS » (emoji drapeau + espace) → hôte invalide — utiliser
+**`baseUri`** (`https://eus.core.gssv-play-prod.xboxlive.com`).
+`networkTestHostname` (gssv-fastlane) ne résout pas depuis ce PC. Libellés
+inline EN (pas de clés de traduction — à ajouter si besoin).
+
+**Bump v1.10.0 appliqué** (bump-version.sh) : VERSION 1.10.0, bundles stable/
+es2017/preview 1.10.0 + 1.10.0-preview1, metas, manifest APK versionCode 3.
+Rebuilds : es2017 ✓, preview (build-preview.js — ⚠ ancres T1 à bumper :
+PREVIEW_VERSION + versionAnchor + headerAnchor) ✓, APK stable
+`mobile/out/evenbetter-xcloud-1.10.0.apk` (148 Ko) ✓. **En attente : publier
+la release v1.10.0 + v1.10.0-preview1 (+ APK stable + nom stable
+`evenbetter-xcloud.apk`) et vérifier les liens — N'oublier AUCUNE release de
+contrôle stable (l'auto-prune purge la courante).**
+
 ## Rendu premier plan — 0 % de drop (18 août ~21:00, v1.9.0)
 
 Run de contrôle live-profile avec fenêtre au premier plan (As Dusk Falls,

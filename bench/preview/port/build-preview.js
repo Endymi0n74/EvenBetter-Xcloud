@@ -41,7 +41,7 @@ const EOL = "\n";
 // ---- contrat « deux versions » : identité DISTINCTE du build preview ----
 // (rebrand 18 août : EvenBetterXcloud + tag evenbetter-xcloud-v* — les
 // ancres T1 ci-dessous matchent le stable REBRANDÉ par bench/rebrand-bundle.js)
-const PREVIEW_VERSION = "1.9.0-preview1";
+const PREVIEW_VERSION = "1.10.0-preview1";
 const PREVIEW_NAME = "EvenBetterXcloud (Preview)";
 const PREVIEW_TAG = "evenbetter-xcloud-v" + PREVIEW_VERSION; // releases/download/<tag>/...
 
@@ -69,7 +69,7 @@ function build() {
   must(s, nameAnchor, "T1 @name");
   s = s.replace(nameAnchor, "// @name         " + PREVIEW_NAME + EOL);
 
-  const versionAnchor = "// @version      1.9.0" + EOL;
+  const versionAnchor = "// @version      1.10.0" + EOL;
   must(s, versionAnchor, "T1 @version");
   s = s.replace(versionAnchor, "// @version      " + PREVIEW_VERSION + EOL);
 
@@ -93,7 +93,7 @@ function build() {
     "// @downloadURL  https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/" + PREVIEW_TAG + "/better-xcloud-preview.user.js" + EOL);
 
   // l'en-tête OPTIMISATIONS signale la variante preview
-  const headerAnchor = "/* OPTIMISATIONS v1.9.0:";
+  const headerAnchor = "/* OPTIMISATIONS v1.10.0:";
   must(s, headerAnchor, "T1 header OPTIMISATIONS");
   s = s.replace(headerAnchor,
     "/* OPTIMISATIONS " + PREVIEW_VERSION + " — VARIANTE PREVIEW (play.xbox.com uniquement) :\n" +
