@@ -378,25 +378,33 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
     24 août** (rythme mainteneur = semaines/mois, #468 attend depuis juillet
     2024), un seul commentaire sur #993 référençant les 13. Programme détaillé
     dans `upstream-prs/README.md`.
-13. ✅ **Fait (18 août ~00:10 puis ~07:35) — APK Android du build stable** :
+13. ✅ **Fait (18 août ~00:10 puis ~08:15) — APK Android du build stable** :
     wrapper WebView `mobile/better-xcloud-perf-1.8.0.apk` (~140 Ko, package
     `com.bxperf.app`, signé keystore local, minSdk 24/target 34). Injecte le
     userscript stable (v1.8.0, `@grant none`, zéro GM_*) via
     `evaluateJavascript` en `onPageStarted` — équivalent document-start,
-    écran maintenu, fullscreen géré. **Rebuildé 18 août ~07:31** avec le
-    stable à jour (les 2 guards document-start ensureObserver/addCss —
-    vérifiés dans l'asset embarqué) ; **attaché comme asset de la release
-    v1.8.0** (lien direct
+    écran maintenu, fullscreen géré. **CRASH DE LA V1 CORRIGÉ (18 août
+    ~08:11, reproduit sur l'émulateur)** : le d8 de build-tools 34.0.0 (R8
+    8.2.2-dev) plante en NullPointerException sur une classe ANONYME avec
+    référence externe (this$0) ET superclasse du `--lib` (android.jar) — le
+    dex sortait SANS `MainActivity$1/$2` (WebViewClient/WebChromeClient) et
+    l'app crasheait au lancement sur TOUT appareil (`NoClassDefFoundError
+    MainActivity$1`, MainActivity.java:67). Fix : classes internes STATIQUES
+    nommées (`BxWebViewClient`/`BxWebChromeClient`, référence d'activité au
+    constructeur) + **gate dex dans build.sh** (dexdump + vérification des 4
+    classes attendues, exit 1 sinon — plus jamais d'APK cassé). Validé sur
+    émulateur Android 9 : 0 FATAL, activity resumed, Chromium/WebRTC actif
+    (page xbox.com chargée), screenshot non vide. **Attaché comme asset de
+    la release v1.8.0** (lien direct
     `releases/download/better-xcloud-perf-v1.8.0/better-xcloud-perf-1.8.0.apk`,
-    vérifié byte-identique à l'upload). `mobile/build.sh` corrigé : prépare
-    l'asset tout seul (copie du stable courant de la racine du repo) et
-    **réutilise le keystore d'origine** `D:\Codex\bx-apk\bxperf.keystore`
-    (sinon nouvelle clé → mise à jour cassée ; empreinte SHA-256
-    `63382a05…` identique au premier APK). `mobile/assets/`, `out/`,
-    `gen/`, `bxperf.keystore` gitignorés ; l'APK signé est le fichier suivi.
-    Build **sans Gradle ni Android Studio** : SDK sur `D:/android-sdk`,
-    pipeline aapt2 → javac → d8 → jar → zipalign → apksigner
-    (`mobile/build.sh` rejouable). Limites : script embarqué (update =
-    rebuild), gains GPU desktop non transposables, iOS impossible sans
-    Mac/Xcode. README FR/EN : ligne « App native » en tête du tableau mobile.
-    Non testé en réel (pas d'appareil Android).
+    re-uploadé et vérifié byte-identique). `mobile/build.sh` : prépare
+    l'asset tout seul (copie du stable courant) et **réutilise le keystore
+    d'origine** `D:\Codex\bx-apk\bxperf.keystore` (empreinte SHA-256
+    `63382a05…` inchangée → mise à jour par-dessus l'ancien OK).
+    `mobile/assets/`, `out/`, `gen/`, `bxperf.keystore` gitignorés ; l'APK
+    signé est le fichier suivi. Build **sans Gradle ni Android Studio** :
+    SDK sur `D:/android-sdk`, pipeline aapt2 → javac → d8 → jar → zipalign
+    → apksigner (`mobile/build.sh` rejouable). Limites : script embarqué
+    (update = rebuild), gains GPU desktop non transposables, iOS impossible
+    sans Mac/Xcode. README FR/EN : ligne « App native » en tête du tableau
+    mobile. Testé sur émulateur ; appareil réel Android toujours à valider.

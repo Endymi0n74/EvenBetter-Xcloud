@@ -53,14 +53,30 @@ mkdir -p "$OUT/classes"
 
 echo "==> 4/7 d8 (dex)"
 mkdir -p "$OUT/dex"
+# ⚠ TOUTES les classes (le glob), pas seulement MainActivity/R : les classes
+# anonymes MainActivity$1/$2 (WebViewClient/WebChromeClient) sont des .class
+# séparés — si on ne les passe pas à d8, elles manquent au dex et l'app
+# crashe au lancement (NoClassDefFoundError MainActivity$1, reproduit 18 août).
 "$BT/d8.bat" --release --lib "$PLATFORM" --output "$OUT/dex" \
-    "$OUT/classes/com/bxperf/app/R.class" \
-    "$OUT/classes/com/bxperf/app/MainActivity.class"
+    "$OUT"/classes/com/bxperf/app/*.class
 
 echo "==> 5/7 assemblage (dex + assets) — zip indisponible en Git Bash, jar du JDK"
 cp "$OUT/base.apk" "$OUT/app-unsigned.apk"
 "$JAVA/jar.exe" uf "$OUT/app-unsigned.apk" -C "$OUT/dex" classes.dex
 "$JAVA/jar.exe" uf "$OUT/app-unsigned.apk" -C "$ROOT" assets
+
+# Auto-vérification du dex : TOUTES les classes attendues doivent être
+# présentes (le 18 août, les classes anonymes manquaient au dex et l'app
+# crasheait au lancement — NoClassDefFoundError MainActivity\$1).
+EXPECTED="Lcom/bxperf/app/MainActivity; Lcom/bxperf/app/MainActivity\$BxWebViewClient; Lcom/bxperf/app/MainActivity\$BxWebChromeClient; Lcom/bxperf/app/R;"
+DEX_CLASSES=$("$BT/dexdump.exe" "$OUT/dex/classes.dex" 2>/dev/null | grep 'Class descriptor' | sed 's/.*: //')
+for c in $EXPECTED; do
+  if ! echo "$DEX_CLASSES" | grep -q "$c"; then
+    echo "❌ GATE DEX : classe manquante dans classes.dex : $c" >&2
+    exit 1
+  fi
+done
+echo "    dex vérifié : $(echo "$DEX_CLASSES" | wc -l) classes, toutes présentes"
 
 echo "==> 6/7 zipalign"
 "$BT/zipalign.exe" -f 4 "$OUT/app-unsigned.apk" "$OUT/app-aligned.apk"

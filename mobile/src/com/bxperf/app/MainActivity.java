@@ -27,6 +27,13 @@ import java.nio.charset.StandardCharsets;
  * The script is a plain userscript (@grant none) with no GM_* APIs, so a
  * raw evaluateJavascript() injection is equivalent to a document-start
  * userscript manager run.
+ *
+ * NOTE (18 août) : les WebViewClient/WebChromeClient sont des classes
+ * internes STATIQUES nommées — PAS des classes anonymes. Le d8 de
+ * build-tools 34.0.0 (R8 8.2.2-dev) plante en NullPointerException sur une
+ * classe anonyme ayant une référence externe (this$0) ET une superclasse
+ * venant du --lib (android.jar) : le dex sortait SANS la classe, l'app
+ * crasheait au lancement (NoClassDefFoundError MainActivity$1).
  */
 public class MainActivity extends Activity {
 
@@ -64,57 +71,8 @@ public class MainActivity extends Activity {
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
 
-        webView.setWebViewClient(new WebViewClient() {
-            @Override
-            public void onPageStarted(WebView view, String url, Bitmap favicon) {
-                super.onPageStarted(view, url, favicon);
-                // xbox.com only (matches the userscript's @match set); the
-                // script no-ops internally on non-play pages.
-                if (userscript != null && url != null && url.contains("xbox.com")) {
-                    view.evaluateJavascript(
-                        "(function(){try{" + userscript + "}catch(e){console.error('BXPerf inject',e)}})();",
-                        null);
-                }
-            }
-        });
-
-        webView.setWebChromeClient(new WebChromeClient() {
-            @Override
-            public void onShowCustomView(View view, CustomViewCallback callback) {
-                if (customView != null) {
-                    callback.onCustomViewHidden();
-                    return;
-                }
-                customView = view;
-                customViewCallback = callback;
-                originalSystemUiVisibility = webView.getSystemUiVisibility();
-                webView.setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
-                addContentView(customView, new android.widget.FrameLayout.LayoutParams(
-                    android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                    android.widget.FrameLayout.LayoutParams.MATCH_PARENT));
-                getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-            }
-
-            @Override
-            public void onHideCustomView() {
-                if (customView == null) {
-                    return;
-                }
-                webView.setSystemUiVisibility(originalSystemUiVisibility);
-                webView.removeView(customView);
-                customView = null;
-                if (customViewCallback != null) {
-                    customViewCallback.onCustomViewHidden();
-                    customViewCallback = null;
-                }
-                getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-            }
-        });
+        webView.setWebViewClient(new BxWebViewClient(this));
+        webView.setWebChromeClient(new BxWebChromeClient(this));
 
         // Gaming: keep the screen on
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -153,6 +111,79 @@ public class MainActivity extends Activity {
             webView.destroy();
         }
         super.onDestroy();
+    }
+
+    /**
+     * Named static inner class (see class javadoc for why not anonymous).
+     */
+    private static class BxWebViewClient extends WebViewClient {
+        private final MainActivity activity;
+
+        BxWebViewClient(MainActivity activity) {
+            this.activity = activity;
+        }
+
+        @Override
+        public void onPageStarted(WebView view, String url, Bitmap favicon) {
+            super.onPageStarted(view, url, favicon);
+            // xbox.com only (matches the userscript's @match set); the
+            // script no-ops internally on non-play pages.
+            String userscript = activity.userscript;
+            if (userscript != null && url != null && url.contains("xbox.com")) {
+                view.evaluateJavascript(
+                    "(function(){try{" + userscript + "}catch(e){console.error('BXPerf inject',e)}})();",
+                    null);
+            }
+        }
+    }
+
+    /**
+     * Named static inner class (see class javadoc for why not anonymous).
+     */
+    private static class BxWebChromeClient extends WebChromeClient {
+        private final MainActivity activity;
+
+        BxWebChromeClient(MainActivity activity) {
+            this.activity = activity;
+        }
+
+        @Override
+        public void onShowCustomView(View view, CustomViewCallback callback) {
+            MainActivity a = activity;
+            if (a.customView != null) {
+                callback.onCustomViewHidden();
+                return;
+            }
+            a.customView = view;
+            a.customViewCallback = callback;
+            a.originalSystemUiVisibility = a.webView.getSystemUiVisibility();
+            a.webView.setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
+            a.addContentView(view, new android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT));
+            a.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
+
+        @Override
+        public void onHideCustomView() {
+            MainActivity a = activity;
+            if (a.customView == null) {
+                return;
+            }
+            a.webView.setSystemUiVisibility(a.originalSystemUiVisibility);
+            a.webView.removeView(a.customView);
+            a.customView = null;
+            if (a.customViewCallback != null) {
+                a.customViewCallback.onCustomViewHidden();
+                a.customViewCallback = null;
+            }
+            a.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
     }
 
     private String loadAsset(String name) {
