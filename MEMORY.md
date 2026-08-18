@@ -214,6 +214,24 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
      (tri par version), purge le reste (release + tag), vérifie les 4 liens
      (GATE ROUGE si 404). `workflow_dispatch` pour une re-purge manuelle /
      un contrôle.
+- **Incident 18 août ~17:00 — release v1.9.0 disparue** : après la
+  suppression de la release de contrôle 1.9.1, `gh release edit … --latest`
+  a fini par **supprimer la release v1.9.0 ET son tag** (plus que preview1 +
+  preview4 → tous les liens `releases/latest` en 404, auto-update mort).
+  Détecté via le badge « Better xCloud 6.7.12 » encore affiché (ancien
+  script). **Restauré** : recréation du tag/release `evenbetter-xcloud-v1.9.0`
+  (Latest) avec assets corrects — ⚠ piège `gh release upload
+  'fichier#newname'` **non supporté** (monte sous le basename) → upload sous
+  `/tmp/better-xcloud.user.js` pour forcer le nom. Politique v1.8.0
+  confirmée : l'asset `better-xcloud.user.js` = **bundle ES2017** (403 394 o).
+  Vérifié : 5/5 liens 200 + byte-identiques (sha256), CDN propagé immédiat.
+  **Bannière Android rebrandée** dans la foulée : « 🔥 EvenBetterXcloud app
+  for Android » → `…/releases/latest` (fin du lien vers l'app officielle
+  `better-xcloud.github.io/android`), propagée aux 3 bundles + 2 APK
+  (commit `23e8601`). ⚠ Prochaine migration du badge chez l'utilisateur :
+  l'ancien script (badge « Better xCloud 6.7.12 ») tourne encore dans son
+  Greasemonkey — désinstaller l'ancien, réinstaller depuis
+  `releases/latest/download/better-xcloud.user.js`, recharger.
 
 ## Pièges mémorisés
 
