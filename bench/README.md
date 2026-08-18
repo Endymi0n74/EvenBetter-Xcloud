@@ -283,6 +283,41 @@ Caveat : bitrate variable selon le contenu (jeu à faible mouvement) — les
 chiffres comparent le même jeu/scène, l'ordre de grandeur est fiable.
 Harnais ajoutés : `bench/set-pref.js` (pose de préférence + reload).
 
+## A/B profils H.264 — le setting fonctionne, le défaut est déjà le meilleur (18 août ~23:50, v1.10.0)
+
+`stream.video.codecProfile` réordonne les profils H.264 dans l'offre SDP
+(`patchRtcPeerConnection` → `setCodecPreferences`) — le serveur répond avec le
+profil demandé. Prouvé en session réelle via le `profile-level-id` négocié
+(lu dans le stat codec de `getStats`, ajouté au capture) :
+
+| Setting | profile-level-id négocié | Profil réel | Bitrate (15-20 s) | Décodage | Drops |
+|---|---|---|---|---|---|
+| `default` | `4d001f` | **Constrained High** | 20,7 Mbps | 0,44 ms/f | 0 |
+| `high` | `4d001f` | **Constrained High** | 10,4 Mbps | 0,39 ms/f | 0 |
+| `normal` | `42e01f` | **Constrained Baseline** | 20,5 Mbps | 0,43 ms/f | 0 |
+| `low` | `42001f` | **Baseline** | 20,5 Mbps | 0,45 ms/f | 0 |
+
+Screenshots de preuve : `bench/.h264-high.png` / `bench/.h264-low.png`
+(scènes différentes — pas comparables entre eux, preuve du run seulement).
+
+### Verdict
+
+1. **Le setting fonctionne** : le profil demandé est réellement négocié
+   (4d / 42e / 420). Mécanisme vérifié de bout en bout.
+2. **`default` == `high`** : le SDK négocie déjà Constrained High par défaut
+   — mettre « high » ne change rien.
+3. **`low` / `normal` ne font que dégrader** : Baseline/Constrained Baseline =
+   pas de B-frames (CAVLC au lieu de CABAC) → compression moins efficace. Le
+   serveur encode le même contenu moins bien ; théoriquement bitrate en hausse
+   à qualité égale (ou qualité en baisse à bitrate égal).
+4. **⚠️ Caveat bitrate** : les valeurs ci-dessus sont **confondues par le
+   contenu** (As Dusk Falls avance — le run « high » a attrapé une scène
+   statique à 10,4 Mbps). La NÉGOCIATION du profil est la preuve fiable ; les
+   deltas de bitrate inter-runs ne sont pas comparables.
+5. **Recommandation : laisser `codecProfile` à `default`** — c'est déjà le
+   meilleur profil disponible. Les seuls leviers utiles restent
+   `maxBitrate` (cap) et `resolution` 720p.
+
 ## Feature v1.10.0 — 📡 Test de latence serveur (18 août ~21:30)
 
 Bouton « 📡 Tester la latence des serveurs » dans le groupe **SERVER** des

@@ -108,9 +108,12 @@ async function evalIn(cdp, expression) {
       const c = inbound.codecId ? codecs.get(inbound.codecId) : null;
       if (c) codec = c;
       const v = [...document.querySelectorAll("video")].sort((a,b) => b.videoWidth - a.videoWidth)[0] || {};
+      const fmtp = codec && codec.sdpFmtpLine ? codec.sdpFmtpLine : null;
+      const profile = fmtp && /profile-level-id=([0-9a-f]{6})/i.exec(fmtp) ? /profile-level-id=([0-9a-f]{6})/i.exec(fmtp)[1] : null;
       return {
         ts: Date.now(),
         codec: codec ? codec.mimeType : "?",
+        profileLevelId: profile,
         bytesReceived: inbound.bytesReceived,
         framesDecoded: inbound.framesDecoded,
         framesDropped: inbound.framesDropped,
@@ -134,6 +137,7 @@ async function evalIn(cdp, expression) {
   const decodeMsPerFrame = (lastS.totalDecodeTime - first.totalDecodeTime) / (lastS.framesDecoded - first.framesDecoded) * 1000;
   const summary = {
     codec: lastS.codec,
+    profileLevelId: lastS.profileLevelId,
     resolution: `${lastS.frameWidth || lastS.vw}×${lastS.frameHeight || lastS.vh}`,
     fps: lastS.framesPerSecond,
     bitrateMbps: +bitrate.toFixed(1),

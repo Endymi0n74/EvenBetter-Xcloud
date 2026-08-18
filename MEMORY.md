@@ -533,6 +533,21 @@ fichier .ps1 obligatoire).
   stable — prochaines features = utilisateur (pattern feature-latency.js),
   upstream = rappel ~24 août (13 PR).
 
+## A/B profils H.264 mesuré (18 août ~23:50) — le setting fonctionne, le défaut est déjà le meilleur
+
+- `stream.video.codecProfile` réordonne les profils H.264 dans l'offre SDP —
+  prouvé en réel via le `profile-level-id` négocié : `default`/`high` →
+  **4d001f (Constrained High)**, `normal` → **42e01f (Constrained Baseline)**,
+  `low` → **42001f (Baseline)**. Le défaut du SDK est DÉJÀ le meilleur
+  profil → « high » = no-op, `low`/`normal` ne font que dégrader (pas de
+  B-frames). Recommandation : laisser à `default`.
+- ⚠️ **Piège mesure** : les bitrates inter-runs sont confondus par le contenu
+  (jeu qui avance — le run « high » a attrapé une scène statique à 10,4 Mbps).
+  Seule la négociation du profil est une preuve fiable ; les deltas de bitrate
+  entre sessions du même jeu ne sont PAS comparables.
+- Le capture de stats lit maintenant le `profile-level-id` du codec
+  (2e champ, sdpFmtpLine). Screenshots : bench/.h264-high.png / .h264-low.png.
+
 ## Publication v1.10.0 (18 août ~22:30) — feature latence + releases
 
 - **Feature** : « 📡 Tester la latence » (groupe SERVER) — ping des 19 régions
