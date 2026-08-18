@@ -563,6 +563,21 @@ fichier .ps1 obligatoire).
   sur play.xbox.com), `bench/preview-codec-probe.js` (codec + stats brutes +
   présence AV1 dans les SDP).
 
+## Gate navigateur du preview (19 août ~00:30) — Firefox bloqué par check Chromium-only, workaround UA
+
+- play.xbox.com affiche « Votre navigateur ne prend pas en charge la
+  diffusion en continu » sur Firefox. Cause dans `entry.client` du site :
+  `isSupportedChromiumBasedBrowser = (isChrome && >=106) || (isBlinkEngine &&
+  >=106)` ou fallback `satisfies(chrome/edge >=106, safari >=17)` — **Firefox
+  n'est pas dans la liste**. Check basé sur l'UA détectée → **spoofable**.
+- Workaround (pas besoin de code) : le setting preview `userAgent.profile`
+  = « Edge + Windows » existe déjà (spoof document-start) → gate passé. OU
+  Firefox `about:config` → `general.useragent.override` = UA Edge.
+- Le stream lui-même tourne sous Firefox (support WebRTC H.264 confirmé —
+  post r/xcloud fév. 2025 « play Xcloud on Firefox », décode hw Linux).
+- Sonde ajoutée : `bench/ua-spoof-probe.js` (UA Firefox via CDP
+  Emulation → vérifie l'absence de dialog).
+
 ## Publication v1.10.0 (18 août ~22:30) — feature latence + releases
 
 - **Feature** : « 📡 Tester la latence » (groupe SERVER) — ping des 19 régions
