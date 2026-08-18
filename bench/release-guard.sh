@@ -54,11 +54,17 @@ gate() { echo "[guard] GATE ROUGE : $*" >&2; exit 1; }
 DL="https://github.com/$REPO/releases"
 
 # --- 1. La release stable existe et son tag pointe sur un commit ------------
+# 2>&1 (pas 2>/dev/null) : en cas d'échec gh, le message réel est propagé
+# dans le GATE ROUGE (diagnostic CI) au lieu d'être avalé.
 LATEST_TAG=$(gh release list --repo "$REPO" --limit 100 --json tagName,isLatest \
-    --jq '.[] | select(.isLatest == true) | .tagName' 2>/dev/null) \
-    || gate "impossible de lister les releases de $REPO"
-[ -n "$LATEST_TAG" ] \
-    || gate "aucune release Latest sur $REPO — le stable a disparu ou a perdu Latest"
+    --jq '.[] | select(.isLatest == true) | .tagName' 2>&1) \
+    || gate "impossible de lister les releases de $REPO — $(printf '%s' "$LATEST_TAG" | head -1)"
+# gh en échec → LATEST_TAG contient le message d'erreur (multi-lignes possible) ;
+# un tag valide ne contient ni espace ni newline.
+case "$LATEST_TAG" in
+    ''|*' '*|*$'\n'*)
+        gate "réponse gh inattendue pour le Latest : $(printf '%s' "$LATEST_TAG" | head -1)" ;;
+esac
 
 TAG_SHA=$(git rev-list -n 1 "$LATEST_TAG" 2>/dev/null) \
     || gate "le tag $LATEST_TAG est introuvable dans git (release orpheline ?)"

@@ -32,3 +32,7 @@ jobs:
 
       - name: Garde-fou des releases (tag + 4 liens 200 + byte-identique + versions)
         run: bash bench/release-guard.sh
+        env:
+          # gh explicite (le fallback implicite sur GITHUB_TOKEN peut manquer
+          # selon la version de gh installée sur le runner)
+          GH_TOKEN: ${{ github.token }}
