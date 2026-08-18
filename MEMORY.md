@@ -485,6 +485,30 @@ dominante runtime réelle ; (d) upstream : 13 PR ouvertes (redphx), rappel
 prévu ~24 août ; (e) APK preview : overlay absent sur play.xbox.com en WebView
 (réservé, priorité basse).
 
+## Publication v1.10.0 (18 août ~22:30) — feature latence + releases
+
+- **Feature** : « 📡 Tester la latence » (groupe SERVER) — ping des 19 régions
+gssv (hôte depuis `baseUri` — pas `networkTestHostname`/`fastlane` qui ne
+résout pas ; `shortName` contient l'emoji drapeau → libellé seul, pas hôte ;
+`NATIVE_FETCH` bypass l'interception ; URL `?probe=1` évite le dispatcher
+`sessions/cloud/play`). Validé en réel : CSE 30 ms ⭐ (France), WEU 41, UKS 43
+(défaut), JP 804. Injecté par `bench/feature-latency.js` (gates + self-test),
+present dans les 3 bundles + APK. Bump v1.10.0 : VERSION, versionCode 3, 3
+ancres build-preview. Commit `6079b2c`.
+- **Releases publiées (18 août ~22:28)** : **`evenbetter-xcloud-v1.10.0`**
+(Latest, 4 assets : user.js ES2017 ~405 Ko, meta, `evenbetter-xcloud-1.10.0.apk`
+versionné + nom STABLE `evenbetter-xcloud.apk`) et
+**`evenbetter-xcloud-v1.10.0-preview1`** (prerelease, 3 assets : user.js +
+meta + **APK preview**). Auto-prune (workflow release-prune) a purgé v1.9.0 +
+v1.9.0-preview1 ; conservés : Latest + preview1 1.10.0 (pinné) +
+1.8.0-preview4 (cran de secours). Garde-fou **10/10 VERT**.
+- ⚠ **Convention : la release preview porte AUSSI son APK**
+(`evenbetter-xcloud-<ver>-preview1.apk`, VARIANT=preview de build.sh, package
+`com.bxperf.preview`) — le garde-fou vérifie `APK preview (tag)` en 200.
+Oubli → GATE ROUGE (404). Premier upload = 404 cache CDN ~1 min, pas un bug.
+- README FR/EN « Deux versions » : 1.10.0 / 1.10.0-preview1, lien preview →
+tag dédié v1.10.0-preview1.
+
 ## En attente / prochaines étapes
 
 1. ✅ **Fait (17 août soir) — overlay preview validé en réel** : bouton
