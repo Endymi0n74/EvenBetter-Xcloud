@@ -256,6 +256,23 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
   versionné n'est plus vérifié). Tags v1.9.0 + preview1 réalignés sur
   `4261a42` (commit bannière → APK direct) pour garder l'invariant
   tag=bytes-servis.
+- **CAUSE RÉELLE des deux disparitions de la v1.9.0 (18 août) — auto-prune !**
+  Pendant le test du cycle bannière (release de contrôle 1.9.1 publiée), le
+  workflow `release-prune.yml` (déclenché sur `release: published`) a purgé
+  la v1.9.0 : elle n'était plus Latest (la 1.9.1 l'était) et n'était ni un
+  preview ni le tag pinné → release + tag supprimés. Le premier incident
+  (attribué à tort à `gh release edit --latest`) a la même cause : la
+  publication de la 1.9.1 de contrôle. ⚠ **Publier une release stable de
+  contrôle DÉTRUIT la release stable courante** (rétention par design).
+  Restauration (validée) : re-push du tag local (`git push origin
+  evenbetter-xcloud-v1.9.0`, tag local conservé même si le distant est
+  purgé) → `gh release create` → re-upload des 4 assets (user.js ES2017,
+  meta, APK versionné, APK stable) → `gh api --method PATCH
+  repos/…/releases/{id} -f make_latest=true` (GitHub ne ré-attribue PAS
+  latest après une purge). Le CDN web met ~2-3 min à propager le redirect
+  `latest/download` dans les DEUX sens (l'API, elle, est immédiate).
+  Cycle validé quand même : le lien stable a bien suivi la 1.9.1
+  (a63670f3) pendant la fenêtre, et est revenu à b9d20aef après restauration.
 
 ## Pièges mémorisés
 
