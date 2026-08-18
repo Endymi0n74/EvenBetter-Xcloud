@@ -34,13 +34,22 @@ Ou manuellement :
 > Ne pas installer en même temps que le Better xCloud officiel — les deux
 > écriraient les mêmes préférences `localStorage` et entreraient en conflit.
 
-> **⚠️ Upgrade depuis la v1.0.0 (ou antérieure)** : si le script a été installé
-> avant la v1.1.0, son `@updateURL` pointe encore vers l'upstream redphx —
-> Tampermonkey ne verra pas les mises à jour du fork (et pourrait même
-> proposer de « mettre à jour » vers le Better xCloud officiel, dont la
-> version `6.7.12` est numériquement supérieure à `1.1.0`). **Réinstallez
-> manuellement une fois** via le lien ci-dessus pour basculer l'auto-update
-> vers ce fork ; les versions suivantes se mettront à jour toutes seules.
+> **⚠️ Upgrade depuis la v1.8.0 (ou antérieure)** : le **rebrand v1.9.0** a
+> changé l'identité du script (`@name` `Better xCloud` → `EvenBetterXcloud`,
+> `@namespace` redphx → `Endymi0n74/EvenBetter-Xcloud`, `@updateURL` → ce
+> repo). Les gestionnaires d'userscripts (Greasemonkey, Tampermonkey…) traitent
+> ce changement comme un **script différent** : l'auto-update ne migre pas
+> entre deux identités. **Désinstallez l'ancien « Better xCloud » à la main**
+> (dashboard du gestionnaire) puis installez la v1.9.0 via le lien ci-dessus —
+> une seule fois ; les versions suivantes se mettront à jour toutes seules via
+> `@updateURL`. ⚠ Ne gardez pas les deux installés (double injection :
+> l'ancien badge « Better xCloud » peut recouvrir le nouveau).
+>
+> Même principe pour les très vieilles installations (avant la v1.1.0) : leur
+> `@updateURL` pointe encore vers l'upstream redphx et elles pourraient
+> proposer de « mettre à jour » vers le Better xCloud officiel (version
+> `6.7.12` numériquement supérieure à `1.1.0`) — désinstallez et réinstallez
+> une fois via ce repo.
 
 ## Mise à jour & auto-update
 
