@@ -20,7 +20,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ADB=/d/android-sdk/platform-tools/adb.exe
 PKG=com.bxperf.app
 ACTIVITY=com.bxperf.app/.MainActivity
-APK_OUT="$ROOT/mobile/out/better-xcloud-perf-1.8.0.apk"
+APK_OUT="$ROOT/mobile/out/evenbetter-xcloud-$(cat "$ROOT/VERSION").apk"
 PORT=9341
 SERIAL=""
 DO_BUILD=1
@@ -94,8 +94,8 @@ fi
 node "$ROOT/bench/mobile-probe.js" "${ARGS[@]}"
 RC=$?
 
-echo "==> logcat BXPerf (30 dernières lignes)"
-"$ADB" -s "$DEV" logcat -d -s BXPerf | tail -30 || true
+echo "==> logcat EvenBetterXcloud (30 dernières lignes)"
+"$ADB" -s "$DEV" logcat -d -s EvenBetterXcloud | tail -30 || true
 
 "$ADB" -s "$DEV" forward --remove "tcp:$PORT" >/dev/null 2>&1 || true
 exit $RC

@@ -1,4 +1,4 @@
-# APK Android — Better xCloud Perf
+# APK Android — EvenBetterXcloud
 
 Wrapper WebView minimal qui charge **https://www.xbox.com/play** et injecte le
 build **stable** (`better-xcloud.user.js`, v1.8.0) dès le début de la page.
@@ -8,14 +8,14 @@ build **stable** (`better-xcloud.user.js`, v1.8.0) dès le début de la page.
 
 ## APK
 
-`better-xcloud-perf-1.8.0.apk` (~140 Ko) — package `com.bxperf.app`, signé avec
+`evenbetter-xcloud-1.9.0.apk` (~140 Ko) — package `com.bxperf.app`, signé avec
 le keystore local (`bxperf.keystore`, réutilisé depuis `D:\Codex\bx-apk` par
 `build.sh` — la signature est stable d'un build à l'autre, les mises à jour
 passent par-dessus l'APK installé).
 
 **Téléchargement direct** (asset de la release v1.8.0) :
 
-https://github.com/Endymi0n74/better-xcloud-perf/releases/download/better-xcloud-perf-v1.8.0/better-xcloud-perf-1.8.0.apk
+https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.9.0/evenbetter-xcloud-1.9.0.apk
 
 **Installation (sideload)** :
 
@@ -23,7 +23,7 @@ https://github.com/Endymi0n74/better-xcloud-perf/releases/download/better-xcloud
 2. Autoriser « Installer des applications inconnues » pour le source
    (Explorateur de fichiers / navigateur).
 3. Ouvrir l'APK → Installer.
-4. Lancer « Better xCloud Perf » → connexion Xbox → jouer.
+4. Lancer « EvenBetterXcloud » → connexion Xbox → jouer.
 
 ## Fonctionnement
 
@@ -43,7 +43,7 @@ Prérequis : JDK 21 (JAVA_HOME) + Android SDK
 ```bash
 export JAVA_HOME="C:\Program Files\Zulu\zulu-21"
 bash build.sh
-# → out/better-xcloud-perf-1.8.0.apk
+# → out/evenbetter-xcloud-1.9.0.apk
 ```
 
 `build.sh` prépare tout seul l'asset : il copie le **build stable courant** de
@@ -64,12 +64,12 @@ signature, packages différents) :
 | START_URL | `https://www.xbox.com/play` | `https://play.xbox.com` |
 | Asset embarqué | `better-xcloud.user.js` (stable) | `better-xcloud-preview.user.js` (preview) |
 | Package | `com.bxperf.app` | `com.bxperf.preview` |
-| Label | « Better xCloud Perf » | « Better xCloud Perf Preview » |
-| APK | `better-xcloud-perf-1.8.0.apk` | `better-xcloud-perf-1.8.0-preview.apk` |
+| Label | « EvenBetterXcloud » | « EvenBetterXcloud Preview » |
+| APK | `evenbetter-xcloud-1.9.0.apk` | `evenbetter-xcloud-1.9.0-preview1.apk` |
 
 ```bash
 bash build.sh                    # stable
-VARIANT=preview bash build.sh    # preview → out/better-xcloud-perf-1.8.0-preview.apk
+VARIANT=preview bash build.sh    # preview → out/evenbetter-xcloud-1.9.0-preview1.apk
 ```
 
 Mécanique du variant : le START_URL est injecté via une classe `BuildConfig`
@@ -84,6 +84,24 @@ vérification apksigner. Le dex est auto-vérifié (8 classes attendues, dont
 côte, le preview ouvre `play.xbox.com` et le script preview s'exécute
 (`BX_EXPOSED=object`, `BX_FETCH=function`, bouton overlay présent).
 
+### Rebrand EvenBetterXcloud + nouvelle icône (v1.9.0, 18 août)
+
+- **Label** : « EvenBetterXcloud » (stable) / « EvenBetterXcloud Preview »
+  (preview) — l'identité visible porte le nom du repo, plus « Perf ».
+- **Icône** : `gen-icon.js` v2 — **nuage + flèche montante verte** sur fond
+  dégradé sombre (l'identité « even better »), rendu supersamplé 4× sans
+  dépendance. Remplacée dans les deux APK.
+- **UA / logs** : `EvenBetterXcloud/1.9.0` (UA), tag logcat `EvenBetterXcloud`.
+- **Package** : `com.bxperf.app` / `com.bxperf.preview` **conservés** (la
+  signature + le package définissent l'identité d'installation : les changer
+  forcerait une désinstallation/réinstallation et perdrait la session
+  connectée).
+- **Version** : lue depuis `VERSION` (racine) par `build.sh` → noms d'APK
+  `evenbetter-xcloud-<v>.apk`. Bump centralisé : `bench/bump-version.sh`.
+- **Menu** : badge `EvenBetterXcloud <version>` + groupe « Son » (toggle
+  booster + volume) visible même déconnecté — preuve
+  `validation-ebx-son-1.9.0.png` (BlueStacks).
+
 ## Robustesse (18 août)
 
 - **Erreurs réseau / HTTP / SSL** de la frame principale → **page d'erreur
@@ -96,7 +114,7 @@ côte, le preview ouvre `play.xbox.com` et le script preview s'exécute
 - Piège corrigé : `onPageFinished` est appelé aussi pour les navigations
   ÉCHOUÉES (avec l'URL fautive) — l'état d'erreur (`errorPageShowing`)
   garde le retry vivant jusqu'à un vrai succès.
-- Logs de diagnostic tagués `BXPerf` (logcat) sur chaque étape du cycle
+- Logs de diagnostic tagués `EvenBetterXcloud` (logcat) sur chaque étape du cycle
   erreur → retry → succès.
 
 ## Validation (émulateur, 18 août 2026)
@@ -113,7 +131,7 @@ Overlay vérifié en réel dans le WebView de l'APK (émulateur Android 9,
   (`www.xbox.com:444`) → page d'erreur affichée (screenshot
   `validation-apk-errorpage.png`) → **retry auto à +5 s → retour sur
   `/fr-FR/play` avec l'overlay** (screenshot `validation-apk-recovered.png`,
-  logs `BXPerf` : `showErrorPage → scheduleAutoRetry → AutoRetry.run →
+  logs `EvenBetterXcloud` : `showErrorPage → scheduleAutoRetry → AutoRetry.run →
   resetLoadState`).
 - Preuves commitées : `validation-apk-overlay.png`, `validation-apk-probe.json`,
   `validation-apk-2026-08-18.txt`, `validation-apk-errorpage.png`,
@@ -146,7 +164,7 @@ navigation).
 ### Validation téléphone réel (18 août soir, APK ES2017)
 
 **Validé par l'utilisateur sur un vrai téléphone** avec l'APK de test
-(`better-xcloud-perf-1.8.0-test.apk`, bundle **ES2017** re-minifié embarqué) :
+(`evenbetter-xcloud-1.9.0-test.apk`, bundle **ES2017** re-minifié embarqué) :
 
 - **Les jeux se lancent** — le stream xCloud démarre dans le WebView.
 - **Le menu settings complet est là** après connexion Xbox dans l'appli
@@ -180,4 +198,4 @@ build dans ce dossier, mot de passe `bxperf-keystore`). **Le garder
 précieusement** : le re-signer change l'empreinte, l'APK ne se mettra plus à
 jour par-dessus l'ancien (désinstallation requise). `assets/`, `out/`,
 `gen/` et `bxperf.keystore` sont gitignorés — l'APK signé lui-même est le
-fichier suivi (`mobile/better-xcloud-perf-1.8.0.apk`).
+fichier suivi (`mobile/evenbetter-xcloud-1.9.0.apk`).

@@ -1,14 +1,14 @@
-# better-xcloud-perf — v1.8.0
+# EvenBetterXcloud — v1.9.0
 
-[![Release](https://img.shields.io/github/v/release/Endymi0n74/better-xcloud-perf?style=for-the-badge&color=green)](https://github.com/Endymi0n74/better-xcloud-perf/releases/latest)
-[![Install](https://img.shields.io/badge/Install-userscript-blue?style=for-the-badge)](https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.user.js)
-[![CI](https://img.shields.io/github/actions/workflow/status/Endymi0n74/better-xcloud-perf/bench.yml?style=for-the-badge)](https://github.com/Endymi0n74/better-xcloud-perf/actions/workflows/bench.yml)
+[![Release](https://img.shields.io/github/v/release/Endymi0n74/EvenBetter-Xcloud?style=for-the-badge&color=green)](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest)
+[![Install](https://img.shields.io/badge/Install-userscript-blue?style=for-the-badge)](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-xcloud.user.js)
+[![CI](https://img.shields.io/github/actions/workflow/status/Endymi0n74/EvenBetter-Xcloud/bench.yml?style=for-the-badge)](https://github.com/Endymi0n74/EvenBetter-Xcloud/actions/workflows/bench.yml)
 
 **🇬🇧 English** · [🇫🇷 Français](README.md)
 
 Performance-oriented fork of the [Better xCloud](https://github.com/redphx/better-xcloud)
 userscript (redphx). Latest release:
-[better-xcloud-perf-v1.8.0](https://github.com/Endymi0n74/better-xcloud-perf/releases/tag/better-xcloud-perf-v1.8.0).
+[evenbetter-xcloud-v1.9.0](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/tag/evenbetter-xcloud-v1.9.0).
 
 This repository contains the **built** script (`better-xcloud.user.js`) — this
 is the file to install as-is in a userscript manager. The optimizations are
@@ -20,7 +20,7 @@ listed in the script header and detailed below.
 Tampermonkey / Violentmonkey installed:
 
 ```
-https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.user.js
+https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-xcloud.user.js
 ```
 
 Or manually:
@@ -70,7 +70,7 @@ and the `@match` rules cover `xbox.com/play` on any device.
 
 | Platform | Browser | Install |
 |---|---|---|
-| **Android** | **Native app `better-xcloud-perf-1.8.0.apk`** (WebView wrapper, ~140 KB) | [Direct download](https://github.com/Endymi0n74/better-xcloud-perf/releases/download/better-xcloud-perf-v1.8.0/better-xcloud-perf-1.8.0.apk) → sideload (see `mobile/README.md`) — embedded script, keep-screen-on, fullscreen handled |
+| **Android** | **Native app `evenbetter-xcloud-1.9.0.apk`** (WebView wrapper, ~140 KB) | [Direct download](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.9.0/evenbetter-xcloud-1.9.0.apk) → sideload (see `mobile/README.md`) — embedded script, keep-screen-on, fullscreen handled |
 | **Android** | Kiwi Browser (or Edge Android) + Tampermonkey | Open the direct install link above (Installation section) → Tampermonkey offers to install |
 | **iOS** | Safari + the **"Userscripts"** app (free, open source) | In Userscripts, tap "+" → paste the `…/releases/latest/download/better-xcloud.user.js` URL, then enable the extension in Safari |
 
@@ -93,10 +93,10 @@ contract in `bench/preview/port/README.md`):
 |---|---|---|
 | Role | The classic optimized fork — xbox.com/play (Webpack SPA, WebGL2 renderer) | The variant for the new web client (React Router 7 + rolldown, Babylon.js renderer) |
 | File | `better-xcloud.user.js` | `better-xcloud-preview.user.js` (+ `.meta.js`) |
-| Version | `1.8.0` | `1.8.0-preview4` (prerelease) |
-| `@name` | `Better xCloud` | `Better xCloud (Preview)` |
+| Version | `1.9.0` | `1.9.0-preview1` (prerelease) |
+| `@name` | `EvenBetterXcloud` | `EvenBetterXcloud (Preview)` |
 | `@match` | `www.xbox.com/*/play*` | `play.xbox.com/*` only |
-| Auto-update | `releases/latest` (stable channel) | dedicated tag `better-xcloud-perf-1.8.0-preview4` (never the `latest`) |
+| Auto-update | `releases/latest` (stable channel) | dedicated tag `evenbetter-xcloud-v1.9.0-preview1` (never the `latest`) |
 
 Both builds **coexist without mixing**: distinct identity
 (name/version/updateURL) and disjoint matches (the preview never runs on
@@ -109,14 +109,14 @@ break the preview or the separation fails the job.
 **Stable** (`latest` channel):
 
 ```
-https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.user.js
+https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-xcloud.user.js
 ```
 
 **Preview** (prerelease — to test on play.xbox.com, Insider account with
 Preview Features enabled):
 
 ```
-https://github.com/Endymi0n74/better-xcloud-perf/releases/download/better-xcloud-perf-1.8.0-preview4/better-xcloud-preview.user.js
+https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.9.0-preview1/better-xcloud-preview.user.js
 ```
 
 The preview is **playable and validated live (Aug 17)**: settings button in

@@ -404,7 +404,7 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
     (markRealPageStarted/onPageFinished garde). **Cycle panne→récupération
     validé sur l'émulateur** (navig CDP vers `www.xbox.com:444`) : page
     d'erreur affichée puis retry auto +5 s → retour `/fr-FR/play` avec
-    overlay (`bx:true`), logs `BXPerf` complets. **Overlay validé** :
+    overlay (`bx:true`), logs `EvenBetterXcloud` complets. **Overlay validé** :
     BX_EXPOSED=object, BX_FETCH=function, bouton settings visible (sonde
     CDP via `adb forward` + debug WebView activé). Preuves dans
     `mobile/validation-*.png/json/txt` (overlay, page d'erreur, récupéré).
@@ -442,7 +442,7 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
     **Validé en réel sur BlueStacks (18 août ~09:55) — `adb connect
     127.0.0.1:5555`** (émulateur BlueStacks 5, profil Samsung SM-G998B
     spoofé, Android 9, x86_64) : les DEUX voies passent (`MOBILE PROBE OK`
-    auto + manuelle), logcat BXPerf complet. BlueStacks expose son adb sur le
+    auto + manuelle), logcat EvenBetterXcloud complet. BlueStacks expose son adb sur le
     port 5555 (`adb connect`) — device `127.0.0.1:5555`. L'APK de la release
     = build local (dex + asset byte-identiques ; les hash APK diffèrent par
     les timestamps zip du rebuild uniquement, sans impact — vérifié par
@@ -505,3 +505,33 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
     diagnostiquer plus tard (suspect : ancres header T4 / conditions
     d'affichage propres à play.xbox.com en WebView mobile). Priorité basse,
     mis de côté par l'utilisateur.
+18. ✅ **Fait (18 août ~17:00) — REBRAND EvenBetterXcloud + feature Sound + nouvelle icône (v1.9.0)** :
+    le repo GitHub a été renommé `Endymi0n74/EvenBetter-Xcloud` (remote local
+    mis à jour). **Marque** : tout ce qui porte notre version porte le nom —
+    headers userscripts (@name EvenBetterXcloud, @namespace/@author Endymi0n74,
+    @updateURL/@downloadURL → nouveau repo), badge du menu
+    « **EvenBetterXcloud 1.9.0** » (au lieu de « Better xCloud 6.7.12 » :
+    constante **BX_VERSION** injectée, SCRIPT_VERSION upstream CONSERVÉ pour le
+    cache des patches), update-check rebranché sur NOTRE repo (fetch API +
+    comparaisons BX_VERSION + parse de tag `evenbetter-xcloud-v1.9.0`),
+    libellés t("better-xcloud") → littéral "EvenBetterXcloud" (non traduit),
+    README/mobile/bench docs, label APK « EvenBetterXcloud », UA
+    `EvenBetterXcloud/1.9.0`, tag logcat, diag.js. **Feature Sound** : groupe
+    « Son » dans l'onglet GLOBAL (toggle booster `audio.volume.booster.enabled`
+    + volume 0-600%, stepper désactivé tant que booster off), **visible même
+    déconnecté** (ajout "sound" à la liste des groupes rendus sans connexion).
+    **Nouvelle icône APK** (gen-icon.js v2) : nuage + flèche montante verte
+    sur fond dégradé, supersamplée 4×, sans dépendance. **Outils rejouables** :
+    `bench/rebrand-bundle.js` (gates, idempotent, --bump-only) +
+    `bench/bump-version.sh` (VERSION racine + bundles + metas + manifest APK)
+    — le badge suit la version à chaque changement (discipline : bump à chaque
+    release). build-preview.js mis à jour (ancres rebrandées, PREVIEW_VERSION
+    1.9.0-preview1, tag evenbetter-xcloud-v*, BX_VERSION preview substituée).
+    **Validé** : BlueStacks APK v1.9.0 (ES2017) — badge « EvenBetterXcloud
+    1.9.0 », groupe Son + toggle + stepper (preuve mobile/validation-ebx-son-
+    1.9.0.png), perfs intactes (parse plat, controller ×8,7, updateCanvas ×19).
+    ⚠ En attente release : publier v1.9.0 + v1.9.0-preview1 (le banner
+    « Version 1.8.0 disponible » actuel est correct — latest = encore l'ancien
+    tag — il disparaîtra après publication). **Package Android conservé**
+    (com.bxperf.app) : identité d'installation, sinon désinstallation requise.
+    Anciens tags de release conservés (historique + liens stables).

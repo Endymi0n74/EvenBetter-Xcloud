@@ -39,9 +39,11 @@ const META_OUT = path.join(ROOT, "better-xcloud-preview.meta.js");
 const EOL = "\n";
 
 // ---- contrat « deux versions » : identité DISTINCTE du build preview ----
-const PREVIEW_VERSION = "1.8.0-preview4";
-const PREVIEW_NAME = "Better xCloud (Preview)";
-const PREVIEW_TAG = "better-xcloud-perf-" + PREVIEW_VERSION; // releases/download/<tag>/...
+// (rebrand 18 août : EvenBetterXcloud + tag evenbetter-xcloud-v* — les
+// ancres T1 ci-dessous matchent le stable REBRANDÉ par bench/rebrand-bundle.js)
+const PREVIEW_VERSION = "1.9.0-preview1";
+const PREVIEW_NAME = "EvenBetterXcloud (Preview)";
+const PREVIEW_TAG = "evenbetter-xcloud-v" + PREVIEW_VERSION; // releases/download/<tag>/...
 
 function must(src, needle, label) {
   const i = src.indexOf(needle);
@@ -57,13 +59,23 @@ function build() {
      conflit Tampermonkey, même @updateURL = auto-update vers le stable
      (clobbering), @match www.xbox.com = double injection sur le stable.
      → name/version/updateURL/downloadURL distincts, match = play.xbox.com seul. */
-  const nameAnchor = "// @name         Better xCloud" + EOL;
+  // BX_VERSION (rebrand) : le badge du preview doit afficher la version
+  // PREVIEW, pas celle du stable — on substitue la valeur injectée par
+  // rebrand-bundle.js (qui est celle du stable). Extrait AVANT le replace
+  // du @version (sinon on lirait déjà la version preview).
+  const stableVersion = (s.match(/\/\/ @version      ([^\r\n]+)/) || [])[1];
+
+  const nameAnchor = "// @name         EvenBetterXcloud" + EOL;
   must(s, nameAnchor, "T1 @name");
   s = s.replace(nameAnchor, "// @name         " + PREVIEW_NAME + EOL);
 
-  const versionAnchor = "// @version      1.8.0" + EOL;
+  const versionAnchor = "// @version      1.9.0" + EOL;
   must(s, versionAnchor, "T1 @version");
   s = s.replace(versionAnchor, "// @version      " + PREVIEW_VERSION + EOL);
+
+  const bxVerAnchor = 'BX_VERSION = "' + stableVersion + '"';
+  must(s, bxVerAnchor, "T1 BX_VERSION");
+  s = s.replace(bxVerAnchor, 'BX_VERSION = "' + PREVIEW_VERSION + '"');
 
   // le preview ne matche QUE play.xbox.com (suppression des matches www.xbox.com)
   const matchStable = "// @match        https://www.xbox.com/*/play*" + EOL +
@@ -73,15 +85,15 @@ function build() {
   s = s.replace(matchStable, "// @match        https://play.xbox.com/*" + EOL);
 
   // auto-update DÉDIÉ (tag preview — jamais le latest du stable)
-  const updateAnchor = "// @updateURL    https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.meta.js" + EOL +
-    "// @downloadURL  https://github.com/Endymi0n74/better-xcloud-perf/releases/latest/download/better-xcloud.user.js" + EOL;
+  const updateAnchor = "// @updateURL    https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-xcloud.meta.js" + EOL +
+    "// @downloadURL  https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-xcloud.user.js" + EOL;
   must(s, updateAnchor, "T1 @updateURL");
   s = s.replace(updateAnchor,
-    "// @updateURL    https://github.com/Endymi0n74/better-xcloud-perf/releases/download/" + PREVIEW_TAG + "/better-xcloud-preview.meta.js" + EOL +
-    "// @downloadURL  https://github.com/Endymi0n74/better-xcloud-perf/releases/download/" + PREVIEW_TAG + "/better-xcloud-preview.user.js" + EOL);
+    "// @updateURL    https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/" + PREVIEW_TAG + "/better-xcloud-preview.meta.js" + EOL +
+    "// @downloadURL  https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/" + PREVIEW_TAG + "/better-xcloud-preview.user.js" + EOL);
 
   // l'en-tête OPTIMISATIONS signale la variante preview
-  const headerAnchor = "/* OPTIMISATIONS v1.8.0:";
+  const headerAnchor = "/* OPTIMISATIONS v1.9.0:";
   must(s, headerAnchor, "T1 header OPTIMISATIONS");
   s = s.replace(headerAnchor,
     "/* OPTIMISATIONS " + PREVIEW_VERSION + " — VARIANTE PREVIEW (play.xbox.com uniquement) :\n" +
@@ -335,7 +347,7 @@ for (const probe of [
   "// @match        https://play.xbox.com/*",
   "// @version      " + PREVIEW_VERSION,
   "// @name         " + PREVIEW_NAME,
-  "// @updateURL    https://github.com/Endymi0n74/better-xcloud-perf/releases/download/" + PREVIEW_TAG,
+  "// @updateURL    https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/" + PREVIEW_TAG,
   'var BX_PREVIEW = window.location.hostname === "play.xbox.com"',
   "static init() {if (BX_PREVIEW) return;Patcher.patchNativeBind();}",
   "static checkChunks(item) {if (BX_PREVIEW) return;",

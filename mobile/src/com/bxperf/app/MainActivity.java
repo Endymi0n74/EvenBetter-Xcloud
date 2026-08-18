@@ -29,7 +29,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Minimal WebView wrapper for the Better xCloud Perf userscript.
+ * Minimal WebView wrapper for the EvenBetterXcloud userscript.
  *
  * Loads https://www.xbox.com/play and injects the stable build
  * (better-xcloud.user.js) as early as possible on every xbox.com page.
@@ -103,7 +103,7 @@ public class MainActivity extends Activity {
 
         userscript = loadAsset("better-xcloud.user.js");
         diagJs = loadAsset("diag.js");
-        Log.d("BXPerf", "assets: userscript=" + (userscript == null ? "NULL" : userscript.length())
+        Log.d("EvenBetterXcloud", "assets: userscript=" + (userscript == null ? "NULL" : userscript.length())
             + " diag=" + (diagJs == null ? "NULL" : diagJs.length()));
 
         WebSettings settings = webView.getSettings();
@@ -115,7 +115,7 @@ public class MainActivity extends Activity {
         settings.setSupportZoom(false);
         settings.setBuiltInZoomControls(false);
         settings.setDisplayZoomControls(false);
-        settings.setUserAgentString(settings.getUserAgentString() + " BXPerf/1.8.0");
+        settings.setUserAgentString(settings.getUserAgentString() + " EvenBetterXcloud/1.9.0");
 
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
@@ -139,7 +139,7 @@ public class MainActivity extends Activity {
         if (webView == null) {
             return;
         }
-        Log.d("BXPerf", "showErrorPage: " + title + " (retryCount=" + loadRetryCount + ")");
+        Log.d("EvenBetterXcloud", "showErrorPage: " + title + " (retryCount=" + loadRetryCount + ")");
         errorPageShowing = true;
         String retryInfo = autoRetryPending
             ? "Nouvelle tentative automatique en cours… (réessai " + (loadRetryCount + 1) + "/" + MAX_AUTO_RETRIES + ")"
@@ -163,7 +163,7 @@ public class MainActivity extends Activity {
         final int attempt = loadRetryCount;
         loadRetryCount++;
         long delay = RETRY_DELAYS_MS[Math.min(attempt, RETRY_DELAYS_MS.length - 1)];
-        Log.d("BXPerf", "scheduleAutoRetry: attempt=" + attempt + " delay=" + delay);
+        Log.d("EvenBetterXcloud", "scheduleAutoRetry: attempt=" + attempt + " delay=" + delay);
         // Classe nommée (pas de lambda ni de classe anonyme : -source 8 +
         // bootclasspath android.jar n'a pas LambdaMetafactory, et d8 34.0.0
         // plante sur les classes anonymes avec superclasse du --lib).
@@ -174,7 +174,7 @@ public class MainActivity extends Activity {
     /** Succès de chargement d'une vraie page : remet le compteur de retry à zéro
      *  et annule un éventuel retry encore en attente. */
     void resetLoadState() {
-        Log.d("BXPerf", "resetLoadState");
+        Log.d("EvenBetterXcloud", "resetLoadState");
         if (webView != null && pendingAutoRetry != null) {
             webView.removeCallbacks(pendingAutoRetry);
             pendingAutoRetry = null;
@@ -296,7 +296,7 @@ public class MainActivity extends Activity {
         @Override
         public void run() {
             MainActivity a = activity;
-            Log.d("BXPerf", "AutoRetry.run: errorPageShowing=" + a.errorPageShowing
+            Log.d("EvenBetterXcloud", "AutoRetry.run: errorPageShowing=" + a.errorPageShowing
                 + " isFinishing=" + a.isFinishing());
             if (!a.isFinishing() && a.webView != null && a.errorPageShowing) {
                 a.webView.loadUrl(START_URL);
@@ -326,7 +326,7 @@ public class MainActivity extends Activity {
             String userscript = activity.userscript;
             if (isXbox && userscript != null) {
                 view.evaluateJavascript(
-                    "(function(){try{" + userscript + "}catch(e){console.error('BXPerf inject',e)}})();",
+                    "(function(){try{" + userscript + "}catch(e){console.error('EvenBetterXcloud inject',e)}})();",
                     null);
             }
         }
@@ -339,7 +339,7 @@ public class MainActivity extends Activity {
             // d'erreur. Lecture seule — ne touche pas au userscript.
             if (url != null && isXboxDomain(url) && !activity.errorPageShowing
                     && activity.diagJs != null) {
-                Log.d("BXPerf", "inject diag badge on " + url);
+                Log.d("EvenBetterXcloud", "inject diag badge on " + url);
                 view.evaluateJavascript(activity.diagJs, null);
             }
         }

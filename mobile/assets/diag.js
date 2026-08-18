@@ -24,7 +24,7 @@
     var signed = !!(window.xbcUser && window.xbcUser.isSignedIn);
     var nl = String.fromCharCode(10);
     var lines = [
-      'BXPerf diag',
+      'EvenBetterXcloud diag',
       'WebView Chrome ' + wv,
       'BX_EXPOSED: ' + (typeof window.BX_EXPOSED),
       'BX_FETCH: ' + (typeof window.BX_FETCH),

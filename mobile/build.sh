@@ -12,6 +12,11 @@ OUT="$ROOT/out"
 STORE_PASS="bxperf-keystore"
 ORIG_KEYSTORE="/d/Codex/bx-apk/bxperf.keystore"
 
+# Version : source de vérité = VERSION (racine du repo), bumpée par
+# bench/bump-version.sh — les noms d'APK suivent (rebrand 18 août :
+# EvenBetterXcloud, tag evenbetter-xcloud-v*).
+VERSION=$(cat "$ROOT/../VERSION")
+
 # VARIANT (env) : stable (défaut, www.xbox.com/play + better-xcloud.user.js)
 # ou preview (play.xbox.com + better-xcloud-preview.user.js + package
 # com.bxperf.preview — les deux APK s'installent côte à côte).
@@ -20,14 +25,14 @@ if [ "$VARIANT" = "preview" ]; then
   START_URL="https://play.xbox.com"
   BUNDLE_SRC_DEFAULT="$ROOT/../better-xcloud-preview.user.js"
   PACKAGE="com.bxperf.preview"
-  APP_LABEL="Better xCloud Perf Preview"
-  APK_NAME="better-xcloud-perf-1.8.0-preview.apk"
+  APP_LABEL="EvenBetterXcloud Preview"
+  APK_NAME="evenbetter-xcloud-${VERSION}-preview1.apk"
 else
   START_URL="https://www.xbox.com/play"
   BUNDLE_SRC_DEFAULT="$ROOT/../better-xcloud.user.js"
   PACKAGE="com.bxperf.app"
-  APP_LABEL="Better xCloud Perf"
-  APK_NAME="better-xcloud-perf-1.8.0.apk"
+  APP_LABEL="EvenBetterXcloud"
+  APK_NAME="evenbetter-xcloud-${VERSION}.apk"
 fi
 
 # Asset : le build à jour (la racine du repo), jamais une copie périmée.

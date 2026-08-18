@@ -30,7 +30,7 @@
 # ============================================================================
 set -euo pipefail
 
-REPO="Endymi0n74/better-xcloud-perf"
+REPO="Endymi0n74/EvenBetter-Xcloud"
 DRY_RUN=0
 
 for arg in "$@"; do

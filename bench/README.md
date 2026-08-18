@@ -67,6 +67,42 @@ mesure par itération fiable. Le `p95` de parse capture les outliers GC
 (absorbés par la médiane) ; l'écart perf10/build est dans le bruit inter-seed
 (≈ ±10-20 % run à run) — le protocole le montre au lieu de figer un chiffre.
 
+## Rebrand EvenBetterXcloud + feature Sound (v1.9.0, 18 août)
+
+Le fork est **renommé EvenBetterXcloud** (repo `Endymi0n74/EvenBetter-Xcloud`)
+et tout ce qui porte la marque a été mis à jour en une passe : headers
+userscripts (@name/@namespace/@version/@updateURL/@downloadURL), badge du
+menu (`EvenBetterXcloud 1.9.0` au lieu de `Better xCloud 6.7.12`), libellés
+visibles, update-check (fetch vers NOTRE repo + comparaison sur BX_VERSION),
+label/UA/logs de l'APK, icône APK (nuage + flèche verte).
+
+**Outils rejouables** (la marque est un artefact de build, pas du manuel) :
+
+- `bench/rebrand-bundle.js <bundle> [--version=X] [--no-sound] [--dry-run]`
+  — applique le rebrand + la feature Sound à un bundle frais, avec **gates**
+  (GATE ROUGE si un pattern a dérivé dans une future version du bundle).
+  Idempotent (no-op si déjà rebrandé) ; `--bump-only` pour ne changer que la
+  version (headers + BX_VERSION + commentaire OPTIMISATIONS).
+- `bash bench/bump-version.sh <v> [--preview=...] [--build-apk]` — bump
+  CENTRALISÉ : VERSION (racine), stable, es2017 (régénéré), preview, metas,
+  manifest APK (versionName/versionCode). Le badge du menu affiche alors la
+  nouvelle version. **À exécuter à chaque changement de version.**
+- La version est lue par `mobile/build.sh` (`VERSION` racine) pour nommer les
+  APK : `evenbetter-xcloud-<v>.apk` / `evenbetter-xcloud-<v>-preview1.apk`.
+
+**Feature Sound** (groupe « Son » dans l'onglet GLOBAL, visible même
+**déconnecté**) : toggle « Activer la fonction de contrôle du volume »
+(`audio.volume.booster.enabled`) + volume 0-600% (`audio.volume`, stepper
+−/+/désactivé tant que le booster est off) — même mécanique que le groupe
+Audio de l'onglet stream (gain node), mais accessible sans session.
+Injectée par rebrand-bundle.js (2 ancres vérifiées). Validé en réel sur
+l'APK (BlueStacks, déconnecté) : badge `EvenBetterXcloud 1.9.0` + groupe
+`Son` + toggle + stepper volume (preuve `mobile/validation-ebx-son-1.9.0.png`).
+
+**Perfs après rebrand (seed 42, 1 passe)** : parse plat (0,155 ms),
+controller IDLE 37,6 ns (×8,7), updateCanvas 13 ns (×19), updateFrame
+162 ns stable — aucune régression.
+
 ## Re-baseline du 17 août (v1.8.0) — bornes confirmées
 
 Run complet sur le build v1.8.0 (`better-xcloud.user.js`, 481 772 o — inchangé
@@ -883,7 +919,7 @@ Ce que fait le script :
    vers START_URL) — la récupération manuelle quand le réseau revient ; le
    logcat confirme que le clic **annule le retry auto en attente**
    (`resetLoadState` avant le backoff de 5 s, pas de double navigation).
-7. **logcat** — dernières lignes `BXPerf` (trace du cycle
+7. **logcat** — dernières lignes `EvenBetterXcloud` (trace du cycle
    `showErrorPage → scheduleAutoRetry → AutoRetry.run → resetLoadState`).
 
 Test sans émulateur : `node bench/mobile-probe.test.js` valide la sonde et
