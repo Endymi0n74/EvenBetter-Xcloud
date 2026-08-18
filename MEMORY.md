@@ -499,4 +499,9 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
     côte, le preview ouvre play.xbox.com et le script preview s'exécute
     (`BX_EXPOSED=object`, `BX_FETCH=function`, bouton overlay présent).
     APK preview : `mobile/out/better-xcloud-perf-1.8.0-preview.apk` (148 077 o)
-    — à publier sur la release preview quand tu veux le tester sur téléphone.
+    — publié sur la release preview4 (lien vérifié 200). ⚠ **RÉSERVÉ (18 août
+    ~16:30, utilisateur) : le preview est bien loggé (script injecté) mais
+    l'overlay n'apparaît PAS sur play.xbox.com dans le WebView** — à
+    diagnostiquer plus tard (suspect : ancres header T4 / conditions
+    d'affichage propres à play.xbox.com en WebView mobile). Priorité basse,
+    mis de côté par l'utilisateur.
