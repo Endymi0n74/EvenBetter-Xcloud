@@ -27,16 +27,17 @@ DO_BUILD=1
 DO_CYCLE=1
 DO_MANUAL=0
 
-for a in "$@"; do
-  case "$a" in
+while [ "$#" -gt 0 ]; do
+  case "$1" in
     --skip-build) DO_BUILD=0 ;;
     --no-cycle)   DO_CYCLE=0 ;;
     --manual)     DO_MANUAL=1 ;;
-    --serial=*)   SERIAL="${a#--serial=}" ;;
-    --serial)     SERIAL="$2"; shift ;;
+    --serial=*)   SERIAL="${1#--serial=}" ;;
+    --serial)     [ "$#" -ge 2 ] || { echo "usage: --serial <id> manquant" >&2; exit 2; }
+                  SERIAL="$2"; shift ;;
     *) echo "usage: bash bench/mobile-probe.sh [--skip-build] [--no-cycle] [--manual] [--serial <id>]"; exit 2 ;;
   esac
-  shift || true
+  shift
 done
 
 echo "==> device adb"
