@@ -89,6 +89,16 @@ label/UA/logs de l'APK, icône APK (nuage + flèche verte).
   nouvelle version. **À exécuter à chaque changement de version.**
 - La version est lue par `mobile/build.sh` (`VERSION` racine) pour nommer les
   APK : `evenbetter-xcloud-<v>.apk` / `evenbetter-xcloud-<v>-preview1.apk`.
+- `node bench/verify-badge.js [--port=9224]` — valide EN RÉEL le badge du
+  menu : charge xbox.com/play dans un Edge piloté par CDP (extension locale
+  `.edge-inject-stable` = le bundle servi par releases/latest, équivalent
+  Greasemonkey), ouvre les settings, lit le badge « EvenBetterXcloud
+  <version> », vérifie que c'est un lien vers nos releases (`<a href="…/
+  EvenBetter-Xcloud/releases" target="_blank">`) et qu'un vrai clic CDP
+  ouvre bien cette page (preuve PNG dans /d/Codex). Validé 18 août 17:57 :
+  badge « EvenBetterXcloud 1.9.0 » + clic → releases GitHub, 1 seul bouton
+  settings (pas de double injection). ⚠ Les extensions `.edge-inject*` ne
+  sont PAS commitées (outils locaux, comme la convention).
 
 **Feature Sound** (groupe « Son » dans l'onglet GLOBAL, visible même
 **déconnecté**) : toggle « Activer la fonction de contrôle du volume »
