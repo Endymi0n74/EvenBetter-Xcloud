@@ -70,7 +70,7 @@ and the `@match` rules cover `xbox.com/play` on any device.
 
 | Platform | Browser | Install |
 |---|---|---|
-| **Android** | **Native app `better-xcloud-perf-1.8.0.apk`** (WebView wrapper, ~140 KB) | `mobile/better-xcloud-perf-1.8.0.apk` → sideload (see `mobile/README.md`) — embedded script, keep-screen-on, fullscreen handled |
+| **Android** | **Native app `better-xcloud-perf-1.8.0.apk`** (WebView wrapper, ~140 KB) | [Direct download](https://github.com/Endymi0n74/better-xcloud-perf/releases/download/better-xcloud-perf-v1.8.0/better-xcloud-perf-1.8.0.apk) → sideload (see `mobile/README.md`) — embedded script, keep-screen-on, fullscreen handled |
 | **Android** | Kiwi Browser (or Edge Android) + Tampermonkey | Open the direct install link above (Installation section) → Tampermonkey offers to install |
 | **iOS** | Safari + the **"Userscripts"** app (free, open source) | In Userscripts, tap "+" → paste the `…/releases/latest/download/better-xcloud.user.js` URL, then enable the extension in Safari |
 

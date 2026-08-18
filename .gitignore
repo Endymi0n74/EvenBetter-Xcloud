@@ -26,6 +26,13 @@ scratch/
 reprotest/
 patchtest*/
 
+# Build APK mobile (généré par mobile/build.sh)
+mobile/assets/
+mobile/out/
+mobile/gen/
+mobile/bxperf.keystore
+mobile/res/drawable-nodpi/
+
 # Logs
 *.log
 

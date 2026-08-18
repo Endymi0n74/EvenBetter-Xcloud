@@ -10,6 +10,24 @@ JAVA="$JAVA_HOME/bin"
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 OUT="$ROOT/out"
 STORE_PASS="bxperf-keystore"
+ORIG_KEYSTORE="/d/Codex/bx-apk/bxperf.keystore"
+
+# Asset : le build stable à jour (la racine du repo), jamais une copie périmée.
+mkdir -p "$ROOT/assets"
+cp "$ROOT/../better-xcloud.user.js" "$ROOT/assets/better-xcloud.user.js"
+echo "    asset : $(wc -c < "$ROOT/assets/better-xcloud.user.js") o (stable courant)"
+
+# Keystore : réutiliser la clé d'origine (D:\Codex\bx-apk) pour que les
+# mises à jour d'un APK déjà installé restent valides. Générer une nouvelle
+# clé changerait la signature et forcerait une désinstallation/réinstallation.
+if [ ! -f "$ROOT/bxperf.keystore" ]; then
+  if [ -f "$ORIG_KEYSTORE" ]; then
+    cp "$ORIG_KEYSTORE" "$ROOT/bxperf.keystore"
+    echo "    keystore réutilisé depuis $ORIG_KEYSTORE (signature stable)"
+  else
+    echo "    ⚠ aucun keystore trouvé ($ROOT/bxperf.keystore ni $ORIG_KEYSTORE) — nouvelle clé générée"
+  fi
+fi
 
 echo "==> 1/7 icône"
 node "$ROOT/gen-icon.js"

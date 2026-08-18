@@ -9,7 +9,13 @@ build **stable** (`better-xcloud.user.js`, v1.8.0) dès le début de la page.
 ## APK
 
 `better-xcloud-perf-1.8.0.apk` (~140 Ko) — package `com.bxperf.app`, signé avec
-le keystore local (`bxperf.keystore`, généré par `build.sh`).
+le keystore local (`bxperf.keystore`, réutilisé depuis `D:\Codex\bx-apk` par
+`build.sh` — la signature est stable d'un build à l'autre, les mises à jour
+passent par-dessus l'APK installé).
+
+**Téléchargement direct** (asset de la release v1.8.0) :
+
+https://github.com/Endymi0n74/better-xcloud-perf/releases/download/better-xcloud-perf-v1.8.0/better-xcloud-perf-1.8.0.apk
 
 **Installation (sideload)** :
 
@@ -35,11 +41,15 @@ Prérequis : JDK 21 (JAVA_HOME) + Android SDK
 (`cmdline-tools` → `platforms;android-34` + `build-tools;34.0.0`).
 
 ```bash
-cp ../better-xcloud.user.js assets/
 export JAVA_HOME="C:\Program Files\Zulu\zulu-21"
 bash build.sh
 # → out/better-xcloud-perf-1.8.0.apk
 ```
+
+`build.sh` prépare tout seul l'asset : il copie le **build stable courant** de
+la racine du repo (`../better-xcloud.user.js`) vers `assets/` et réutilise le
+keystore d'origine s'il existe (`D:\Codex\bx-apk\bxperf.keystore`) — une
+nouvelle clé ne serait générée que si aucun keystore n'est trouvé.
 
 Pipeline sans Gradle : `aapt2 compile/link` → `javac` → `d8` → assemblage
 (`jar` du JDK, pas de `zip` en Git Bash) → `zipalign` → `apksigner`.
@@ -58,6 +68,9 @@ Pipeline sans Gradle : `aapt2 compile/link` → `javac` → `d8` → assemblage
 
 ## Keystore
 
-`bxperf.keystore` (généré au premier build, mot de passe `bxperf-keystore`).
-**Le garder précieusement** : le re-signer change l'empreinte, l'APK ne se
-mettra plus à jour par-dessus l'ancien (désinstallation requise).
+`bxperf.keystore` (copié depuis `D:\Codex\bx-apk\bxperf.keystore` au premier
+build dans ce dossier, mot de passe `bxperf-keystore`). **Le garder
+précieusement** : le re-signer change l'empreinte, l'APK ne se mettra plus à
+jour par-dessus l'ancien (désinstallation requise). `assets/`, `out/`,
+`gen/` et `bxperf.keystore` sont gitignorés — l'APK signé lui-même est le
+fichier suivi (`mobile/better-xcloud-perf-1.8.0.apk`).
