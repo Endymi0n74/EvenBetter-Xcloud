@@ -23,9 +23,66 @@ survit). Application concrète :
   chances de planter ou de prendre du temps, noter au fil de l'eau ce qui
   est déjà acquis (le contexte ne survit pas à un restart).
 
-Dernière passe : **19 août ~19:30 — Mobile doc-start re-validé (GATE VERT
-BlueStacks) + re-baseline stable PASS 6/6 + sonde permanente
-bench/mobile-regions-probe.js** (commit en cours).
+Dernière passe : **19 août ~21:30 — Feature « 🔊 Son » v1.13.0 implémentée,
+validée en réel (100 %) et gates CI verts (dont réparation du strip
+feature-region)** (commit en cours).
+
+## Feature « 🔊 Son » v1.13.0 (19 août ~21:00-21:30)
+
+**Feature utilisateur v1.13.0** (la demande « gestion du son dans les
+options » enfin traitée) : groupe « 🔊 Son » dans l'onglet **stream** des
+settings (TAB_DISPLAY_ITEMS → groupe audio, item rendu APRÈS le slider
+volume) avec 4 presets — 🔇 Muet (0), 🔉 Doux (50), 🔊 Normal (100 +
+resetBoost), 📢 Boost (200 + booster) — posant `audio.volume` via
+`setStreamPref` (événement UI natif → application LIVE sur la session via
+`SoundShortcut.setGainNodeVolume`, le canal du slider natif) et
+`audio.volume.booster.enabled` via `setGlobalPref`. Statut dédié
+(`bx-sound-status`) avec classe propre (le sélecteur générique lisait le
+statut du groupe Données).
+
+**Livrables** (pattern feature-latency/region/datasaver) :
+- `bench/feature-sound.js` — injection déterministe (ancre BX_EXPOSED +
+ancre `audio.volume` onCreated du groupe stream) + `--self-test` chemin
+d'échec.
+- `bench/feature-sound.test.js` — gate CI (présence stable+preview, ancres
+×1, rejeu sur copie strippée, self-test) branché au step preview de
+bench.yml.
+- `bench/feature-sound-probe.js` — sonde CDP (rendu du groupe, clic presets,
+pref posée, statut).
+- Bump `bash bench/bump-version.sh 1.13.0` → stable 1.13.0, preview
+1.13.0-preview1, es2017 ×2, manifest vc 9. README FR/EN mis à jour
+(v1.13.0 + bloc Nouveauté + table Deux versions + table réglages).
+
+**Validation réelle 100 %** (profil edge-cdp, extension .edge-inject-stable
+rechargée avec le bundle 1.13.0 — piège MV3 : copie compilée + bump manifest
++ purge ScriptCache) : rendu du groupe, clics presets → pref posée
+(audio.volume 50/100/200), booster on/off, persistance après reload,
+statut mis à jour. L'ancien profil datasaver avait une DOUBLE injection
+(extension + script simulé 1.9.0→1.12.0 resté dans Tampermonkey BETA) —
+passer sur le profil PROPRE (edge-cdp) pour la sonde.
+
+**Piège réparé — strip feature-region** : après re-injection du son,
+`feature-region.test.js` passait au ROUGE. Cause : mon strip manuel avait
+avalé le `\n` de tête de l'IMPL région (bundle : `}};window.BX_REGION_APPLY`
+au lieu de `}};\nwindow.BX_REGION_APPLY`) → l'IMPL extrait par le test ne
+matchait plus (n=0) et le strip (indexOf) ne retirait rien. Fix : insertion
+chirurgicale du `\n` dans better-xcloud.user.js (pattern unique vérifié),
+puis rebuild preview + es2017 ×2.
+
+**Piège réparé — PREVIEW_VERSION** (déjà vu en f39aeb2) : build-preview.js
+hardcode `PREVIEW_VERSION = "1.12.0-preview1"` — mon rebuild après bump
+avait re-réinitialisé le preview en 1.12.0-preview1. Fix : constante passée
+à 1.13.0-preview1 puis rebuild. **TODO futur** : faire lire cette constante
+depuis bump-version.sh pour éviter le dérapage.
+
+**Piège réparé — p2-schema.test.js manquant** : le fichier (commit d143ef5)
+n'était plus sur le disque (session perdue) alors que bench.yml l'appelle →
+`git checkout d143ef5 -- bench/preview/p2-schema.test.js`.
+
+**Gates locaux tous verts** : feature-datasaver/region/sound (avec
+--self-test), keepalive-idle, t10-auto-spoof, p2-schema, run-e2e0 --skip-
+probe (A+B+D), pr-comment-merge 31/31, mobile-probe 5/5, syntaxe des 4
+bundles. Poussé sur main, CI à confirmer.
 
 ## Release v1.12.0 rafraîchie (APK doc-start) + cycle auto-update (19 août ~18:30)
 

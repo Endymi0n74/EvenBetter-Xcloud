@@ -44,7 +44,7 @@ const EOL = "\n";
 // ---- contrat « deux versions » : identité DISTINCTE du build preview ----
 // (rebrand 18 août : EvenBetterXcloud + tag evenbetter-xcloud-v* — les
 // ancres T1 ci-dessous matchent le stable REBRANDÉ par bench/rebrand-bundle.js)
-const PREVIEW_VERSION = "1.12.0-preview1";
+const PREVIEW_VERSION = "1.13.0-preview1";
 const PREVIEW_NAME = "EvenBetterXcloud (Preview)";
 const PREVIEW_TAG = "evenbetter-xcloud-v" + PREVIEW_VERSION; // releases/download/<tag>/...
 

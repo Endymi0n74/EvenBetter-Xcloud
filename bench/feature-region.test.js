@@ -93,7 +93,17 @@ function runChecks(stableSrc, previewSrc) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "bx-region-"));
   const strippedPath = path.join(dir, "bundle-stripped.user.js");
   let stripped = stableSrc;
-  if (count(stripped, ANCHOR_BX + IMPL) === 1) stripped = stripped.replace(ANCHOR_BX + IMPL, ANCHOR_BX);
+  // Les features s'empilent sur l'ancre BX_EXPOSED (latence v1.10, data
+  // v1.11, région v1.12, son v1.13…) : l'IMPL de région n'est plus
+  // forcément ADJACENT à l'ancre. On retire la plage [ANCHOR_BX … fin de
+  // IMPL_REGION] (qui contient l'IMPL de région), même si d'autres features
+  // ont été injectées entre l'ancre et la région — même fix que
+  // feature-datasaver.test.js.
+  const bxIdx = stripped.indexOf(ANCHOR_BX);
+  const regionIdx = bxIdx >= 0 ? stripped.indexOf(IMPL, bxIdx) : -1;
+  if (regionIdx >= 0) {
+    stripped = stripped.slice(0, bxIdx) + ANCHOR_BX + stripped.slice(regionIdx + IMPL.length);
+  }
   if (count(stripped, PUSH_KEY) === 1) stripped = stripped.replace(PUSH_KEY, ANCHOR_PUSH);
   if (count(stripped, DONE_HOOK + ANCHOR_DONE) === 1) stripped = stripped.replace(DONE_HOOK + ANCHOR_DONE, ANCHOR_DONE);
   if (count(stripped, ITEM_REGION) === 1) stripped = stripped.replace(ITEM_REGION, ANCHOR_ITEM);

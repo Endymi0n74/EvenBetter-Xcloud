@@ -86,6 +86,16 @@ jobs:
           # une ancre dérive. Lancement local :
           # node bench/feature-region.test.js [--self-test]
           node bench/feature-region.test.js
+          # feature-sound : gate vm de la feature « 🔊 Son » (v1.13.0).
+          # Héritée par le preview via build-preview.js : le test vérifie sa
+          # présence dans les DEUX builds, que les ancres d'injection tiennent
+          # dans le bundle stable (BX_EXPOSED, implémentation, item presets
+          # ajouté au groupe audio), puis rejoue l'injection + le chemin
+          # d'échec (--self-test de feature-sound.js) sur une copie sans
+          # feature. Échoue le job si un rebuild oublie l'injection ou si une
+          # ancre dérive. Lancement local :
+          # node bench/feature-sound.test.js [--self-test]
+          node bench/feature-sound.test.js
           # p2-schema : alerte si une clé P2 dérive du schéma Zod réel (un
           # bundle StreamSessionConfiguration-*.js capturé doit être présent,
           # sinon le test passe en mode « schéma non vérifiable » — warn +
