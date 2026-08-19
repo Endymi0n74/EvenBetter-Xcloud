@@ -118,10 +118,10 @@ détaillé dans `bench/preview/port/README.md`) :
 |---|---|---|
 | Rôle | Le fork optimisé classique — xbox.com/play (SPA Webpack, renderer WebGL2) | La variante du nouveau client web (React Router 7 + rolldown, renderer Babylon.js) |
 | Fichier | `better-xcloud.user.js` | `better-xcloud-preview.user.js` (+ `.meta.js`) |
-| Version | `1.11.0` | `1.11.0-preview1` (prerelease) |
+| Version | `1.11.0` | `1.11.0-preview2` (prerelease) |
 | `@name` | `EvenBetterXcloud` | `EvenBetterXcloud (Preview)` |
 | `@match` | `www.xbox.com/*/play*` | `play.xbox.com/*` uniquement |
-| Auto-update | `releases/latest` (canal stable) | tag dédié `evenbetter-xcloud-v1.11.0-preview1` (jamais le `latest`) |
+| Auto-update | `releases/latest` (canal stable) | tag dédié `evenbetter-xcloud-v1.11.0-preview2` (jamais le `latest`) |
 
 Les deux builds **cohabitent sans se confondre** : identité distincte
 (name/version/updateURL) et matches disjoints (le preview ne s'exécute jamais
@@ -141,12 +141,12 @@ https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-
 Preview Features activé) :
 
 ```
-https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.11.0-preview1/better-xcloud-preview.user.js
+https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.11.0-preview2/better-xcloud-preview.user.js
 ```
 
-Le preview est **jouable et validé en réel (17 août)** : bouton settings dans le
-top bar + dialog ouvert (T4/T7 — résilience au remplacement du document par le
-shell), réécriture P2 de la session prouvée (`enableVibration`/mkb/mic dans la
+Le preview est **jouable et validé en réel** : bouton settings dans le top bar
++ dialog ouvert (T4/T7 — résilience au remplacement du document par le shell),
+réécriture P2 de la session prouvée (`enableVibration`/mkb/mic dans la
 configuration de la session live). P1 (anti-kick idle) est en place via
 `wrapSession` — seuil d'idle serveur observé > 1 h. Depuis **preview3**, le
 build n'override plus `osName=tizen` (A/B mesuré : no-op en PC — résolution ET
@@ -154,7 +154,45 @@ bitrate identiques au natif) — le play part sans réécriture. Depuis
 **preview4**, le bouton settings est aussi dans la **game bar** en session (la
 page stream immersive de play.xbox.com n'a ni header ni nav — T9). Depuis
 **1.11.0-preview1**, le preview embarque aussi le groupe « 📊 Données » du
-stable. Le stable n'est jamais affecté.
+stable, et **1.11.0-preview2** corrige l'overlay mobile en WebView téléphone
+(FAB < 768 px + re-arm après remplacement du document — le bouton ne
+« disparaissait » plus en session). Le stable n'est jamais affecté.
+
+### Pourquoi le preview ne fait pas partie des PR upstream
+
+Le fork propose ses optimisations du **stable** au projet original
+(redphx/better-xcloud — 15 PR ouvertes). Le **preview, lui, reste dans le
+fork**, pour une raison structurelle : play.xbox.com est le **nouveau client
+Microsoft** — un bundle minifié **sans repo source public**, alors que le repo
+redphx ne contient que le client stable (www.xbox.com/play). Les patches du
+preview (T1-T10, P2/P3, P1) ciblent ce bundle : il n'y a aucun endroit dans le
+repo upstream où les porter.
+
+Et les deux mécaniques qui auraient pu être « transférables » **existent déjà
+côté stable amont** : la réécriture de `/configuration` (`enableVibration` /
+mkb / mic, dans `xcloud-interceptor.ts`) et le keep-alive idle
+(`WarningForBeingIdle` → `sendKeepAlive`, `remote-play-keep-alive.ts`). Le
+travail preview est une **re-dérivation pour le nouveau client**, pas une
+évolution du script stable — rien de nouveau à proposer. Ce que le fork apporte
+en plus sur le preview :
+
+- **Entrée settings** : bouton top bar desktop + **bouton flottant mobile**
+  (le nouveau shell n'a pas de header < 768 px) + action Settings dans la
+  **game bar** en session (page stream immersive) ;
+- **Résilience au remplacement du document** : le shell remplace le document
+  au démarrage d'un stream — le port ré-arme les observers et ré-injecte sur
+  le document courant (sans ça, le bouton meurt en session) ;
+- **Keep-alive idle** (anti-kick AFK) via `wrapSession` ;
+- **Overrides `/configuration`** (vibration / mkb / mic / touch) sur le
+  nouveau client ;
+- **Auto-spoof UA** pour passer le gate Chromium-only de play.xbox.com
+  (Firefox et autres moteurs bloqués alors que le stream WebRTC H.264
+  fonctionne).
+
+Le détail technique est dans `bench/preview/port/` (anchors, protocole E2E,
+journal). Un commentaire d'information a été rédigé pour le mainteneur
+(`upstream-prs/comment-preview-port.md`) : le portage complet est disponible
+sur demande s'il veut un jour supporter le nouveau client.
 
 ## Optimisations perf11 + perf13
 
