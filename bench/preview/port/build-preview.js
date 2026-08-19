@@ -282,6 +282,50 @@ if (BX_PREVIEW) {
           PreviewSettingsEntry.tryInject();
         }
       } catch (e3) { /* non bloquant */ }
+      /* 4. T11 : game bar — si le shell a remplacé le document, le #bx-game-bar
+            (appendu au documentElement du constructeur) est orphelin sous
+            l'ancien <html> : ré-append au document courant. Et si le jeu
+            tourne mais que la bar est cachée (bx-offscreen/bx-hide — le
+            disable du polling preview, voir patch T11), la re-montrer : sur
+            la preview, la game bar est LA SEULE entrée settings en session. */
+      try {
+        var _gb = typeof GameBar !== "undefined" ? GameBar.getInstance() : null;
+        if (_gb && _gb.$gameBar && _gb.$container) {
+          if (!_gb.$gameBar.isConnected && document.documentElement && document.documentElement.isConnected) {
+            document.documentElement.appendChild(_gb.$gameBar);
+            BxLogger.info("GameBar", "re-appende (document remplace par le shell)");
+          }
+          if (STATES.isPlaying && (_gb.$container.classList.contains("bx-offscreen") || _gb.$container.classList.contains("bx-hide"))) {
+            _gb.$container.classList.remove("bx-offscreen", "bx-hide");
+            _gb.$container.classList.add("bx-show");
+          }
+        }
+      } catch (e4) { /* non bloquant */ }
+      /* 5. T12 : volume LIVE preview — le patch SDK du stable
+            (patchAudioMediaStream → ".srcObject=this.audioMediaStream,") ne
+            matche pas le SDK du client preview → aucun gain node n'est créé,
+            les presets Son posent la pref mais n'ont pas d'effet audible en
+            session (reproduit 20 août : audioGainNode=false avec booster on).
+            Le client preview joue l'audio via un <audio> (srcObject =
+            MediaStream, 1 piste audio, muted=false) + STATES.currentStream.
+            audioContext est déjà le contexte PATCHÉ du script : on branche
+            le gain node depuis l'élément audio (setupGainNode le mute et
+            route l'audio par le gain — même mécanique que le stable,
+            volume 0-600 % live). No-op dès qu'un gain node existe. */
+      try {
+        if (STATES.isPlaying && STATES.currentStream && !STATES.currentStream.audioGainNode &&
+            typeof getGlobalPref === "function" && getGlobalPref("audio.volume.booster.enabled")) {
+          var _aud = null, _als = document.querySelectorAll("audio");
+          for (var _ai = 0; _ai < _als.length; _ai++) {
+            var _t = _als[_ai].srcObject;
+            if (_t && _t.getAudioTracks && _t.getAudioTracks().length > 0 && !_als[_ai].muted) { _aud = _als[_ai]; break; }
+          }
+          if (_aud && typeof window.BX_EXPOSED !== "undefined" && window.BX_EXPOSED.setupGainNode) {
+            window.BX_EXPOSED.setupGainNode(_aud, _aud.srcObject);
+            BxLogger.info("BX_PREVIEW", "T12 gain node branche (volume live preview)");
+          }
+        }
+      } catch (e5) { /* non bloquant */ }
     } catch (e) { /* non bloquant */ }
   }, 2000);
 }
@@ -332,6 +376,20 @@ ${entryAnchor}`;
   const gameBarActionsAnchor = "this.actions = [new ScreenshotAction";
   must(s, gameBarActionsAnchor, "T9 GameBar actions");
   s = s.replace(gameBarActionsAnchor, "this.actions = [new ScreenshotAction,new SettingsAction");
+
+  /* ---------- T11 : game bar toujours utilisable sur la preview ----------
+     Reproduit le 20 août en session réelle : la game bar n'apparaissait PAS
+     en jeu sur play.xbox.com (overlay absent, settings inaccessibles en
+     session). Cause : sur le client preview, xCloudPollingMode vaut « all »
+     pendant le jeu (le stable vaut « none ») → le handler polling du
+     constructeur GameBar appelle disable() (bar cachée, bx-offscreen —
+     verifié en live : pollingMode=all, container=bx-offscreen ; showBar()
+     manuel la rend visible). On neutralise ce disable sur BX_PREVIEW : la
+     bar et son action Settings (T9) restent disponibles en session — la
+     résilience document remplacé est couverte par le step 4 de T7. */
+  const pollingAnchor = 'position !== "off" && window.addEventListener(BxEvent.XCLOUD_POLLING_MODE_CHANGED, ((e) => {if (STATES.isPlaying) window.BX_STREAM_SETTINGS.xCloudPollingMode !== "none" ? this.disable() : this.enable();}).bind(this));';
+  must(s, pollingAnchor, "T11 GameBar polling handler");
+  s = s.replace(pollingAnchor, 'position !== "off" && window.addEventListener(BxEvent.XCLOUD_POLLING_MODE_CHANGED, ((e) => {if (STATES.isPlaying && !BX_PREVIEW) window.BX_STREAM_SETTINGS.xCloudPollingMode !== "none" ? this.disable() : this.enable();}).bind(this));');
 
   /* ---------- T10 : auto-spoof UA non-Chromium (gate play.xbox.com) ----------
      Le client play.xbox.com bloque les navigateurs non-Chromium : check
