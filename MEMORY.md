@@ -109,6 +109,30 @@ après le déplacement.
   vidéo persiste (le menu, lui, est corrigé), capturer logcat
   (`adb logcat -s EvenBetterXcloud`) pendant le stream noir pour diagnoser.
 
+## Gate CI feature-datasaver — validation PR #17 (gate ROUGE en réel, 19 août)
+
+- **`bench/feature-datasaver.test.js` branché au step preview de bench.yml**
+  (job `hotloops-ratios`, étape « Build preview — contrat deux versions ») :
+  présence feature stable+preview, ancres d'injection extraites DEPUIS
+  feature-datasaver.js (une const renommée = extraction échoue = rouge),
+  rejeu d'injection + self-test sur copie strippée.
+- **Validation ROUGE en réel (PR #17 `ci/control-gate-datasaver`)** : ancre
+  `ANCHOR_GROUP` corrompue dans le bundle stable (`t("server")` →
+  `t("server_CHANGED")`, 1 occurrence — scénario « rebuild dérivé »).
+  - Pré-validation locale : 3 échecs, exit 1.
+  - Run CI push `32237377296` : job `hotloops-ratios` → **failure** au step
+    « Build preview », log : `❌ ancre groupe server ×1 :: n=0`,
+    `❌ copie sans feature obtenue (injection inversée, ancres revenues)`,
+    `❌ rejeu non exécuté (strip invalide)`, `3 échec(s) Feature Data saver`.
+  - PR fermée avec commentaire de validation, branche supprimée (local +
+    distant), run PR orphelin resté « queued » annulé. main == origin/main.
+- **`--self-test` (commits 1283528)** : corrompt l'ancre ANCHOR_GROUP sur une
+  COPIE temporaire et vérifie le GATE ROUGE (exit 0 si détecté, bundle réel
+  intact) — le chemin d'échec est rejouable localement sans PR de contrôle.
+  ⚠ Piège CRLF/LF découvert en route : le bundle sur disque est CRLF
+  (autocrlf Windows) vs source LF → normalisation avant comparaison, et
+  regex `([^]*?)` au lieu de `[\s\S]`.
+
 ## Harnais preview — réécriture injection (18 août ~07:00)
 
 - **`inject-preview.js` réécrit en WebSocket CDP brut + wrapper IIFE** :
