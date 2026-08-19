@@ -27,8 +27,9 @@ reprotest/
 patchtest*/
 
 # Build APK mobile (généré par mobile/build.sh)
-mobile/assets/
+mobile/assets/*
 !mobile/assets/diag.js
+!mobile/assets/evenbetterxcloud-logo.png
 mobile/out/
 mobile/gen/
 mobile/bxperf.keystore

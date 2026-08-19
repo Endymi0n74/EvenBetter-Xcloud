@@ -44,7 +44,7 @@ const EOL = "\n";
 // ---- contrat « deux versions » : identité DISTINCTE du build preview ----
 // (rebrand 18 août : EvenBetterXcloud + tag evenbetter-xcloud-v* — les
 // ancres T1 ci-dessous matchent le stable REBRANDÉ par bench/rebrand-bundle.js)
-const PREVIEW_VERSION = "1.11.0-preview1";
+const PREVIEW_VERSION = "1.11.0-preview2";
 const PREVIEW_NAME = "EvenBetterXcloud (Preview)";
 const PREVIEW_TAG = "evenbetter-xcloud-v" + PREVIEW_VERSION; // releases/download/<tag>/...
 
@@ -147,6 +147,8 @@ if (BX_PREVIEW) {
        l'observer et on ré-appende le wrapper s'il est détaché (isConnected),
        coalescé à 150 ms pour ne pas travailler à chaque mutation. */
     _wrapper: null,
+    _observer: null,
+    _root: null,
     _t: 0,
     _injected: false,
     tryInject() {
@@ -193,13 +195,24 @@ if (BX_PREVIEW) {
       this._injected = true;
       return true;
     },
-    start() {
+    /* 19 août : le shell preview remplace le document (document.open / re-render
+       html) → le body observé meurt avec l'ancien document et plus aucune
+       mutation ne déclenche tryInject : le bouton ne revient jamais (reproduit
+       en WebView). arm() est réutilisable : re-crée un observer sur le document
+       COURANT (T7 point 3 le rappelle quand documentElement change d'identité). */
+    arm() {
+      if (this._observer) { try { this._observer.disconnect(); } catch (e) {} }
       var self = this;
-      var observer = new MutationObserver(function () {
+      this._observer = new MutationObserver(function () {
         if (self._t) return;
         self._t = setTimeout(function () { self._t = 0; self.tryInject(); }, 150);
       });
-      observer.observe(document.body || document.documentElement, { childList: true, subtree: true });
+      var root = document.body || document.documentElement;
+      if (root) this._observer.observe(root, { childList: true, subtree: true });
+      this._root = document.documentElement;
+    },
+    start() {
+      this.arm();
       if (document.readyState !== "loading") this.tryInject();
       BxLogger.info("PreviewSettingsEntry", "observer arme (resilient SPA)", document.readyState);
     }
@@ -237,6 +250,20 @@ if (BX_PREVIEW) {
       if (!_hasCss) {
         try { addCss(); BxLogger.info("BX_PREVIEW", "CSS re-injecte (document remplace par le shell)"); } catch (e2) { /* non bloquant */ }
       }
+      /* 3. T4 : le shell remplace le document → l'observer du bouton observe
+            l'ancien body (mort) et le FAB/header est détaché. Re-armer sur le
+            document courant et ré-injecter le bouton s'il a disparu (reproduit
+            19 août en WebView : document.open → bouton mort, jamais revenu). */
+      try {
+        if (PreviewSettingsEntry._root && PreviewSettingsEntry._root !== document.documentElement) {
+          PreviewSettingsEntry._root = document.documentElement;
+          PreviewSettingsEntry.arm();
+          BxLogger.info("PreviewSettingsEntry", "document remplace — observer re-arme");
+        }
+        if (!PreviewSettingsEntry._injected || (PreviewSettingsEntry._wrapper && !PreviewSettingsEntry._wrapper.isConnected)) {
+          PreviewSettingsEntry.tryInject();
+        }
+      } catch (e3) { /* non bloquant */ }
     } catch (e) { /* non bloquant */ }
   }, 2000);
 }
