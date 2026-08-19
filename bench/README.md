@@ -476,6 +476,25 @@ réorganisation n'a rien cassé.
 | Profil startup | `getSupportedCodecProfiles` 19,1 ms (75,7 %) | plat (71,9 % natif/GC) | one-shot différé intact ✅ |
 | cold-getcap | 553,6 ms (one-shot) | eval 33,7 ms (Δ −94,0 %) | one-shot stable, 2e appel 0,1 ms ✅ |
 
+### Re-baseline du 19 août ~15:30 (post-release v1.12.0 + feature région) — mêmes bornes ✅
+
+`run-all.sh` complet (parse + hot loops + éval page + profil startup +
+cold-getcap), build stable **v1.12.0** (489 673 o, feature « ⚡ Appliquer la
+meilleure région » incluse) vs perf10 (055d3a0). Verdict : **PASS 6/6** —
+aucune régression. Publication v1.12.0 + preview1 validée juste avant
+(garde-fou 10/10, 4/4 liens byte-identiques).
+
+| Harnais | perf10 | build | Verdict CI |
+|---|---|---|---|
+| Parse/compile | 0,123 ms | 0,128 ms | négligeable (sub-ms bruité, +3,8 %) |
+| Hot loop controller IDLE | 312,2 ns | 38,1 ns | ×8,19 [≥ 4] ✅ |
+| poll_gamepad relâchement Home | 1 405,7 ns | 162,8 ns | ×8,63 [≥ 4] ✅ |
+| updateCanvas (chemin 60 Hz) | 272,9 ns | 13,1 ns | ×20,8 [≥ 12] ✅ + flag dirty (4 vs 860 004 uniform1f) |
+| updateFrame | 176,2 ns | 150,9 ns | stable [0,5–2] ✅ |
+| Éval page | 24,3 ms méd | 21,4 ms méd | build ≤ 50 ms ✅ · écart médiane −11,9 % |
+| Éval page à froid (5 runs) | 574,9 ms | 25,6 ms (23,9–32,1) | build ≤ 50 ms ✅ · Δ −95,5 % |
+| cold-getcap | 528,2 ms (one-shot) | eval 25,6 ms | one-shot stable, 2e appel 0,1 ms ✅ |
+
 ## Profil CPU du startup (fonction-par-fonction)
 
 `startup-profile.js` échantillonne le **eval document-start** (même protocole que
@@ -703,6 +722,7 @@ absolue mais la comparaison relative entre les deux builds.
 | CI 16 août (PR #7) | 650,5 (604,0–838,7) | 36,6 (27,9–54,5) | −94,4 % | haut | ✅ |
 | CI 16 août (dispatch validation) | 609,9 (553,1–824,5) | 29,3 (22,8–41,3) | −95,2 % | bas | ✅ |
 | CI 16 août (dispatch, après merge) | 576,0 (528,9–639,0) | 27,1 (22,8–34,8) | −95,3 % | bas | ✅ |
+| 19 août (v1.12.0, re-baseline) | 574,9 (520,8–613,1) | 25,6 (23,9–32,1) | −95,5 % | bas | ✅ |
 
 La série perf11 (re-mesurée sur le build v1.6.0 officiel) visait le **runtime**
 (hot loops, GPU, caches), pas le chargement — confirmé v1.6.0 : coût de démarrage identique.

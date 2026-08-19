@@ -9,8 +9,52 @@ Mémoire de travail des sessions. Détails dans `bench/preview/port/session.md`
 L'utilisateur demande une mise à jour de ce fichier **au moins toutes les
 ~2 h de travail cumulé** (et à chaque fin de session), sans attendre d'être
 relancé : après ~2 h d'actions, journaliser l'état (fichiers touchés,
-verdicts, pièges nouveaux, en attente). Dernière passe : **19 août ~15:05 —
-Fix « quitter ça revient » (BACK Android) + harnais stream-instrument**.
+verdicts, pièges nouveaux, en attente). Dernière passe : **19 août ~15:45 —
+Publication v1.12.0 + preview1 + re-baseline (session autonome, utilisateur
+absent)**.
+
+## Session autonome 19 août ~15:15-15:45 — publication v1.12.0 + gap régions + re-baseline
+
+Pendant l'absence utilisateur (double-BACK validé en réel : « ça quitte ») :
+
+**1. Publication v1.12.0 + preview1 (garde-fou 10/10 vert) :**
+- `evenbetter-xcloud-v1.12.0` (Latest) : better-xcloud.user.js (**ES2017**,
+  politique v1.8.0) + meta + evenbetter-xcloud-1.12.0.apk + nom stable
+  evenbetter-xcloud.apk (byte-identique, vérifié).
+- `evenbetter-xcloud-v1.12.0-preview1` (pre) : preview user/meta + APK,
+  pinné sur son tag.
+- **Piège attrapé avant publication** : PREVIEW_VERSION de build-preview.js
+  était resté **1.11.0-preview2** (bump manuel du bundle à 1.12.0-preview1
+  sans rebuild via le pipeline) → le @updateURL pinné sur l'ANCIEN tag =
+  auto-update preview cassé. Rebuild build-preview.js (commit f39aeb2) +
+  es2017 preview + APKs reconstruits. ⚠ **Toujours rebuilder le preview via
+  build-preview.js après un bump — jamais bumper le bundle à la main**.
+- Rétention auto (workflow release-prune) : v1.11.0 + v1.11.0-preview2
+  purgées, 1.8.0-preview4 conservée (cran de secours).
+
+**2. Gap régions preview — cause racine identifiée (analyse statique) :**
+- Le code du bundle EXISTE déjà et est correct : XcloudInterceptor
+  .handleLogin traite `POST /v2/login/user` (gsToken + offeringSettings
+  .regions → STATES.serverRegions + STATES.gsToken + selectedRegion), le
+  routeur matche l'URL du preview (vérifié).
+- **La vraie cause** : le client HTTP du SDK preview (classe `ub`,
+  entry.client) capture `fetch` par DÉFAUT DE PARAMÈTRE (`i=fetch`) au
+  moment du **new** (vérifié : un hook posé avant l'instanciation EST
+  capturé). Sur l'APK (evaluateJavascript d'onPageStarted), l'injection
+  arrive APRÈS les modules ESM → le SDK a déjà mémorisé le fetch natif →
+  notre hook ne voit JAMAIS le login → régions vides. En Tampermonkey
+  document-start, le hook précéderait le new → régions peuplées (à valider
+  en réel). Le keepalive (60 s) passe par window.fetch (prouvé téléphone).
+- Pistes : injection APK vraiment document-start (non trivial en WebView),
+  login auto avec le token MSAL du preview (getAuthorizationHeader —
+  Bearer, pas dans le corps contrairement au stable), ou intercepteur CDP
+  (outillage, pas userscript). Détail : e2e-cdp.md « Gap régions preview ».
+
+**3. Re-baseline v1.12.0 (run-all.sh complet) : PASS 6/6** — parse 0,123→
+0,128 ms, IDLE ×8,19, Home ×8,63, updateCanvas ×20,8, updateFrame stable,
+éval page −11,9 %, **cold eval 574,9→25,6 ms (−95,5 %)**, cold-getcap 528 ms
+one-shot. Ligne ajoutée à la table Sessions startup (19 août v1.12.0). Les
+bornes CI tiennent — rien à corriger.
 
 ## Fix « Quitter ça revient » — BACK Android (19 août ~15:00, APK vc 8)
 

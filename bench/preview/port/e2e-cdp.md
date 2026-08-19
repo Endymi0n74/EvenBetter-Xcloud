@@ -234,7 +234,54 @@ node bench/preview/play-chain.js --soft   # ou --dir=<capture>
   résultat `hookActif` change la lecture des critères C1/C2. En mode strict,
   navigateur injoignable, hookActif:false ou Playwright absent → GATE C ROUGE
   (utile en session réelle quand on exige la preview T6 active avant un run).
-  En CI (step preview de bench.yml), le probe est ignoré (`--skip-probe` —
+## Gap régions preview — analyse du 19 août (v1.12.0-preview1)
+
+Le test latence / « Appliquer la meilleure région » (v1.10/v1.12) affiche
+« Aucune région disponible » sur play.xbox.com alors qu'il fonctionne sur le
+stable (probe 15/15). `STATES.serverRegions` reste vide.
+
+**Ce qui EXISTE déjà dans le bundle (vérifié statiquement) :**
+- `XcloudInterceptor.handleLogin` (groupe du routeur BX_FETCH) traite la
+  réponse `POST /v2/login/user` : lit `obj.gsToken` →
+  `RemotePlayManager.setXcloudToken`, puis `obj.offeringSettings.regions`
+  (serverOrder + SERVER_EXTRA_INFO) → peuple `STATES.serverRegions` +
+  `STATES.selectedRegion` + `STATES.gsToken`. Le code du stable peuple donc
+  DÉJÀ les régions si la requête passe par notre hook.
+- Le routeur matche bien l'URL du preview :
+  `url.endsWith("/v2/login/user")` → handleLogin — vérifié sur
+  `https://cloudgaming.gssv-play-prod.xboxlive.com/v2/login/user`.
+
+**La vraie cause (découverte 19 août) — le SDK capture fetch à
+l'instanciation, PAS au premier appel :**
+- Le client HTTP du SDK preview (`entry.client-h6o444u3.js`, classe `ub`,
+  minifiée) a un constructeur `(e,t,n,r,i=fetch)` : le défaut `i=fetch`
+  est évalué au moment du `new` (vérifié : un hook window.fetch posé
+  avant l'instanciation EST capturé). Le keepalive (60 s) passe bien par
+  `window.fetch` (vu sur le téléphone : fetch=3 dont keepalive=3) → le
+  SDK utilise window.fetch pour le protocole.
+- **Contradiction résolue par le timing** : le `login/user` part au TOUT
+  DÉBUT du lancement (avant le stream), le keepalive après. Sur l'APK
+  (injection `evaluateJavascript` dans `onPageStarted` de MainActivity),
+  l'injection arrive APRÈS l'évaluation des modules ESM → le `new ub()`
+  du SDK a déjà mémorisé le fetch NATIF → notre hook ne voit JAMAIS le
+  login → `STATES.serverRegions` vide. En Tampermonkey document-start
+  (navigateur desktop), l'injection précède les modules → le hook serait
+  capturé et les régions se peupleraient (à valider en réel).
+- **Pistes de fix** (à tester en session réelle, pas validables sans
+  compte connecté) : (a) rendre l'injection APK vraiment document-start
+  (WebView.setWebContentsDebuggingEnabled + addJavascriptInterface ne le
+  permettent pas directement — `evaluateJavascript` est post-modules) ;
+  (b) sur preview, déclencher nous-mêmes le login/user avec le token du
+  preview (header Authorization Bearer MSAL — `getAuthorizationHeader()`
+  du client) si on arrive à lire le token ; (c) intercepteur CDP
+  Fetch.fulfillRequest sur la réponse login/user (outillage bench, pas
+  userscript).
+- **Localisation du login preview** : intercepteur `RQe` d'entry.client
+  (priority 0) matche `/v2/login/user` + `/v2/login/user/delegated`, ajoute
+  `Authorization` via `user.getAuthorizationHeader()` (MSAL, pas de token
+  dans le corps contrairement au stable). Auth XDS/MSAL en mémoire +
+  sessionStorage — le preview ne stocke presque rien en localStorage
+  (seule clé littérale : `query-tracker:isEnabled`).
   pas de navigateur CDP sur le runner) :
 
   - `hookActif: false` → le run CDP voit le play **original**
