@@ -8,10 +8,10 @@
 // @match        https://play.xbox.com/*
 // @run-at       document-start
 // @grant        none
-// @updateURL    https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.13.0-preview1/better-xcloud-preview.meta.js
-// @downloadURL  https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.13.0-preview1/better-xcloud-preview.user.js
+// @updateURL    https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.13.1-preview1/better-xcloud-preview.meta.js
+// @downloadURL  https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.13.1-preview1/better-xcloud-preview.user.js
 // ==/UserScript==
-/* OPTIMISATIONS v1.13.1-preview1 — VARIANTE PREVIEW (play.xbox.com uniquement) :
+/* OPTIMISATIONS 1.13.1-preview1 — VARIANTE PREVIEW (play.xbox.com uniquement) :
    Identite distincte du stable (name/version/updateURL) — les deux versions
    cohabitent sans se confondre. Overlay T1-T4 (detection BX_PREVIEW, garde
    du Patcher site, entree settings) + T5 (keep-alive idle P1).
