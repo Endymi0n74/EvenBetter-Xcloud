@@ -95,6 +95,19 @@ l'optional chaining du bundle moderne → l'APK moderne plantait (scénario
 - **À tester en réel sur la box** (non disponible ici) : stream xCloud sur
   le vrai AOSP WebView — si écran noir, `adb logcat -s EvenBetterXcloud`.
 
+## Validation téléphone preview v1.12.0-preview1 (19 août ~14:30) — FAB ✓, bouton région présent, GAP régions preview
+
+`bump --build-apk` (vc 7→8) → APK preview `evenbetter-xcloud-1.12.0-preview1.apk` installé sur le téléphone (update in place, session conservée) → stream Beast of Reincarnation lancé en réel (tap CDP → dialog « Préparons-nous » → « Se connecter ultérieurement » → `play.xbox.com/stream/9NXWSWBM4H6T`).
+
+**Validé en stream (CDP via adb forward) :**
+- FAB visible en stream (badge « 🇬🇧 UKS »), tap réel → dialog settings complet.
+- « ⚡ Appliquer la meilleure région » présent (disabled + « Lancez d'abord… ») + « 📡 Tester la latence des serveurs » + BX_REGION_APPLY/BX_LATENCY_TEST injectés (object).
+- Pièges CDP WebView : un `element.click()` JS ne suffit PAS (le FAB/cartes écoutent les événements pointer réels) — utiliser `Input.dispatchMouseEvent`/`Input.dispatchTouchEvent`. Piège package preview : l'activity est `com.bxperf.preview/com.bxperf.app.MainActivity` (classe Java toujours com.bxperf.app).
+
+**GAP RÉEL découvert (preview)** : `STATES.serverRegions` reste VIDE sur play.xbox.com (le test latence affiche « Aucune région disponible ») alors que le client stable les charge. Cause : le protocole gssv du preview (login/user → offeringSettings.regions) s'exécute dans le **service worker** (entry.worker.js) — notre hook fetch page (XcloudInterceptor.handleLogin, qui peuple DÉJÀ serverRegions+selectedRegion depuis `/v2/login/user`) ne voit jamais ces appels. De plus `GSSV_TOKEN` est lu de `xboxcom_xbl_user_info` (localStorage du client STABLE) — clé absente sur play.xbox.com → même le bootstrap xhome du script échoue (« Could not get GSSV_TOKEN »). Le compte est pourtant connecté (XUID/msal présents, stream tourne). Les régions du client preview ne sont pas non plus accessibles depuis la page (état React, rien dans globals/localStorage).
+- **Impact** : la feature 📡/⚡ région (v1.10/v1.12) est fonctionnelle sur le STABLE (probe 15/15 sur www.xbox.com), mais inopérante sur le preview tant que les régions ne sont pas pontées. Fix possible : (a) pont SW → page des régions, (b) source token gssv alternative pour le bootstrap xhome du script, (c) hook réponse du login/user côté SW. À décider — c'est un vrai manque à combler pour que le bouton soit utilisable sur play.xbox.com.
+- Preuve : `mobile/validation-phone-v1120p1-region-btn.png` (dialog ouvert sur téléphone avec le bouton).
+
 ## Réorganisation du workspace (19 août ~11:30) — tout sous EvenBetterXcloud
 
 Plus rien de nos outils à la racine `D:\Codex` ni à `D:\edge-profiles` :
