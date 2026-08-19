@@ -56,6 +56,30 @@ amont `redphx/better-xcloud` (branche `typescript`, baseline 6.7.12) via des
 collect — mesuré ~7 % réaliste, négatif à 500 entrées), portage preview
 (T1-T9, P2/P3 — client Microsoft, pas le repo redphx).
 
+## Chevauchements inter-PR (audit 19 août — conflits si le mainteneur merge plusieurs PR)
+
+Vérifié via l'API GitHub (fichiers + hunks `@@` par PR) :
+
+- ✅ **`xcloud-interceptor.ts` : AUCUNE des 15 PR ne le touche** — le fichier
+  du futur portage preview est libre de tout conflit.
+- ⚠️ **`webgl2-player.ts` ×3 (#995 updateCanvas / #996 texStorage / #997
+  viewport)** : #995 et #997 modifient TOUS DEUX la ligne 2 (import) → conflit
+  probable si l'un est mergé avant l'autre ; #995 (@32-39) et #996 (@34-37)
+  ont des contextes qui se chevauchent → **rebase nécessaire dès le 2e merge**
+  du trio.
+- ⚠️ **`controller-customization.ts` ×2 (#999 skip idle / #1001 share-delete)** :
+  #999 réécrit les lignes 15-164, #1001 touche 75-84 (DANS la zone) →
+  **conflit certain au 2e merge**.
+- ✅ `poll-gamepad.ts` (#1000 @57 / #1005 @21), `translation.ts` (#1004 @547 /
+  #1006 @98 / #1007 @170), `settings-dialog.ts` (#1006 @223 / #1007 @205) :
+  zones disjointes → merges séquentiels OK (risque faible sur les imports de
+  settings-dialog, #1006 @16 vs #1007 @13).
+- **Ordre de merge recommandé si le mainteneur en prend plusieurs** :
+  `controller-customization` d'abord (#999 puis #1001, ou rebase du second),
+  `webgl2-player` un seul à la fois (#995 → rebase #996/#997, ou inversement
+  avec rebases) ; les autres groupes sont indépendants. À mentionner dans le
+  rappel du 24 août si un merge arrive.
+
 ## États des PR (suivi)
 
 | PR | Sujet | État au 17 août 22:30 | CI amont |
