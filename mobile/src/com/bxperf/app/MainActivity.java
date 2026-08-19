@@ -331,6 +331,8 @@ public class MainActivity extends Activity {
         if (keyCode == KeyEvent.KEYCODE_BACK) {
             String url = webView != null ? webView.getUrl() : null;
             boolean inStream = url != null && url.contains("/stream/");
+            Log.d("EvenBetterXcloud", "BACK: url=" + url + " inStream=" + inStream
+                + " canGoBack=" + (webView != null && webView.canGoBack()));
             if (!inStream) {
                 // Home / produits / login : ne JAMAIS goBack() (l'historique SPA
                 // re-rentre dans le stream). Double-BACK = quitter l'appli.
@@ -343,10 +345,13 @@ public class MainActivity extends Activity {
                 }
                 return true;
             }
-            if (webView != null && webView.canGoBack()) {
-                webView.goBack();
-                return true;
-            }
+            // En stream : BACK = quitter le stream (naviguer vers la home —
+            // le client termine la session à la navigation, comme le bouton
+            // Quitter de la game bar). PAS de goBack() : l'historique SPA
+            // (7+ entrées) ne sort pas du stream proprement (« ko en stream »
+            // constaté 19 août) et peut re-rentrer dans le stream.
+            webView.loadUrl(START_URL);
+            return true;
         }
         // Télécommande Android TV (Freebox Pop) : traduire le D-pad en
         // événements clavier pour la page web (le client xCloud écoute
