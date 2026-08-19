@@ -9,7 +9,9 @@ Mémoire de travail des sessions. Détails dans `bench/preview/port/session.md`
 L'utilisateur demande une mise à jour de ce fichier **au moins toutes les
 ~2 h de travail cumulé** (et à chaque fin de session), sans attendre d'être
 relancé : après ~2 h d'actions, journaliser l'état (fichiers touchés,
-verdicts, pièges nouveaux, en attente). Dernière passe : 19 août ~14:30 (v1.11.0-preview2, gate CI PR #17, re-baseline bench, 15 PR upstream).
+verdicts, pièges nouveaux, en attente). Dernière passe : 19 août ~16:00
+(15 PR ouvertes #1006/#1007, garde-fou 4/4 vert, audit MEMORY, décision
+preview non-proposable + brouillon de commentaire).
 
 ## Réorganisation du workspace (19 août ~11:30) — tout sous EvenBetterXcloud
 
@@ -896,6 +898,23 @@ tag dédié v1.10.0-preview1.
     mainteneur = semaines/mois, #468 attend depuis juillet 2024), un seul
     commentaire sur #993 référençant les 15. Programme détaillé dans
     `upstream-prs/README.md` (source de vérité).
+- **Décision (19 août ~15:00) — le preview n'est PAS proposable en PR
+  upstream, vérifié dans le source amont** : le preview (play.xbox.com) est
+  le NOUVEAU client Microsoft — bundle minifié, sans repo source public, et
+  le repo redphx ne contient que le client stable. Surtout : **P2 et P1
+  existent déjà côté stable amont** — `xcloud-interceptor.ts` L218-251
+  (enableVibration/mkb/mic/touch dans clientStreamingConfigOverrides =
+  notre P2, c'en est la source) et `remote-play-keep-alive.ts`
+  (WarningForBeingIdle → sendKeepAlive = notre P1). Notre travail preview
+  est une RE-dérivation pour le nouveau client, pas une évolution du
+  script stable → rien de nouveau à proposer. Le preview reste la valeur
+  ajoutée du fork (contrat « Deux versions »).
+- **Commentaire d'information rédigé (19 août ~15:30)** :
+  `upstream-prs/comment-preview-port.md` — explique au mainteneur qu'on a
+  un portage complet de play.xbox.com (FAB + game bar, résilience document,
+  keep-alive idle, overrides /configuration, auto-spoof UA) dispo sur
+  demande. **Brouillon NON posté** (prudence : ne pas pinger avant le 24
+  août — le rappel groupé pourra l'intégrer).
 13. ✅ **Fait (18 août ~00:10 puis ~08:30) — APK Android du build stable** :
     wrapper WebView `mobile/better-xcloud-perf-1.8.0.apk` (~144 Ko, package
     `com.bxperf.app`, signé keystore local, minSdk 24/target 34). Injecte le
