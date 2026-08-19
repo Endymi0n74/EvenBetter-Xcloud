@@ -48,6 +48,19 @@ jobs:
         # la fusion casse. Lancement local : node bench/pr-comment-merge.test.js
         run: node bench/pr-comment-merge.test.js
 
+      - name: Gate — README toujours à jour (versions courantes)
+        # Règle utilisateur (20 août) : « le README doit toujours être à
+        # jour ». Lit VERSION + PREVIEW_VERSION (source de vérité du bump) et
+        # vérifie que les READMEs front citent les versions courantes
+        # (titre, table Deux versions, tags d'auto-update, APK mobile) et
+        # qu'aucun README ne référence une release ou un APK périmé (la
+        # rétention purge les anciennes releases → lien 404 sur
+        # l'auto-update). Échoue le job si un bump oublie la passe README.
+        # Lancement local : node bench/readme-version.test.js [--self-test]
+        run: |
+          node bench/readme-version.test.js
+          node bench/readme-version.test.js --self-test
+
       - name: Build preview — contrat deux versions (stable et preview distincts)
         # Garantit la séparation des deux builds : rebuild du preview depuis
         # le stable (better-xcloud.user.js → better-xcloud-preview.user.js),

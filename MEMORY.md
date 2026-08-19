@@ -61,6 +61,22 @@ encodée :
 - **Au même rythme que le commit du bump** : jamais de commit bump sans la
   passe README qui suit (ou précède) dans le même lot.
 
+## Gate CI « README toujours à jour » — readme-version.test.js (20 août)
+
+Règle utilisateur : « le README doit toujours être à jour » → automatisée :
+`bench/readme-version.test.js` (step hotloops-ratios de bench.yml, lancé avec
+son `--self-test`) lit `VERSION` + `PREVIEW_VERSION` (source de vérité) et :
+1. ancres courantes dans README.md/README.en.md/mobile/README.md (titre,
+   table Deux versions, tag preview, lien release, APK versionnés) ;
+2. aucun lien `releases/download/evenbetter-xcloud-v<tag>` ni APK versionné
+   périmé dans AUCUN README (journaux compris) — la rétention purge les
+   anciennes releases → 404 auto-update. Mentions historiques en prose
+   tolérées (regex ciblées : tags `evenbetter-xcloud-vX.Y.Z[-previewN]` et
+   APK `evenbetter-xcloud-<semver>.apk` uniquement — `1.9.0-test.apk`
+   historique n'est pas flagué).
+Self-test : copie corrompue → 23 défaillances attendues, exit 1. Un bump qui
+oublie la passe README casse le CI immédiatement.
+
 ## Routine de purge des listeners de diagnostic — BX_PURGE_DIAG (19-20 août)
 
 **Problème** : pendant une session CDP on attache des listeners de diagnostic

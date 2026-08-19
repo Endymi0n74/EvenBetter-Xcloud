@@ -145,6 +145,28 @@ handler `error` de window) ; après purge du ScriptCache MV3 + relance
 Edge, la page chargée avant l'extension n'a pas le bundle → un reload
 suffit.
 
+## Gate « README toujours à jour » — readme-version.test.js (20 août)
+
+Règle utilisateur : « le README doit toujours être à jour » — le gate CI
+`bench/readme-version.test.js` (step hotloops-ratios de bench.yml) lit
+`VERSION` + `PREVIEW_VERSION` (source de vérité du bump) et vérifie :
+
+1. **Ancres courantes** (READMEs front : README.md, README.en.md,
+   mobile/README.md) — titre `# EvenBetterXcloud — v<VERSION>`, ligne
+   `Version` de la table « Deux versions », tag d'auto-update du preview,
+   lien release courante, APK `evenbetter-xcloud-<VERSION>.apk` /
+   `-<PREVIEW>.apk`.
+2. **Aucune référence périmée** (TOUS les READMEs, journaux compris) — un
+   lien `releases/download/evenbetter-xcloud-v<tag>` ou un APK versionné
+   dont le tag/version n'est ni VERSION ni PREVIEW_VERSION → GATE ROUGE
+   (la rétention purge les anciennes releases → 404 auto-update). Les
+   mentions historiques en prose (ex. « Nouveauté v1.13.0 ») sont tolérées.
+
+`--self-test` : copie corrompue (titre + tag + APK périmés) → le gate doit
+sortir ROUGE (23 défaillances attendues). Le CI lance le gate + son
+self-test à chaque push/PR — un bump qui oublie la passe README casse le
+job immédiatement.
+
 ## Rebrand EvenBetterXcloud + feature Sound (v1.9.0, 18 août)
 
 Le fork est **renommé EvenBetterXcloud** (repo `Endymi0n74/EvenBetter-Xcloud`)
