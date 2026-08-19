@@ -46,6 +46,44 @@ Dernière passe : **19 août ~23:30 — PREVIEW_VERSION branché sur le bump
 (source de vérité unique, GATE si absent) + ordre es2017 preview corrigé**
 (commit en cours).
 
+## Routine de purge des listeners de diagnostic — BX_PURGE_DIAG (19-20 août)
+
+**Problème** : pendant une session CDP on attache des listeners de diagnostic
+sur `window` (ex. `win-capture` pour observer les clics). Un listener oublié
+dont la fermeture référence une variable morte (ex. `log.push(...)` avec
+`log` non défini) THROWA à chaque clic (erreur propagée au handler `error`
+de window — les exceptions des listeners ne remontent PAS au dispatcher,
+piège de mesure) et pollue la console. Les listeners ne survivent pas au
+reload, mais une session longue en accumule.
+
+**Routine injectée au démarrage** (`bench/feature-diag-purge.js`, injectée à
+l'ancre BX_EXPOSED comme les autres features) :
+- hook `window.addEventListener`/`removeEventListener` UNIQUEMENT (pas
+  EventTarget.prototype — coût ~0 hors window) ;
+- enregistre tout listener dont la SOURCE contient le marqueur `win-capture`
+  (convention des probes) ;
+- `window.BX_PURGE_DIAG()` retire tous les marqués (les autres ne sont
+  jamais touchés), appelé une fois au démarrage + exposé pour les probes.
+- Gate CI `bench/feature-diag-purge.test.js` (présence stable+preview,
+  ancres ×1, **test fonctionnel vm** : 3 listeners attachés dont 2 marqués →
+  purge retire exactement 2, le normal reste, idempotent) + self-test
+  chemin d'échec. Branché au step preview de bench.yml.
+
+**Validation réelle 100 %** (edge-cdp + extension v1.3.3, bundle avec
+BX_PURGE_DIAG) : avant purge le listener cassé throw (err=1 au handler
+error), le normal tourne ; purge retire les 2 marqués ; après : 0 erreur,
+normal conservé, purge idempotente. **Piège Edge revécu** : après purge du
+ScriptCache + relance, la page chargée avant l'extension n'a PAS le bundle
+(BX_EXPOSED false) — un `Page.reload` règle (l'extension est prête au
+second chargement).
+
+**Piège strip corrigé — feature-sound.test.js** : l'injection de la purge
+(dernière feature à l'ancre) a cassé le strip de sound (`ANCHOR_BX + IMPL`
+exact — la purge est passée DEVANT). Fix : strip par PLAGE
+[ancre … fin d'IMPL] comme feature-datasaver.test.js (robuste à l'ajout de
+nouvelles features). Appliqué aussi à feature-diag-purge.test.js par
+précaution.
+
 ## Fix piège PREVIEW_VERSION — source de vérité unique (19 août ~23:30)
 
 **Problème** (piège f39aeb2 revécu le 19 août) : `build-preview.js`

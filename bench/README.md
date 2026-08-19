@@ -95,6 +95,52 @@ Nouvelle feature utilisateur via le pattern `feature-latency.js` :
   l'extension d'injection lit `stable.js` au démarrage d'Edge (relancer
   Edge après un rebuild).
 
+## Feature « 🔊 Son » — presets de volume (v1.13.0, 18 août)
+
+Quatre presets en un clic dans le groupe « Audio » de l'onglet **stream**
+(sous le slider natif `audio.volume`) : 🔇 Muet (0) / 🔉 Doux (50) /
+🔊 Normal (100 + booster off) / 📢 Boost (200 + booster on). Mécanique :
+`setStreamPref("audio.volume", v, "ui")` (pref STREAM) +
+`setGlobalPref("audio.volume.booster.enabled", …)` (pref GLOBALE) — le 3e
+argument `"ui"` émet `setting.changed` → le slider natif se sync et les
+onChange s'appliquent (`SoundShortcut.setGainNodeVolume` en session).
+
+- Injection : `node bench/feature-sound.js <bundle.js> [--dry-run]
+  [--self-test]` — gates (GATE ROUGE si une ancre dérive) + idempotence +
+  self-test sur copie corrompue. Gate CI : `bench/feature-sound.test.js`.
+- Probe réelle : `node bench/feature-sound-probe.js [--port=9225]` — ouvre
+  les settings, bascule l'onglet stream, vérifie le rendu des 4 presets puis
+  joue le **cycle complet** avec vérification prefs + statut live à chaque
+  étape.
+- **Diagnostic 18 août (fausse alarme « clics morts »)** : un premier run de
+  probe rapportait des clics sans effet. Cause réelle : les prefs
+  **persistent** entre les runs (localStorage) — la probe cliquait « 🔉 Doux »
+  alors qu'il était **déjà actif** (vol=50 posé par un run précédent) → no-op
+  attendu, pas un bug. Pièges connexes : (1) `saveSettings` est débouncée
+  ~100 ms → lire les prefs juste après le clic peut voir l'ancienne valeur ;
+  (2) les labels contiennent emojis + parenthèses (« 🔊 Normal (défaut) ») →
+  le matching par **regex construite** est fragile, `textContent.includes`
+  est sûr. La probe blindée : bascule **forcée** vers un autre preset si la
+  cible est déjà active (le clic testé est toujours une vraie transition),
+  **poll** des prefs jusqu'au flush du debounce (pas de sleep fixe), matching
+  par `includes`. Validé en réel le 18 août : cycle complet 4 presets OK dans
+  les deux cas de départ (état Normal et état Boost déjà actif).
+
+## Routine de purge des listeners de diagnostic — BX_PURGE_DIAG (19-20 août)
+
+Pendant une session CDP on attache des listeners de diagnostic sur `window`
+(convention : le marqueur `win-capture` dans la source). Un listener oublié à
+fermeture cassée peut THROWER à chaque clic. La routine injectée au démarrage
+(`bench/feature-diag-purge.js`, ancre BX_EXPOSED) hook `window.
+addEventListener`/`removeEventListener`, enregistre les listeners marqués et
+expose `window.BX_PURGE_DIAG()` (retire uniquement ceux-là, appelé au
+démarrage + utilisable en fin de probe). Gate CI `bench/feature-diag-purge.
+test.js` : présence stable+preview, ancres, **test fonctionnel vm** (2 marqués
+purges, normal conservé) + self-test. Pièges documentés : les exceptions des
+listeners ne remontent PAS au dispatcher (compter via le handler `error` de
+window) ; après purge du ScriptCache MV3 + relance d'Edge, la page chargée
+avant l'extension n'a pas le bundle → un reload suffit.
+
 ## Rebrand EvenBetterXcloud + feature Sound (v1.9.0, 18 août)
 
 Le fork est **renommé EvenBetterXcloud** (repo `Endymi0n74/EvenBetter-Xcloud`)

@@ -77,7 +77,17 @@ function runChecks(stableSrc, previewSrc) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "bx-sound-"));
   const strippedPath = path.join(dir, "bundle-stripped.user.js");
   let stripped = stableSrc;
-  if (count(stripped, ANCHOR_BX + IMPL) === 1) stripped = stripped.replace(ANCHOR_BX + IMPL, ANCHOR_BX);
+  // L'ancre BX_EXPOSED est partagée par TOUTES les features (latence v1.10,
+  // data v1.11, région v1.12, son v1.13, purge BX_PURGE_DIAG…) : l'IMPL du
+  // son n'est plus forcément ADJACENT à l'ancre (les features plus récentes
+  // passent devant). On retire la plage [ANCHOR_BX … fin de IMPL_SOUND] au
+  // lieu d'une concaténation exacte — robuste à l'ajout de nouvelles
+  // features (même fix que feature-datasaver.test.js).
+  const bxIdx = stripped.indexOf(ANCHOR_BX);
+  const sndIdx = bxIdx >= 0 ? stripped.indexOf(IMPL, bxIdx) : -1;
+  if (bxIdx >= 0 && sndIdx >= 0) {
+    stripped = stripped.slice(0, bxIdx + ANCHOR_BX.length) + stripped.slice(sndIdx + IMPL.length);
+  }
   if (count(stripped, ITEM_SOUND) === 1) stripped = stripped.replace(ITEM_SOUND, ANCHOR_TAIL);
   fs.writeFileSync(strippedPath, stripped);
 
