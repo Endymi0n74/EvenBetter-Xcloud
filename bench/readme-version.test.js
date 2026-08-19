@@ -190,6 +190,11 @@ function runChecks(files) {
     check("build.sh : APK preview dérivé de ${PREVIEW_VERSION}",
       buildSh.includes('APK_NAME="evenbetter-xcloud-${PREVIEW_VERSION}.apk"'),
       "le suffixe -previewN doit venir de PREVIEW_VERSION, jamais hardcodé");
+    check("build.sh : versionName stable dérivé de VERSION",
+      buildSh.includes('VERSION_NAME="$VERSION"'));
+    check("build.sh : versionName preview dérivé de PREVIEW_VERSION",
+      buildSh.includes('VERSION_NAME="$PREVIEW_VERSION"'),
+      "l'APK preview doit annoncer 1.13.1-preview1, pas la version stable");
   }
   const outDir = path.join(ROOT, "mobile", "out");
   let foundApk = false;
@@ -247,7 +252,9 @@ function selfTest() {
     const src = fs.readFileSync(path.join(ROOT, "mobile", "build.sh"), "utf8");
     const bad = src
       .split('APK_NAME="evenbetter-xcloud-${VERSION}.apk"').join('APK_NAME="evenbetter-xcloud-9.9.9.apk"')
-      .split('APK_NAME="evenbetter-xcloud-${PREVIEW_VERSION}.apk"').join('APK_NAME="evenbetter-xcloud-9.9.8-preview1.apk"');
+      .split('APK_NAME="evenbetter-xcloud-${PREVIEW_VERSION}.apk"').join('APK_NAME="evenbetter-xcloud-9.9.8-preview1.apk"')
+      .split('VERSION_NAME="$VERSION"').join('VERSION_NAME="9.9.9"')
+      .split('VERSION_NAME="$PREVIEW_VERSION"').join('VERSION_NAME="9.9.8-preview1"');
     if (bad === src) {
       console.error("❌ SELF-TEST : impossible de corrompre mobile/build.sh (ancre absente ?)");
       process.exit(1);

@@ -178,10 +178,17 @@ build.sh) → le gate doit sortir ROUGE. Le CI lance le gate + son self-test
 à chaque push/PR — un bump qui oublie la passe README OU le rebuild casse
 le job immédiatement.
 
-**Fix collatéral (20 août)** : `mobile/build.sh` hardcodait
+**Fixes collatéraux (20 août)** : `mobile/build.sh` hardcodait
 `evenbetter-xcloud-${VERSION}-preview1.apk` — le suffixe `-previewN` vient
 maintenant de `PREVIEW_VERSION` (GATE ROUGE si le fichier est absent, message
-clair grâce à `|| true` sous `set -euo pipefail`).
+clair grâce à `|| true` sous `set -euo pipefail`). Idem `versionName` du
+manifest : le template est bumpé avec la version stable (bump-version.sh),
+le build force la version du variant (`VERSION_NAME`) pour que l'APK preview
+annonce `1.13.1-preview1` et non `1.13.1`. Validé en réel le 20 août :
+`evenbetter-xcloud-1.13.1.apk` (versionName 1.13.1, com.bxperf.app) et
+`evenbetter-xcloud-1.13.1-preview1.apk` (versionName 1.13.1-preview1,
+com.bxperf.preview) — piège `out/` qui se purge entre deux builds : sécuriser
+le 1er APK hors de `out/` avant le 2e build.
 
 ## Rebrand EvenBetterXcloud + feature Sound (v1.9.0, 18 août)
 

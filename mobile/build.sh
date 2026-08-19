@@ -34,12 +34,14 @@ if [ "$VARIANT" = "preview" ]; then
   PACKAGE="com.bxperf.preview"
   APP_LABEL="EvenBetterXcloud Preview"
   APK_NAME="evenbetter-xcloud-${PREVIEW_VERSION}.apk"
+  VERSION_NAME="$PREVIEW_VERSION"
 else
   START_URL="https://www.xbox.com/play"
   BUNDLE_SRC_DEFAULT="$ROOT/../better-xcloud.user.js"
   PACKAGE="com.bxperf.app"
   APP_LABEL="EvenBetterXcloud"
   APK_NAME="evenbetter-xcloud-${VERSION}.apk"
+  VERSION_NAME="$VERSION"
 fi
 
 # Asset : le build à jour (la racine du repo), jamais une copie périmée.
@@ -91,7 +93,12 @@ mkdir -p "$OUT" "$ROOT/gen"
 # START_URL/package/label sont injectés dans le manifest au moment du link :
 # on régénère un manifest avec la bonne valeur (le .xml source garde stable).
 MANIFEST="$OUT/AndroidManifest.xml"
-sed -e "s|@START_URL@|$START_URL|" -e "s|@PACKAGE@|$PACKAGE|" -e "s|@APP_LABEL@|$APP_LABEL|" "$ROOT/AndroidManifest.template.xml" > "$MANIFEST"
+# versionName par variant : le template est bumpé avec la version STABLE
+# (bump-version.sh) — le build force la version du variant pour que l'APK
+# preview annonce 1.13.1-preview1 et non 1.13.1 (identité Deux versions).
+sed -e "s|@START_URL@|$START_URL|" -e "s|@PACKAGE@|$PACKAGE|" -e "s|@APP_LABEL@|$APP_LABEL|" \
+    -e "s|android:versionName=\"[^\"]*\"|android:versionName=\"$VERSION_NAME\"|" \
+    "$ROOT/AndroidManifest.template.xml" > "$MANIFEST"
 
 # MainActivity lit START_URL depuis une constante statique : on génère une
 # petite classe de config à la compilation (mêmes règles que R.java).

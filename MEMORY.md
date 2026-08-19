@@ -84,10 +84,15 @@ sans rebuild » couvert (bump de fichier sans rebuild = ancienne version ET
 ancien pin → 404 auto-update) ; (2) `mobile/build.sh` dérive les noms d'APK
 de `${VERSION}` / `${PREVIEW_VERSION}` (APK de release présents dans
 `mobile/out/` vérifiés, artefacts intermédiaires base/app-unsigned/
-app-aligned ignorés). **Fix collatéral** : build.sh hardcodait
+app-aligned ignorés). **Fixes collatéraux** : build.sh hardcodait
 `evenbetter-xcloud-${VERSION}-preview1.apk` — le suffixe preview vient
 maintenant de PREVIEW_VERSION, avec GATE ROUGE si absent (piège `set -e` :
-`|| true` nécessaire pour que le message GATE s'affiche avant l'exit).
+`|| true` nécessaire pour que le message GATE s'affiche avant l'exit). Idem
+`versionName` : le template manifest est bumpé avec la version stable, le
+build force la version du variant (`VERSION_NAME`) → l'APK preview annonce
+`1.13.1-preview1`. Rebuilds validés le 20 août (stable + preview, noms ET
+versionName corrects) ; piège `out/` qui se purge entre deux builds →
+sécuriser le 1er APK hors de `out/` avant le 2e build.
 
 ## Routine de purge des listeners de diagnostic — BX_PURGE_DIAG (19-20 août)
 
