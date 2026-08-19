@@ -59,6 +59,14 @@ jobs:
         run: |
           node bench/preview/port/build-preview.js
           node bench/preview/port/keepalive-idle.test.js
+          # t10-auto-spoof : gate vm de l'auto-spoof UA (T10) — extraction du
+          # statement du build preview + pureté du stable (guard BX_PREVIEW)
+          # + comportement vm sur mock UserAgent (Firefox/Safari → spoof,
+          # Edge/Chrome/Crios → inchangé, profil explicite jamais écrasé).
+          # Échoue le job si la logique d'auto-spoof dérive. Self-test du
+          # chemin d'échec : node bench/preview/port/t10-auto-spoof.test.js
+          # --self-test
+          node bench/preview/port/t10-auto-spoof.test.js
           # p2-schema : alerte si une clé P2 dérive du schéma Zod réel (un
           # bundle StreamSessionConfiguration-*.js capturé doit être présent,
           # sinon le test passe en mode « schéma non vérifiable » — warn +
