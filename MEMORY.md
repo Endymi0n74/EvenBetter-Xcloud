@@ -9,9 +9,10 @@ Mémoire de travail des sessions. Détails dans `bench/preview/port/session.md`
 L'utilisateur demande une mise à jour de ce fichier **au moins toutes les
 ~2 h de travail cumulé** (et à chaque fin de session), sans attendre d'être
 relancé : après ~2 h d'actions, journaliser l'état (fichiers touchés,
-verdicts, pièges nouveaux, en attente). Dernière passe : 19 août ~16:00
-(15 PR ouvertes #1006/#1007, garde-fou 4/4 vert, audit MEMORY, décision
-preview non-proposable + brouillon de commentaire).
+verdicts, pièges nouveaux, en attente). Dernière passe : **19 août ~17:30 —
+FIN DE JOURNÉE** (politique « on propose, on ne rappelle pas », commentaire
+#993 posté, audit conflits inter-PR, docs README Deux versions, garde-fou
+4/4, CI vert).
 
 ## Réorganisation du workspace (19 août ~11:30) — tout sous EvenBetterXcloud
 
@@ -899,6 +900,16 @@ tag dédié v1.10.0-preview1.
     `upstream-prs/reminder.md` supprimé ; seule interaction restante :
     répondre si interrogé. Programme détaillé dans `upstream-prs/README.md`
     (source de vérité).
+- **Audit conflits inter-PR (19 août ~16:30)** : aucune des 15 PR ne touche
+  `xcloud-interceptor.ts` (futur portage preview) ✓ ; en revanche
+  webgl2-player.ts est partagé par #995/#996/#997 (import commun #995/#997
+  → conflit au 2e merge) et controller-customization.ts par #999/#1001
+  (#1001 dans la zone réécrite par #999) — ordre de merge recommandé
+  consigné dans upstream-prs/README.md.
+- **README « Deux versions » documenté (19 août ~17:00)** : section
+  « Pourquoi le preview ne fait pas partie des PR upstream » (FR + EN) —
+  client Microsoft fermé + P2/P1 déjà amont → le preview reste la valeur
+  du fork. Table/liens à jour (1.11.0-preview2).
 - **Décision (19 août ~15:00) — le preview n'est PAS proposable en PR
   upstream, vérifié dans le source amont** : le preview (play.xbox.com) est
   le NOUVEAU client Microsoft — bundle minifié, sans repo source public, et
