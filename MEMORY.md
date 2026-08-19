@@ -1,8 +1,53 @@
-# MEMORY — état courant du projet (19 août 2026)
+# MEMORY — état courant du projet (20 août 2026)
 
 Mémoire de travail des sessions. Détails dans `bench/preview/port/session.md`
 (étude protocole), `bench/preview/port/e2e-cdp.md` (protocole E2E + journal),
 `bench/preview/port/anchors.md`, `bench/preview/port/classify.md`.
+
+## Fix preview v1.13.1-preview2 — overlay en jeu (T11) + volume live (T12) + bug de tri prune (20 août)
+
+**Signal utilisateur** : « tout est ok sur la normal. sur la preview par contre la
+partie son ne fonctionne pas et l'overlay n'apparait pas en jeu. »
+
+**Diagnostic (reproduction en réel, session signée edge-cdp + stream)** :
+- **Overlay** : la game bar EXISTE en jeu (`GameBar.instance` présent,
+  `#bx-game-bar` — c'est un id, PAS une classe `.bx-game-bar` — mon premier
+  sélecteur ne matchait pas) mais son conteneur reste `bx-offscreen` (hidden).
+  **Cause racine** : le polling du client preview (`xCloudPollingMode: "all"`
+  en jeu, `"none"` sur le stable) appelle `disable()` sur la game bar.
+  `showBar()` manuel fonctionnait → T11 : neutraliser le disable preview dans
+  le handler polling + résilience si le shell a remplacé le document
+  (ré-append + ré-attache au document courant, même classe de bug que T7).
+  Validé : après redémarrage Edge (piège MV3 ScriptCache — la page servait
+  l'ANCIEN bundle en mémoire), le dispatch polling ne cache plus la bar
+  (`bx-show` stable), bar visible en jeu avec l'action Settings.
+- **Son** : le hook audio du script patchait le SDK **stable**
+  (`.srcObject=this.audioMediaStream`) — absent du SDK preview → aucun gain
+  node créé. **Solution T12** : le client preview joue l'audio via un
+  `<audio>` (muted=false, 1 piste MediaStream) + `audioContext` présent →
+  brancher le gain node existant (`setupGainNode`) sur cet élément dans
+  l'interval T7. Validé en réel : `audioGainNode` créé, l'élément audio est
+  mute (l'audio passe par le gain), **gain.value suit les presets en direct**
+  (Doux 0.5 / Normal 1 / Boost 2 / Muet 0).
+- **Piège MV3 revécu** : copier le nouveau bundle dans l'extension ne suffit
+  pas — Edge sert le fichier chargé en mémoire ; redémarrer Edge (ou purge
+  ScriptCache) pour tester le nouveau build.
+
+**Livré** : commits `d3f5c4b` (fix T11+T12) + `2e0298f` (bump preview2 via
+`bash bench/bump-version.sh 1.13.1 --preview=1.13.1-preview2` — passe README
++ re-pin @updateURL automatisés). Release `evenbetter-xcloud-v1.13.1-preview2`
+(prerelease, notes FR/EN, assets preview user+meta). Gates locaux tous verts
+avant publication.
+
+**BUG DE TRI DÉCOUVERT dans release-prune.sh (corrigé)** : la sélection du
+« dernier preview » triait uniquement le numéro `preview<N>` →
+`better-xcloud-perf-1.8.0-preview4` (n=4) passait DEVANT
+`evenbetter-xcloud-v1.13.1-preview2` (n=2) et était conservée (le tag pinné
+par le build était gardé en plus par sécurité — d'où l'état 3 releases au
+lieu de 2). Fix : tri **semver complet** (version de base major.minor.patch
+PUIS n de preview) dans le jq. Après fix : dry-run → purge de
+1.8.0-preview4, purge réelle OK, état = v1.13.1 (Latest) + preview2, 4/4
+liens 200.
 
 ## Discipline de mémoire — « mémoire avant tout » (19 août, directive utilisateur)
 

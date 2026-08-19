@@ -55,10 +55,12 @@ LATEST_TAG=$(gh release list --repo "$REPO" --limit 100 --json tagName,isLatest 
     || gate "impossible de lister les releases de $REPO"
 [ -n "$LATEST_TAG" ] || gate "pas de release Latest sur $REPO"
 
-# Le preview conservé = le plus récent par VERSION (tri numérique,
-# preview9 < preview10 — capture + tonumber). Jamais publishedAt.
+# Le preview conservé = le plus récent par VERSION COMPLÈTE (tri semver sur
+# la version de base PUIS le numéro de preview — preview9 < preview10, et
+# 1.13.1-preview2 > 1.8.0-preview4 : trier seulement previewN tromperait,
+# « 4 » > « 2 »). Jamais publishedAt.
 PREVIEWS=$(gh release list --repo "$REPO" --limit 100 --json tagName,isPrerelease \
-    --jq '[.[] | select(.isPrerelease == true) | {tag: .tagName, n: ((.tagName | capture("preview(?<n>[0-9]+)$")? | .n) // "0" | tonumber)}] | sort_by(.n) | reverse | .[:1] | .[].tag' 2>/dev/null)
+    --jq '[.[] | select(.isPrerelease == true) | {tag: .tagName, m: (.tagName | capture("(?<base>[0-9]+\\.[0-9]+\\.[0-9]+).*preview(?<n>[0-9]+)$")?)} | {tag: .tag, base: ((.m.base // "0.0.0") | split(".") | map(tonumber)), n: ((.m.n // "0") | tonumber)}] | sort_by([.base[0], .base[1], .base[2], .n]) | reverse | .[:1] | .[].tag' 2>/dev/null)
 [ -n "$PREVIEWS" ] || gate "aucune release prerelease sur $REPO"
 # gh sort les tags par newline — normaliser en espaces pour les tests de présence
 PREVIEWS=$(echo "$PREVIEWS" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
