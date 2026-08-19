@@ -66,11 +66,11 @@ signature, packages différents) :
 | Asset embarqué | `better-xcloud.user.js` (stable) | `better-xcloud-preview.user.js` (preview) |
 | Package | `com.bxperf.app` | `com.bxperf.preview` |
 | Label | « EvenBetterXcloud » | « EvenBetterXcloud Preview » |
-| APK | `evenbetter-xcloud-1.13.1.apk` | `evenbetter-xcloud-1.13.1-preview1.apk` |
+| APK | `evenbetter-xcloud-1.13.1.apk` | `evenbetter-xcloud-1.13.1-preview2.apk` |
 
 ```bash
 bash build.sh                    # stable
-VARIANT=preview bash build.sh    # preview → out/evenbetter-xcloud-1.13.1-preview1.apk
+VARIANT=preview bash build.sh    # preview → out/evenbetter-xcloud-1.13.1-preview2.apk
 ```
 
 Mécanique du variant : le START_URL est injecté via une classe `BuildConfig`
