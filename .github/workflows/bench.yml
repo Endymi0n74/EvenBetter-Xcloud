@@ -67,6 +67,15 @@ jobs:
           # chemin d'échec : node bench/preview/port/t10-auto-spoof.test.js
           # --self-test
           node bench/preview/port/t10-auto-spoof.test.js
+          # feature-datasaver : gate vm de la feature « 📊 Données » (v1.11.0).
+          # Le build preview hérite du stable (la feature y est embarquée) :
+          # le test vérifie sa présence dans les DEUX builds, que les 3 ancres
+          # d'injection tiennent dans le bundle stable, puis rejoue
+          # l'injection + le chemin d'échec (--self-test de feature-datasaver.js)
+          # sur une copie sans feature. Échoue le job si un rebuild oublie
+          # l'injection ou si une ancre dérive. Lancement local :
+          # node bench/feature-datasaver.test.js
+          node bench/feature-datasaver.test.js
           # p2-schema : alerte si une clé P2 dérive du schéma Zod réel (un
           # bundle StreamSessionConfiguration-*.js capturé doit être présent,
           # sinon le test passe en mode « schéma non vérifiable » — warn +
