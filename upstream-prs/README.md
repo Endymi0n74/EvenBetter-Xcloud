@@ -173,12 +173,18 @@ PR merge d'abord (probabilité faible — #908 attend depuis mars, #468 depuis
 
 ## Rappel mainteneur (timing)
 
-**Aucun retour au 18 août ~00:50** sur les 13 PR (0 commentaire mainteneur,
+**Aucun retour au 19 août ~16:30** sur les 15 PR (0 commentaire mainteneur,
 0 review — seul notre commentaire sur l'issue #991). Le mainteneur répond
 en **semaines/mois** — voir `upstream-prs/reminder.md` (#468 attend depuis
 juillet 2024, #851 depuis décembre 2025, dernier commit typescript : 14
 juillet). **Ne pas pinger avant le 24 août** ; le commentaire groupé prêt
-(sur #993, référence les 13) est dans `upstream-prs/reminder.md`.
+(sur #993, référence les 15) est dans `upstream-prs/reminder.md`.
+
+📢 **Commentaire d'information POSTÉ le 19 août ~12:34 UTC** sur #993
+(`comment-preview-port.md`, `#issuecomment-5340919050`) : annonce au
+mainteneur que le fork porte aussi un portage complet de play.xbox.com
+(dispo sur demande). C'est un commentaire informatif, PAS le rappel du 24
+août — le rappel groupé devra le référencer pour ne pas dupliquer.
 
 Style observé du mainteneur : **« thank you. I'll take a look later. »** (PR
 #908, 24 mars) puis silence de plusieurs mois ; la plupart de ses merges

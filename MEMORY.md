@@ -909,12 +909,13 @@ tag dédié v1.10.0-preview1.
   est une RE-dérivation pour le nouveau client, pas une évolution du
   script stable → rien de nouveau à proposer. Le preview reste la valeur
   ajoutée du fork (contrat « Deux versions »).
-- **Commentaire d'information rédigé (19 août ~15:30)** :
-  `upstream-prs/comment-preview-port.md` — explique au mainteneur qu'on a
-  un portage complet de play.xbox.com (FAB + game bar, résilience document,
+- **Commentaire d'information POSTÉ (19 août ~16:30) sur la PR #993**
+  (`upstream-prs/comment-preview-port.md`,
+  `#issuecomment-5340919050`) : annonce au mainteneur qu'on a un portage
+  complet de play.xbox.com (FAB + game bar, résilience document,
   keep-alive idle, overrides /configuration, auto-spoof UA) dispo sur
-  demande. **Brouillon NON posté** (prudence : ne pas pinger avant le 24
-  août — le rappel groupé pourra l'intégrer).
+  demande. Informatif, PAS le rappel du 24 août (le groupé le
+  référencera).
 13. ✅ **Fait (18 août ~00:10 puis ~08:30) — APK Android du build stable** :
     wrapper WebView `mobile/better-xcloud-perf-1.8.0.apk` (~144 Ko, package
     `com.bxperf.app`, signé keystore local, minSdk 24/target 34). Injecte le
