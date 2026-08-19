@@ -89,7 +89,16 @@ function runChecks(stableSrc, previewSrc) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "bx-datasaver-"));
   const strippedPath = path.join(dir, "bundle-stripped.user.js");
   let stripped = stableSrc;
-  if (count(stripped, ANCHOR_BX + IMPL) === 1) stripped = stripped.replace(ANCHOR_BX + IMPL, ANCHOR_BX);
+  // L'ancre BX_EXPOSED est partagée par TOUTES les features (latence v1.10,
+  // data v1.11, région v1.12…) : l'IMPL de data n'est plus forcément ADJACENT
+  // à l'ancre. On retire donc la plage [ANCHOR_BX … fin de IMPL_DATA] (qui
+  // englobe les features injectées avant elle sur la même ancre) au lieu
+  // d'une concaténation exacte — robuste à l'ajout de nouvelles features.
+  const bxIdx = stripped.indexOf(ANCHOR_BX);
+  const dataIdx = bxIdx >= 0 ? stripped.indexOf(IMPL, bxIdx) : -1;
+  if (bxIdx >= 0 && dataIdx >= 0) {
+    stripped = stripped.slice(0, bxIdx) + ANCHOR_BX + stripped.slice(dataIdx + IMPL.length);
+  }
   if (count(stripped, DATA_GROUP + ANCHOR_GROUP) === 1) stripped = stripped.replace(DATA_GROUP + ANCHOR_GROUP, ANCHOR_GROUP);
   if (count(stripped, INJ_FILTER) === 1) stripped = stripped.replace(INJ_FILTER, ANCHOR_FILTER);
   fs.writeFileSync(strippedPath, stripped);

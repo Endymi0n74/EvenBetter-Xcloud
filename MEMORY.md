@@ -9,10 +9,54 @@ Mémoire de travail des sessions. Détails dans `bench/preview/port/session.md`
 L'utilisateur demande une mise à jour de ce fichier **au moins toutes les
 ~2 h de travail cumulé** (et à chaque fin de session), sans attendre d'être
 relancé : après ~2 h d'actions, journaliser l'état (fichiers touchés,
-verdicts, pièges nouveaux, en attente). Dernière passe : **19 août ~17:30 —
-FIN DE JOURNÉE** (politique « on propose, on ne rappelle pas », commentaire
-#993 posté, audit conflits inter-PR, docs README Deux versions, garde-fou
-4/4, CI vert).
+verdicts, pièges nouveaux, en attente). Dernière passe : **19 août ~20:00 —
+Feature « ⚡ Appliquer la meilleure région » v1.12.0** (implémentation +
+gates + probe 100 % vert en réel).
+
+## v1.12.0 — Feature « ⚡ Appliquer la meilleure région » — 19 août ~20:00
+
+Suite logique du test latence (v1.10.0) : un bouton « Appliquer la meilleure
+région » dans le groupe SERVER, sous le test. Après un test de latence, il
+affiche la meilleure région mesurée et pose `server.region` (pref GLOBALE,
+valeur = la CLÉ de la région dans STATES.serverRegions, ex. « CSE » — pas
+shortName qui contient l'emoji drapeau) via `setGlobalPref(key, "ui")`.
+
+- **`bench/feature-region.js`** (gates + self-test) : injecte `BX_REGION_APPLY`
+  + PATCHE le test latence en 2 points minimaux (results.push → + `key`;
+  fin de run → `lastResults` mémorisés + refresh du bouton en direct). Les
+  ancres des 2 patches sont extraites du SOURCE de feature-latency.js.
+- **`bench/feature-region.test.js`** (gate CI, step preview de bench.yml,
+  après feature-datasaver) : présence stable+preview, 4 ancres, rejeu +
+  self-test (corruption de la forme PATCHÉE — le bundle est déjà injecté,
+  corrompre l'ancre brute ne ferait rien).
+- **`bench/feature-region-probe.js`** (CDP, www.xbox.com/play) : simule
+  lastResults (pas de vrai ping gssv — jusqu'à 30 s), vérifie état initial
+  (bouton désactivé + message d'attente), clic → pref + persistance,
+  « déjà appliquée », restauration de la valeur d'origine. **Probe 100 %
+  vert en réel (15/15) sur la page live v1.12.0.**
+- **Piège rendu dialog** : le dialog attache le groupe APRÈS le rendu des
+  items → un refresh synchrone trouve rien. Solution : état par défaut
+  SYNC (bouton disabled + texte d'attente) + waitReady pollé borné 6 s qui
+  upgrade si des résultats existent (ré-ouverture settings).
+- **Piège CRLF (Windows)** : le strip d'une feature du bundle échoue si les
+  ancres extraites (LF) sont cherchées dans le bundle (CRLF) — normaliser
+  avant tout strip/comparaison (déjà connu pour les gates, appliqué aussi
+  au strip manuel).
+- **Piège MV3 cache** : modifier stable.js de l'extension ne suffit pas —
+  Edge sert une copie compilée. Bump manifest (version) + kill + purge
+  `edge-profiles/datasaver/ScriptCache` + relance, sinon on débogue une
+  version périmée (le vrai coupable des « status vide » initiaux : la page
+  tournait encore la 1re version).
+- **Datasaver gate adapté** : le strip de feature-datasaver.test.js
+  supposait son IMPL ADJACENT à l'ancre BX_EXPOSED — cassé par l'ajout de
+  la région (les features s'empilent sur la même ancre). Fix : retrait de
+  la plage [ancre … fin d'IMPL data] (robuste à N features).
+
+Version bumpée 1.12.0 / 1.12.0-preview1 (VERSION, bundles, metas, manifest
+APK versionCode 6). Tous les gates CI verts en local (region, datasaver,
+t10, keepalive, p2-schema, pr-comment-merge, Étape 0). Prochaine étape :
+publier la release v1.12.0 + APK (bump --build-apk) et le rappel de la
+validation sur téléphone si besoin.
 
 ## Réorganisation du workspace (19 août ~11:30) — tout sous EvenBetterXcloud
 
