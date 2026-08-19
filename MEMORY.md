@@ -1,4 +1,4 @@
-# MEMORY — état courant du projet (17 août 2026)
+# MEMORY — état courant du projet (19 août 2026)
 
 Mémoire de travail des sessions. Détails dans `bench/preview/port/session.md`
 (étude protocole), `bench/preview/port/e2e-cdp.md` (protocole E2E + journal),
@@ -9,7 +9,7 @@ Mémoire de travail des sessions. Détails dans `bench/preview/port/session.md`
 L'utilisateur demande une mise à jour de ce fichier **au moins toutes les
 ~2 h de travail cumulé** (et à chaque fin de session), sans attendre d'être
 relancé : après ~2 h d'actions, journaliser l'état (fichiers touchés,
-verdicts, pièges nouveaux, en attente). Dernière passe : 19 août (v1.11.0).
+verdicts, pièges nouveaux, en attente). Dernière passe : 19 août ~14:30 (v1.11.0-preview2, gate CI PR #17, re-baseline bench, 15 PR upstream).
 
 ## Réorganisation du workspace (19 août ~11:30) — tout sous EvenBetterXcloud
 
@@ -260,12 +260,13 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
     (A+B+C+D, hookActif:true).
 - **Run 1 CDP** : `intercept-session.js --connect=9222` — `[P3]` play réécrit,
   `[P2-staging]` puis `[P2]` sur la réponse /configuration (C4 =
-  `enableVibration:true` dans Network, preuve CDP). **P2 pas encore validé en
-  réel** — à faire dès un stream + session. Prérequis : Étape 0
-  `--strict-probe` passée (critère de départ).
-- **P1 réel** : `monitor-idle.js` (fenêtre AFK, log « BX keep-alive: idle
-  warning intercepted » + session survivante) — à valider (P1-B). Prérequis :
-  Étape 0 `--strict-probe` passée.
+  `enableVibration:true` dans Network, preuve CDP). **P2 VALIDÉ en réel**
+  (17 août ~12:43, run 1 exécution 3 — preuve session live
+  `_configuration.inputConfiguration.enableVibration:true`, voir item 2 de
+  « En attente »). Prérequis : Étape 0 `--strict-probe` passée.
+- **P1 réel** : `monitor-idle.js` — **DÉCISION CLÔTURÉE** (17 août) : fenêtre
+  1 h survivante sans warning → seuil d'idle > 60 min, wrapSession branchée
+  (`wrapped:true`), risque résiduel accepté (voir item 3 de « En attente »).
 
 ## État stable v1.8.0 — RELEASED (17 août)
 
@@ -297,16 +298,25 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
 
 ## Releases & pipeline de publication
 
-- **État au 17 août ~23:30 (rétention appliquée)** : 12 anciennes releases
-  purgées (v1.0.0 → v1.7.0 stables, 1.7.0-preview1, 1.8.0-preview1/2/3).
+- **ÉTAT COURANT (19 août ~14:30)** : **v1.11.0** (Latest,
+  `evenbetter-xcloud-v1.11.0` — user.js ES2017 + meta + APK versionné +
+  APK stable) · **1.11.0-preview2** (`evenbetter-xcloud-v1.11.0-preview2` —
+  preview user/meta + APK) · **1.8.0-preview4** (cran de secours). 4/4 liens
+  d'auto-update 200 + byte-identiques (garde-fou vert, relancé après la
+  publication preview2). Les paragraphes ci-dessous sont l'historique depuis
+  le 17 août — la section « En attente » + `upstream-prs/README.md` portent
+  l'état vivant.
+- **État au 17 août ~23:30 (rétention appliquée, historique)** : 12
+  anciennes releases purgées (v1.0.0 → v1.7.0 stables, 1.7.0-preview1,
+  1.8.0-preview1/2/3).
   Restent : **v1.8.0 (stable, Latest)** — tag `better-xcloud-perf-v1.8.0`,
   assets `better-xcloud.user.js` + `better-xcloud.meta.js`, auto-update
   `releases/latest/download/*` ; **1.8.0-preview4 (preview courant)** — tag
   `better-xcloud-perf-1.8.0-preview4`, assets `better-xcloud-preview.*`,
   auto-update preview **pinné sur SON tag** (jamais le latest — un utilisateur
   d'une preview ANCIENNE réinstalle manuellement).
-- **Rétention automatisée** : `bench/release-prune.sh` — garde Latest + **le
-  dernier preview** (tri par VERSION numérique, jamais `publishedAt`
+- **Rétention automatisée** : `bench/release-prune.sh` — garde Latest + **les
+  2 derniers previews** (tri par VERSION numérique, jamais `publishedAt`
   trompeur pour une release recréée) + le tag pinné par le `@updateURL` du
   build local, purge le reste (release + tag, `--cleanup-tag`), vérifie les 4
   liens d'auto-update (GATE ROUGE si 404), `--dry-run` pour prévisualiser. À
@@ -320,12 +330,13 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
   commit `d7878e0`), workflow rejoué en success. Release de contrôle
   supprimée, état revenu à v1.8.0 + preview4.
 - **Pipeline d'une release** (répéter à chaque bump) :
-  1. Bump stable : `better-xcloud.user.js` (@version + header
-     « OPTIMISATIONS v1.X.Y: ») ET `better-xcloud.meta.js` (@version).
-  2. Bump preview : `build-preview.js` — **3 ancres** : `PREVIEW_VERSION`,
-     `versionAnchor` (« // @version      1.X.0 ») et `headerAnchor`
-     (« /* OPTIMISATIONS v1.X.0: »). Oubli d'une → build-preview échoue
-     (ancre introuvable) : lire le message avant de corriger.
+  1. Bump stable : `bash bench/bump-version.sh <v>` (VERSION racine + bundles
+     + metas + manifest APK versionCode + es2017) — source unique depuis
+     v1.11.0.
+  2. Bump preview : `build-preview.js` — **une seule ancre** :
+     `PREVIEW_VERSION` (les ancres `versionAnchor`/`headerAnchor` sont
+     DYNAMIQUES depuis v1.11.0 — extraites du bundle source, plus de hardcode
+     1.10.0).
   3. Rebuild : `node bench/preview/port/build-preview.js` (invariants deux
      versions + node --check + probes + P1 self-test sur le bundle capturé).
   4. Commit + push, puis `gh release create` (stable : défaut Latest ;
@@ -803,8 +814,10 @@ tag dédié v1.10.0-preview1.
    **T7 résilience** (le shell REMPLACE le document au démarrage →
    overlay/container orphelins sous l'ancien `<html>` détaché ET feuille de
    style effacée ; interval 2 s : ré-append si `!isConnected` + re-`addCss()`
-   si aucun `<style>` porteur). **À faire : republier la preview** (les fixes
-   ne sont PAS dans la release 1.8.0-preview1).
+   si aucun `<style>` porteur). ~~À faire : republier la preview~~ —
+   **SUPERSÉDÉ** : republiée plusieurs fois depuis (preview2/3/4, puis
+   v1.9.0-preview1, 1.10.0-preview*, 1.11.0-preview1/2 — fix T7 inclus dans
+   tous les builds depuis).
 2. ✅ **Fait (17 août ~12:43) — Run 1 CDP P2 VALIDÉ (C4)** : Étape 0
    `--strict-probe` passée, `intercept-session.js --sw` (SW attaché CDP brut),
    chaîne `[P3]` → `[P2-staging]` ×2 (page+SW) → `[P2]` (5 groupes réécrits).
@@ -864,24 +877,25 @@ tag dédié v1.10.0-preview1.
     (traduction complète, sélecteur 🇫🇷/🇬🇧), notes de release bilingues
     FR/EN (5 releases), fix rendu GitHub (@name/@match backtiqués), badge CI
     bench.
-12. ✅ **Fait (18 août ~00:50) — portage upstream complet, 13 PR ouvertes**
-    sur `redphx/better-xcloud:typescript` : #993 codecProfile lazy · #994 USM
-    4 taps · #995 dirty flag · #996 texStorage/RGB8 · #997 viewport/NoColor ·
-    #998 hidden throttle · #999 controller skip idle · #1000 structuredClone
-    → réf. · #1001 fix share-delete · #1002 settings Set · #1003 checkForUpdate
-    throttle · #1004 BxSelect observer délégué · **#1005 fix #991** (garde
-    `currentGamepad.buttons?.[16]`, commentaire posté sur l'issue #991 avec
-    test demandé au rapporteur GameSir). Toutes OPEN/MERGEABLE, une par
-    sujet, builds amont exit 0, zéro fuite inter-PR. **Queue épuisée et
-    AUCUNE branche en attente** : plus rien à porter — #4 (uniform cache)
-    subsumé par #995, patch 07 (opacity cache) **no-op amont** (le cache n'a
-    jamais existé dans l'historique upstream, `git log -S` vide), patch 09
-    exclu (négatif à 500 entrées). Corps des PR avec mentions near-miss
-    (#10-12 : pref-keys.ts ↔ #908, translation.ts ↔ #908/#938/#468). Rappel
-    groupé préparé dans `upstream-prs/reminder.md` : **ne pas pinger avant le
-    24 août** (rythme mainteneur = semaines/mois, #468 attend depuis juillet
-    2024), un seul commentaire sur #993 référençant les 13. Programme détaillé
-    dans `upstream-prs/README.md`.
+12. ✅ **Fait (18 août ~00:50 puis 19 août ~14:20) — portage upstream complet,
+    15 PR ouvertes** sur `redphx/better-xcloud:typescript` : #993 codecProfile
+    lazy · #994 USM 4 taps · #995 dirty flag · #996 texStorage/RGB8 · #997
+    viewport/NoColor · #998 hidden throttle · #999 controller skip idle ·
+    #1000 structuredClone → réf. · #1001 fix share-delete · #1002 settings Set
+    · #1003 checkForUpdate throttle · #1004 BxSelect observer délégué ·
+    **#1005 fix #991** (garde `currentGamepad.buttons?.[16]`, commentaire
+    posté sur l'issue #991) · **#1006 data usage presets** (feature
+    « 📊 Données » v1.11.0, commit `77c1fcf`) · **#1007 server latency test**
+    (feature « 📡 Latence serveur » v1.10.0, commit `071ff73`). Toutes
+    OPEN/MERGEABLE, une par sujet, builds amont exit 0, zéro fuite inter-PR.
+    Queue épuisée : plus rien à porter — #4 (uniform cache) subsumé par #995,
+    patch 07 (opacity cache) **no-op amont**, patch 09 exclu (négatif à 500
+    entrées). Corps des PR avec mentions near-miss (#10-12 : pref-keys.ts ↔
+    #908, translation.ts ↔ #908/#938/#468). Rappel groupé préparé dans
+    `upstream-prs/reminder.md` : **ne pas pinger avant le 24 août** (rythme
+    mainteneur = semaines/mois, #468 attend depuis juillet 2024), un seul
+    commentaire sur #993 référençant les 15. Programme détaillé dans
+    `upstream-prs/README.md` (source de vérité).
 13. ✅ **Fait (18 août ~00:10 puis ~08:30) — APK Android du build stable** :
     wrapper WebView `mobile/better-xcloud-perf-1.8.0.apk` (~144 Ko, package
     `com.bxperf.app`, signé keystore local, minSdk 24/target 34). Injecte le
@@ -923,8 +937,10 @@ tag dédié v1.10.0-preview1.
     SDK sur `D:/android-sdk`, pipeline aapt2 → javac → d8 → jar → zipalign
     → apksigner (`mobile/build.sh` rejouable). Limites : script embarqué
     (update = rebuild), gains GPU desktop non transposables, iOS impossible
-    sans Mac/Xcode. README FR/EN : ligne « App native » en tête du tableau
-    mobile. Testé sur émulateur ; appareil réel Android toujours à valider.
+    sans Mac/Xcode.    README FR/EN : ligne « App native » en tête du tableau
+    mobile. ~~Testé sur émulateur ; appareil réel Android toujours à
+    valider~~ — **RÉSOLU** : téléphone réel validé 18 août soir (item 16 :
+    jeux lancés, menu complet, visual joypad).
 14. ✅ **Fait (18 août ~10:05) — harnais mobile-probe + validation BlueStacks** :
     `bench/mobile-probe.sh` rejoue la validation APK en UNE commande (build →
     install → adb forward → sonde CDP → panne→récup → logcat). `--skip-build`,
@@ -1003,12 +1019,11 @@ tag dédié v1.10.0-preview1.
     côte, le preview ouvre play.xbox.com et le script preview s'exécute
     (`BX_EXPOSED=object`, `BX_FETCH=function`, bouton overlay présent).
     APK preview : `mobile/out/better-xcloud-perf-1.8.0-preview.apk` (148 077 o)
-    — publié sur la release preview4 (lien vérifié 200). ⚠ **RÉSERVÉ (18 août
-    ~16:30, utilisateur) : le preview est bien loggé (script injecté) mais
-    l'overlay n'apparaît PAS sur play.xbox.com dans le WebView** — à
-    diagnostiquer plus tard (suspect : ancres header T4 / conditions
-    d'affichage propres à play.xbox.com en WebView mobile). Priorité basse,
-    mis de côté par l'utilisateur.
+    — publié sur la release preview4 (lien vérifié 200). ⚠ ~~RÉSERVÉ (18 août
+    ~16:30) : overlay preview absent en WebView~~ — **RÉSOLU le 19 août** :
+    cause = shell mobile sans ancre T4 (<768 px) → **FAB** (section « T4
+    mobile »), puis bouton perdu quand le shell remplace le document →
+    **re-arm T4** (v1.11.0-preview2, section dédiée).
 18. ✅ **Fait (18 août ~17:00) — REBRAND EvenBetterXcloud + feature Sound + nouvelle icône (v1.9.0)** :
     le repo GitHub a été renommé `Endymi0n74/EvenBetter-Xcloud` (remote local
     mis à jour). **Marque** : tout ce qui porte notre version porte le nom —
