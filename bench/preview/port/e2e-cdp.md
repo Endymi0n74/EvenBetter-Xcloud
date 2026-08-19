@@ -276,6 +276,26 @@ l'instanciation, PAS au premier appel :**
   du client) si on arrive à lire le token ; (c) intercepteur CDP
   Fetch.fulfillRequest sur la réponse login/user (outillage bench, pas
   userscript).
+
+**✅ RÉSOLU EN RÉEL (19 août ~17:30) — la cause n'était PAS l'interception :**
+- Validation Tampermonkey document-start (profil datasaver, port 9225) :
+  le login ÉTAIT intercepté (serverRegions 19/19 + isSignedIn=true via
+  l'événement `xcloud.server ready`). Le gap venait de `window.STATES` :
+  `var STATES` fuit sur window UNIQUEMENT en world MAIN (extension
+  .edge-inject-stable du stable) ; en Tampermonkey (sandbox IIFE),
+  `window.STATES` est undefined → le test latence
+  (`(window.STATES && STATES.serverRegions) || {}`) lisait `{}` →
+  « Aucune région disponible ». Même bug latent sur le STABLE en
+  Tampermonkey pur.
+- **Fix** : patch `patches/23-expose-window-states.patch` ajoute
+  `window.STATES = STATES;` après la déclaration STATES. Appliqué aux deux
+  bundles (stable + preview).
+- **Résultat réel** (stream Among Us 2560×1440) : test latence → 19 régions
+  listées avec latences + `⭐ 🇬🇧 UKS (41 ms) — région recommandée`.
+- Pièges réinstallation Tampermonkey notés dans MEMORY : servir le bundle
+  LOCAL (HTTPS 127.0.0.1:8932 + cert self-signed, pas l'URL GitHub qui a
+  l'ancien code) ; boutons ask.html = `<input type=button>` pas `<button>` ;
+  « Réinstaller » quand la version ne change pas.
 - **Localisation du login preview** : intercepteur `RQe` d'entry.client
   (priority 0) matche `/v2/login/user` + `/v2/login/user/delegated`, ajoute
   `Authorization` via `user.getAuthorizationHeader()` (MSAL, pas de token

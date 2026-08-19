@@ -50,6 +50,25 @@ Pendant l'absence utilisateur (double-BACK validé en réel : « ça quitte ») 
   Bearer, pas dans le corps contrairement au stable), ou intercepteur CDP
   (outillage, pas userscript). Détail : e2e-cdp.md « Gap régions preview ».
 
+**✅ GAP RÉSOLU EN RÉEL (19 août ~17:30) — validation Tampermonkey document-start :**
+- Le login ÉTAIT déjà intercepté en Tampermonkey (serverRegions peuplé,
+  isSignedIn=true via l'événement `xcloud.server ready`) — le gap n'était
+  PAS l'interception.
+- **Vraie cause** : `var STATES` fuit sur `window.STATES` UNIQUEMENT en
+  world MAIN (extension .edge-inject-stable). En Tampermonkey (sandbox
+  IIFE), `window.STATES` est undefined → le test latence lit
+  `(window.STATES && STATES.serverRegions) || {}` → « Aucune région
+  disponible ». Même bug potentiel sur le STABLE en Tampermonkey pur.
+- **Fix** : patch `patches/23-expose-window-states.patch` — ajoute
+  `window.STATES = STATES;` après la déclaration STATES. Appliqué aux deux
+  bundles (stable + preview). Rejouable : testé en réel sur play.xbox.com
+  (profil datasaver, Tampermonkey BETA, stream Among Us 2560×1440) :
+  **19 régions listées avec latence + ⭐ UKS 41 ms recommandée** — plus de
+  « Aucune région disponible ».
+- ⚠ Réinstallation Tampermonkey : servir le bundle LOCAL via HTTPS local
+  (pas l'URL GitHub qui a l'ancien code) ; boutons ask.html = INPUT, pas
+  BUTTON ; « Réinstaller » si même version.
+
 **3. Re-baseline v1.12.0 (run-all.sh complet) : PASS 6/6** — parse 0,123→
 0,128 ms, IDLE ×8,19, Home ×8,63, updateCanvas ×20,8, updateFrame stable,
 éval page −11,9 %, **cold eval 574,9→25,6 ms (−95,5 %)**, cold-getcap 528 ms
