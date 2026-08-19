@@ -1,5 +1,13 @@
 # bench/ — harnais de benchmark CPU
 
+> **Vibe-coding** : ce harnais fait partie du projet **EvenBetterXcloud**, fork
+> et améliorations co-créés avec l'assistance IA générative **Codebuff** (agent
+> « Buffy ») sous la direction humaine d'**Endymi0n74** — les protocoles de
+> mesure, les gates CI et les scripts de publication de ce dossier ont été
+> écrits et validés par l'agent. Crédit original :
+> [redphx](https://github.com/redphx) pour Better xCloud (MIT). Signature
+> « Generated with Codebuff » dans chaque commit.
+
 Mesures **perf10 (baseline `055d3a0`)** vs **build courant** (`better-xcloud.user.js`
 à la racine du repo). Tout se lance d'un coup :
 

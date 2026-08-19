@@ -1,5 +1,13 @@
 # Portage app-shell du preview (play.xbox.com)
 
+> **Vibe-coding** : ce portage fait partie du projet **EvenBetterXcloud**, fork
+> et améliorations co-créés avec l'assistance IA générative **Codebuff** (agent
+> « Buffy ») sous la direction humaine d'**Endymi0n74** — l'étude des bundles,
+> les patches T1-T10, P1/P2/P3 et le protocole E2E de ce dossier ont été
+> produits et validés en réel par l'agent. Crédit original :
+> [redphx](https://github.com/redphx) pour Better xCloud (MIT). Signature
+> « Generated with Codebuff » dans chaque commit.
+
 État : **v1 — infrastructure + détection + garde + entrée settings (candidats)**.
 La branche de travail porte le build `better-xcloud-preview.user.js` (v1.8.0-preview4).
 
