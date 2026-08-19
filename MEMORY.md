@@ -620,9 +620,10 @@ août — l'asset n'existait plus nulle part** (purge avec l'ancienne release
 « test » sur GitHub, aucun fichier local, garde-fou 10/10 vert après
 vérification) ; (c)
 reprendre la queue du stable : `bench/live-profile.js` pour identifier la
-dominante runtime réelle ; (d) upstream : 13 PR ouvertes (redphx), rappel
-prévu ~24 août ; (e) APK preview : overlay absent sur play.xbox.com en WebView
-(réservé, priorité basse).
+dominante runtime réelle ; (d) upstream : 15 PR ouvertes (redphx), politique
+sans rappel (décision 19 août — on propose, on ne pinge pas) ; (e) APK
+preview : overlay absent sur play.xbox.com en WebView (réservé, priorité
+basse — résolu par le FAB 19 août).
 
 ## Verdict AV1 (18 août ~23:00) — backend xCloud encode H.264 uniquement
 
@@ -670,7 +671,7 @@ fichier .ps1 obligatoire).
   dans bench/README.md (source unique).
 - **Fermeture de la queue** : plus d'optimisation script à chercher côté
   stable — prochaines features = utilisateur (pattern feature-latency.js),
-  upstream = rappel ~24 août (13 PR).
+  upstream = 15 PR ouvertes, politique sans rappel (19 août).
 
 ## A/B profils H.264 mesuré (18 août ~23:50) — le setting fonctionne, le défaut est déjà le meilleur
 
@@ -893,11 +894,11 @@ tag dédié v1.10.0-preview1.
     Queue épuisée : plus rien à porter — #4 (uniform cache) subsumé par #995,
     patch 07 (opacity cache) **no-op amont**, patch 09 exclu (négatif à 500
     entrées). Corps des PR avec mentions near-miss (#10-12 : pref-keys.ts ↔
-    #908, translation.ts ↔ #908/#938/#468). Rappel groupé préparé dans
-    `upstream-prs/reminder.md` : **ne pas pinger avant le 24 août** (rythme
-    mainteneur = semaines/mois, #468 attend depuis juillet 2024), un seul
-    commentaire sur #993 référençant les 15. Programme détaillé dans
-    `upstream-prs/README.md` (source de vérité).
+    #908, translation.ts ↔ #908/#938/#468). **Politique 19 août : PLUS
+    AUCUN rappel** — on propose (les 15 PR), le mainteneur fait sa vie,
+    `upstream-prs/reminder.md` supprimé ; seule interaction restante :
+    répondre si interrogé. Programme détaillé dans `upstream-prs/README.md`
+    (source de vérité).
 - **Décision (19 août ~15:00) — le preview n'est PAS proposable en PR
   upstream, vérifié dans le source amont** : le preview (play.xbox.com) est
   le NOUVEAU client Microsoft — bundle minifié, sans repo source public, et
@@ -914,8 +915,8 @@ tag dédié v1.10.0-preview1.
   `#issuecomment-5340919050`) : annonce au mainteneur qu'on a un portage
   complet de play.xbox.com (FAB + game bar, résilience document,
   keep-alive idle, overrides /configuration, auto-spoof UA) dispo sur
-  demande. Informatif, PAS le rappel du 24 août (le groupé le
-  référencera).
+  demande. Informatif — la seule interaction hors les PR (aucun rappel ne
+  sera envoyé, politique 19 août).
 13. ✅ **Fait (18 août ~00:10 puis ~08:30) — APK Android du build stable** :
     wrapper WebView `mobile/better-xcloud-perf-1.8.0.apk` (~144 Ko, package
     `com.bxperf.app`, signé keystore local, minSdk 24/target 34). Injecte le

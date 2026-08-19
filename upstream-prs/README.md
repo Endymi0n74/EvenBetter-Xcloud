@@ -77,8 +77,7 @@ Vérifié via l'API GitHub (fichiers + hunks `@@` par PR) :
 - **Ordre de merge recommandé si le mainteneur en prend plusieurs** :
   `controller-customization` d'abord (#999 puis #1001, ou rebase du second),
   `webgl2-player` un seul à la fois (#995 → rebase #996/#997, ou inversement
-  avec rebases) ; les autres groupes sont indépendants. À mentionner dans le
-  rappel du 24 août si un merge arrive.
+  avec rebases) ; les autres groupes sont indépendants.
 
 ## États des PR (suivi)
 
@@ -107,8 +106,9 @@ Les deux features récentes du fork ont été poussées sur le fork
 - **PR #1006** data usage presets — `gh pr create -R redphx/better-xcloud -B typescript -H Endymi0n74:feat/data-presets`
 - **PR #1007** server latency test — `-H Endymi0n74:feat/latency-test`
 Les deux : MERGEABLE, 1 commit, build amont exit 0, feature présente dans le
-bundle. Queue upstream complète : **15 PR ouvertes** (993-1007). Rappel
-mainteneur prévu ~24 août.
+bundle. Queue upstream complète : **15 PR ouvertes** (993-1007). Politique :
+**on propose, on ne rappelle pas** (décision 19 août — le mainteneur fait sa
+vie, on ne le pinge pas).
 
 Fix #991 (garde crash) : les objets Gamepad ne garantissent pas un tableau
 `buttons` à chaque poll (GameSir G7 SE) — `buttons[16]` levait une exception
@@ -171,27 +171,28 @@ touche `translation.ts`, aussi dans #908/#938/#468. Au moment d'ouvrir
 PR merge d'abord (probabilité faible — #908 attend depuis mars, #468 depuis
 2024).
 
-## Rappel mainteneur (timing)
+## Politique mainteneur — on propose, on ne rappelle pas (décision 19 août)
 
 **Aucun retour au 19 août ~16:30** sur les 15 PR (0 commentaire mainteneur,
 0 review — seul notre commentaire sur l'issue #991). Le mainteneur répond
-en **semaines/mois** — voir `upstream-prs/reminder.md` (#468 attend depuis
-juillet 2024, #851 depuis décembre 2025, dernier commit typescript : 14
-juillet). **Ne pas pinger avant le 24 août** ; le commentaire groupé prêt
-(sur #993, référence les 15) est dans `upstream-prs/reminder.md`.
+en **semaines/mois** (#468 attend depuis juillet 2024, #851 depuis décembre
+2025, dernier commit typescript : 14 juillet). **DÉCISION (19 août) : plus
+AUCUN rappel ni ping** — on lui propose les améliorations (les 15 PR), il
+fait sa vie, on laisse le temps faire. Le brouillon de rappel
+(`upstream-prs/reminder.md`) a été **supprimé**. Seule interaction restante
+: répondre si le mainteneur interroge.
 
 📢 **Commentaire d'information POSTÉ le 19 août ~12:34 UTC** sur #993
 (`comment-preview-port.md`, `#issuecomment-5340919050`) : annonce au
 mainteneur que le fork porte aussi un portage complet de play.xbox.com
-(dispo sur demande). C'est un commentaire informatif, PAS le rappel du 24
-août — le rappel groupé devra le référencer pour ne pas dupliquer.
+(dispo sur demande) — la seule et unique interaction hors les PR.
 
 Style observé du mainteneur : **« thank you. I'll take a look later. »** (PR
 #908, 24 mars) puis silence de plusieurs mois ; la plupart de ses merges
 récentes (avril-juin) sont des PR de custom touch controls (json/ids), la
 dernière merge = #959 le 20 juin. Aucun commit sur `typescript` depuis le
-14 juillet (bump 6.7.12). Ne pas insister : répondre si interrogé, sinon
-laisser le rappel du 24 août faire le travail.
+14 juillet (bump 6.7.12). **Politique 19 août : ne jamais insister** —
+répondre si interrogé, sinon ne rien envoyer (les PR parlent d'elles-mêmes).
 
 ## Réponses préparées (si le mainteneur interroge)
 
