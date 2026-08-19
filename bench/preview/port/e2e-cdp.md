@@ -292,6 +292,18 @@ l'instanciation, PAS au premier appel :**
   bundles (stable + preview).
 - **Résultat réel** (stream Among Us 2560×1440) : test latence → 19 régions
   listées avec latences + `⭐ 🇬🇧 UKS (41 ms) — région recommandée`.
+- **✅ APK : injection vraiment document-start (19 août ~17:30)** — la
+  piste (a) ci-dessus est implémentée : `BxWebViewClient
+  .shouldInterceptRequest` (main-frame GET xbox.com) proxie le document et
+  inline le userscript dans un `<script>` juste après `<head>`, donc AVANT
+  le `new ub()` du SDK. IIFE obligatoire (6 let/const top-level du bundle),
+  idempotence par `window.__EBX_INJECTED__`, CSP retirée de la réponse
+  proxied, cookies transmis + Set-Cookie rejoués, fallback evaluateJavascript
+  d'onPageStarted conservé (cache-hit / proxy KO). Validé en WebView réelle
+  (BlueStacks, APK preview rebuildé) : `ebxInjected:true`, BX_EXPOSED,
+  window.STATES exposé, overlay rendu, window.fetch = wrapper du hook. Les
+  régions se peupleront au 1er stream en session authentifiée (mécanisme
+  prouvé desktop). Détails + pièges : MEMORY « Injection APK document-start ».
 - Pièges réinstallation Tampermonkey notés dans MEMORY : servir le bundle
   LOCAL (HTTPS 127.0.0.1:8932 + cert self-signed, pas l'URL GitHub qui a
   l'ancien code) ; boutons ask.html = `<input type=button>` pas `<button>` ;

@@ -9,9 +9,53 @@ Mémoire de travail des sessions. Détails dans `bench/preview/port/session.md`
 L'utilisateur demande une mise à jour de ce fichier **au moins toutes les
 ~2 h de travail cumulé** (et à chaque fin de session), sans attendre d'être
 relancé : après ~2 h d'actions, journaliser l'état (fichiers touchés,
-verdicts, pièges nouveaux, en attente). Dernière passe : **19 août ~15:45 —
-Publication v1.12.0 + preview1 + re-baseline (session autonome, utilisateur
-absent)**.
+verdicts, pièges nouveaux, en attente). Dernière passe : **19 août ~17:30 —
+Injection APK vraiment document-start (shouldInterceptRequest) + validation
+WebView BlueStacks**.
+
+## Injection APK vraiment document-start — shouldInterceptRequest (19 août ~17:30)
+
+**Demande** : peupler les régions sur mobile aussi (le gap preview venait du
+`evaluateJavascript` d'onPageStarted qui arrive APRÈS le `new` du client HTTP
+SDK — celui-ci capture `fetch` par défaut de paramètre).
+
+**Implémentation (mobile/src/com/bxperf/app/MainActivity.java)** :
+- `BxWebViewClient.shouldInterceptRequest` : main-frame GET https sur les
+  domaines xbox.com (POST login.live.com exclus — relayer le corps serait
+  risqué) → `proxyAndInject()`.
+- `proxyAndInject` : HttpsURLConnection (follow redirects, timeouts 8/15 s),
+  UA du WebView transmise (sinon le site sert un HTML « navigateur inconnu »),
+  cookies du jar transmis + **Set-Cookie rejoués** dans CookieManager (session
+  intacte), gzip géré si le serveur l'envoie quand même, charset depuis
+  Content-Type. Échec → null (chargement normal WebView).
+- **Injection** : `<script>` inline juste après `<head>` — AVANT tout module
+  ESM. **IIFE obligatoire** (le bundle a 6 `let`/`const` top-level : inline
+  brut colliderait avec les globals du site → SyntaxError). `window.STATES`
+  reste exposé car le bundle le fait EXPLICITEMENT (patch 23). Idempotence
+  par `window.__EBX_INJECTED__` (le bundle n'a PAS de garde interne —
+  double-injection = overlay dupliqué).
+- **CSP retirée** de la réponse proxied (script-src sans 'unsafe-inline'
+  bloquerait notre inline ; on contrôle la réponse, pas le site).
+  Content-Length/Content-Encoding/Transfer-Encoding retirés (corps modifié).
+- **Fallback conservé** : onPageStarted re-évalue en evaluateJavascript si
+  `documentInjected` est false (cache-hit du document, proxy KO) — avec le
+  MÊME marqueur __EBX_INJECTED__ → jamais de double run.
+- Vérifié avant build : 0 occurrence de `</script` dans les 4 bundles
+  (injection inline sûre), minSdk 24 OK (WebResourceResponse 5-arg = API 21+).
+
+**Validé en réel (BlueStacks, adb, APK preview v1.12.0-preview1 rebuildé)** :
+- `ebxInjected:true` (le marqueur inline a tourné — injection AVANT les
+  modules), `BX_EXPOSED:true`, `window.STATES` exposé, `settingsBtn:true`
+  (overlay rendu), `window.fetch` = wrapper du hook (le SDK preview capturera
+  NOTRE fetch au `new`). `isSignedIn:false` sur BlueStacks (session Xbox
+  absente de cette instance) → les régions se peupleront au login au 1er
+  stream en session authentifiée (mécanisme déjà prouvé desktop en
+  Tampermonkey document-start).
+- Les 2 variants buildent (stable + preview), APK installé côte à côte.
+
+**APK rebuildés** : `mobile/out/evenbetter-xcloud-1.12.0.apk` +
+`evenbetter-xcloud-1.12.0-preview1.apk`. Pas de bump (vc 8 inchangé —
+changement d'implémentation, même versionName).
 
 ## Session autonome 19 août ~15:15-15:45 — publication v1.12.0 + gap régions + re-baseline
 

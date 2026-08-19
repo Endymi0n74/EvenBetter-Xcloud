@@ -25,19 +25,36 @@ import android.webkit.WebViewClient;
 import android.widget.Toast;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.zip.GZIPInputStream;
 
 /**
  * Minimal WebView wrapper for the EvenBetterXcloud userscript.
  *
  * Loads https://www.xbox.com/play and injects the stable build
  * (better-xcloud.user.js) as early as possible on every xbox.com page.
- * The script is a plain userscript (@grant none) with no GM_* APIs, so a
- * raw evaluateJavascript() injection is equivalent to a document-start
- * userscript manager run.
+ * The script is a plain userscript (@grant none) with no GM_* APIs.
+ *
+ * Injection document-start (19 août) : shouldInterceptRequest proxie le
+ * document principal et inline le userscript dans un <script> juste après
+ * <head> — AVANT tout module ESM du site. C'est ce qui bat le SDK preview,
+ * dont la classe HTTP capture `fetch` au moment du `new` (le
+ * evaluateJavascript d'onPageStarted arrivait trop tard → régions vides sur
+ * play.xbox.com). Fallback evaluateJavascript si le proxy échoue (cache-hit,
+ * réseau KO) ; idempotence garantie par le marqueur window.__EBX_INJECTED__
+ * (le bundle n'a pas de garde interne).
  *
  * Robustesse (18 août) :
  *  - erreurs réseau / HTTP / SSL de la frame principale → page d'erreur
@@ -88,6 +105,14 @@ public class MainActivity extends Activity {
     private String userscriptModern;
     private String userscriptLegacy;
     private boolean isTv;
+
+    // Injection document-start : posé par shouldInterceptRequest quand le
+    // document principal a reçu le userscript inline, lu/reset par
+    // onPageStarted (volatile : le proxy tourne sur un thread d'arrière-plan).
+    private volatile boolean documentInjected = false;
+    // UA réel du WebView (suffixe EvenBetterXcloud inclus) : le proxy le
+    // transmet, sinon le site sert un HTML « navigateur inconnu » (mobile-detect).
+    private String webViewUserAgent;
 
     // Défauts « box » (Android TV / Freebox Pop) : la box a un WebView faible →
     // on pose une fois les réglages légers du script (Économe : cap 5 Mbps +
@@ -156,6 +181,8 @@ public class MainActivity extends Activity {
             bxVer = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
         } catch (Exception ignored) {}
         settings.setUserAgentString(settings.getUserAgentString() + " EvenBetterXcloud/" + bxVer);
+        // UA réel du WebView (suffixe inclus) : transmis par le proxy document-start.
+        webViewUserAgent = settings.getUserAgentString();
 
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
@@ -444,18 +471,68 @@ public class MainActivity extends Activity {
             if (isXbox) {
                 activity.markRealPageStarted();
             }
+            // Le document a déjà reçu le userscript inline (shouldInterceptRequest) ?
+            // Alors on ne ré-injecte pas. Idempotence en plus par le marqueur
+            // window.__EBX_INJECTED__ (le bundle n'a PAS de garde interne).
+            boolean injectedEarly = activity.documentInjected;
+            activity.documentInjected = false; // prochaine navigation : réintercepter
             // xbox.com only (matches the userscript's @match set); the
             // script no-ops internally on non-play pages.
             String userscript = activity.userscript;
-            if (isXbox && userscript != null) {
+            if (isXbox && userscript != null && !injectedEarly) {
+                // Fallback (interception impossible : document servi depuis le
+                // cache HTTP, proxy KO…) : injection tardive comme avant.
                 // TV : poser les défauts « box » AVANT le script (le script lit
                 // localStorage à l'init) — idempotent, une seule fois.
                 if (activity.isTv) {
-                    view.evaluateJavascript(JS_TV_DEFAULTS, null);
+                    view.evaluateJavascript(
+                        "(function(){try{if(!window.__EBX_INJECTED__){window.__EBX_INJECTED__=1;"
+                        + JS_TV_DEFAULTS + "}}catch(e){}})();",
+                        null);
                 }
                 view.evaluateJavascript(
-                    "(function(){try{" + userscript + "}catch(e){console.error('EvenBetterXcloud inject',e)}})();",
+                    "(function(){try{if(!window.__EBX_INJECTED__){window.__EBX_INJECTED__=1;"
+                    + userscript + "}}catch(e){console.error('EvenBetterXcloud inject',e)}})();",
                     null);
+            }
+        }
+
+        /**
+         * Injection document-start (19 août) : intercepte la requête du
+         * document principal (GET https sur les domaines xbox.com), proxie la
+         * page et inline le userscript après <head> — AVANT tout module ESM du
+         * site. Le SDK preview capture `fetch` au `new` de sa classe HTTP :
+         * c'est le seul moyen de poser notre hook avant. En échec → null =
+         * chargement normal (le fallback d'onPageStarted prend le relais).
+         */
+        @Override
+        public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+            try {
+                if (request == null || !request.isForMainFrame()) {
+                    return super.shouldInterceptRequest(view, request);
+                }
+                // GET uniquement : les POST (soumission login.live.com) passent
+                // tels quels — relayer le corps serait risqué pour l'auth.
+                if (!"GET".equalsIgnoreCase(request.getMethod())) {
+                    return super.shouldInterceptRequest(view, request);
+                }
+                String url = request.getUrl() != null ? request.getUrl().toString() : "";
+                if (!isXboxDomain(url) || !url.startsWith("https://")) {
+                    return super.shouldInterceptRequest(view, request);
+                }
+                String userscript = activity.userscript;
+                if (userscript == null || activity.documentInjected) {
+                    return super.shouldInterceptRequest(view, request);
+                }
+                WebResourceResponse resp = activity.proxyAndInject(url, userscript);
+                if (resp != null) {
+                    activity.documentInjected = true;
+                    Log.d("EvenBetterXcloud", "document-start injecté sur " + url);
+                }
+                return resp != null ? resp : super.shouldInterceptRequest(view, request);
+            } catch (Throwable t) {
+                Log.w("EvenBetterXcloud", "shouldInterceptRequest repli: " + t);
+                return super.shouldInterceptRequest(view, request);
             }
         }
 
@@ -597,6 +674,165 @@ public class MainActivity extends Activity {
             }
             a.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
+    }
+
+    // ---------- Injection document-start (shouldInterceptRequest) ----------
+
+    /**
+     * Proxie la page demandée et renvoie le document avec le userscript
+     * inline dans un <script> juste après <head>. Cookies du WebView
+     * transmis et Set-Cookie rejoués (session intacte). La CSP du site est
+     * retirée (elle bloque les scripts inline — on contrôle la réponse, pas
+     * le contenu du site).
+     *
+     * Retourne null si le proxy échoue : le WebView charge normalement et
+     * le fallback evaluateJavascript d'onPageStarted prend le relais.
+     */
+    WebResourceResponse proxyAndInject(String url, String userscript) {
+        HttpURLConnection conn = null;
+        try {
+            conn = (HttpURLConnection) new URL(url).openConnection();
+            conn.setInstanceFollowRedirects(true);
+            conn.setConnectTimeout(8000);
+            conn.setReadTimeout(15000);
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("User-Agent", webViewUserAgent != null ? webViewUserAgent : "");
+            conn.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+            conn.setRequestProperty("Accept-Language", "fr-FR,fr;q=0.9,en;q=0.8");
+            // Pas de gzip : le corps doit rester lisible tel quel (le WebView
+            // ne re-décompresserait pas notre WebResourceResponse).
+            conn.setRequestProperty("Accept-Encoding", "identity");
+            String cookie = CookieManager.getInstance().getCookie(url);
+            if (cookie != null && !cookie.isEmpty()) {
+                conn.setRequestProperty("Cookie", cookie);
+            }
+
+            int code = conn.getResponseCode();
+
+            // Rejouer les Set-Cookie du proxy dans le jar du WebView : sans
+            // ça la session posée par le document proxied serait perdue pour
+            // les sous-ressources et les appels XHR du site.
+            Map<String, List<String>> respHeaders = conn.getHeaderFields();
+            boolean cookieChanged = false;
+            for (Map.Entry<String, List<String>> e : respHeaders.entrySet()) {
+                String name = e.getKey();
+                if (name != null && name.equalsIgnoreCase("Set-Cookie")) {
+                    List<String> values = e.getValue();
+                    if (values != null) {
+                        for (String v : values) {
+                            CookieManager.getInstance().setCookie(url, v);
+                            cookieChanged = true;
+                        }
+                    }
+                }
+            }
+            if (cookieChanged) {
+                CookieManager.getInstance().flush();
+            }
+
+            if (code != HttpURLConnection.HTTP_OK) {
+                return null; // erreurs HTTP : le WebView gère (page d'erreur / retry)
+            }
+
+            InputStream raw = conn.getInputStream();
+            String contentEncoding = conn.getHeaderField("Content-Encoding");
+            InputStream in = raw;
+            if (contentEncoding != null && contentEncoding.toLowerCase().contains("gzip")) {
+                in = new GZIPInputStream(raw);
+            }
+            String charset = "UTF-8";
+            String contentType = conn.getHeaderField("Content-Type");
+            if (contentType != null) {
+                Matcher m = Pattern.compile("charset=([^;\\s]+)").matcher(contentType);
+                if (m.find()) {
+                    charset = m.group(1);
+                }
+            }
+            String html = new String(readAll(in), charset);
+            try {
+                in.close();
+            } catch (IOException ignored) {
+            }
+
+            // IIFE obligatoire : le bundle a 6 déclarations top-level
+            // let/const — inline brut dans la page, elles entreraient en
+            // collision avec les globals du site (SyntaxError → script mort).
+            // window.STATES est exposé EXPLICITEMENT par le bundle (patch 23),
+            // donc le test latence fonctionne même encapsulé. Le marqueur
+            // __EBX_INJECTED__ rend le tout idempotent (fallback possible).
+            String tvDefaults = isTv ? JS_TV_DEFAULTS : "";
+            String scriptBlock = "<script>if(!window.__EBX_INJECTED__){window.__EBX_INJECTED__=1;"
+                + "(function(){try{" + tvDefaults + "\n" + userscript
+                + "}catch(e){console.error('EvenBetterXcloud inject',e)}})();}</script>";
+            String injected = injectInlineScript(html, scriptBlock);
+            if (injected == null) {
+                return null;
+            }
+
+            // Headers passés tels quels SAUF ceux qui contredisent le corps
+            // réécrit ou bloquent l'inline : CSP (script-src sans
+            // 'unsafe-inline' interdirait notre <script>), Content-Length /
+            // Content-Encoding (corps modifié + déjà décompressé).
+            Map<String, String> outHeaders = new HashMap<String, String>();
+            for (Map.Entry<String, List<String>> e : respHeaders.entrySet()) {
+                String name = e.getKey();
+                if (name == null) {
+                    continue;
+                }
+                if (name.equalsIgnoreCase("Content-Security-Policy")
+                        || name.equalsIgnoreCase("Content-Security-Policy-Report-Only")
+                        || name.equalsIgnoreCase("Content-Length")
+                        || name.equalsIgnoreCase("Content-Encoding")
+                        || name.equalsIgnoreCase("Transfer-Encoding")
+                        || name.equalsIgnoreCase("Connection")
+                        || name.equalsIgnoreCase("Set-Cookie")) {
+                    continue;
+                }
+                List<String> values = e.getValue();
+                if (values != null && !values.isEmpty()) {
+                    outHeaders.put(name, values.get(0));
+                }
+            }
+            return new WebResourceResponse("text/html", charset, 200, "OK", outHeaders,
+                    new ByteArrayInputStream(injected.getBytes(charset)));
+        } catch (Throwable t) {
+            Log.w("EvenBetterXcloud", "proxyAndInject échec (" + url + "): " + t);
+            return null;
+        } finally {
+            if (conn != null) {
+                conn.disconnect();
+            }
+        }
+    }
+
+    /** Insère scriptBlock juste après <head> (repli <html> puis <!doctype>). */
+    private static String injectInlineScript(String html, String scriptBlock) {
+        if (html == null) {
+            return null;
+        }
+        Matcher m = Pattern.compile("(?i)<head[^>]*>").matcher(html);
+        if (m.find()) {
+            return html.substring(0, m.end()) + scriptBlock + html.substring(m.end());
+        }
+        m = Pattern.compile("(?i)<html[^>]*>").matcher(html);
+        if (m.find()) {
+            return html.substring(0, m.end()) + scriptBlock + html.substring(m.end());
+        }
+        m = Pattern.compile("(?i)<!doctype[^>]*>").matcher(html);
+        if (m.find()) {
+            return html.substring(0, m.end()) + scriptBlock + html.substring(m.end());
+        }
+        return scriptBlock + html;
+    }
+
+    private static byte[] readAll(InputStream in) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream(64 * 1024);
+        byte[] buf = new byte[8192];
+        int n;
+        while ((n = in.read(buf)) != -1) {
+            out.write(buf, 0, n);
+        }
+        return out.toByteArray();
     }
 
     private String loadAsset(String name) {
