@@ -1,4 +1,4 @@
-# EvenBetterXcloud — v1.13.0
+# EvenBetterXcloud — v1.13.1
 
 [![Release](https://img.shields.io/github/v/release/Endymi0n74/EvenBetter-Xcloud?style=for-the-badge&color=green)](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest)
 [![Install](https://img.shields.io/badge/Install-userscript-blue?style=for-the-badge)](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-xcloud.user.js)
@@ -8,12 +8,19 @@
 
 Performance-oriented fork of the [Better xCloud](https://github.com/redphx/better-xcloud)
 userscript (redphx), performance-oriented **+ user features**. Latest release:
-[evenbetter-xcloud-v1.13.0](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/tag/evenbetter-xcloud-v1.13.0).
+[evenbetter-xcloud-v1.13.1](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/tag/evenbetter-xcloud-v1.13.1).
+
+**New in v1.13.1 — robustness (`BX_PURGE_DIAG` routine)**: diagnostic
+listeners attached to `window` during test sessions (marked `win-capture`)
+are tracked at startup and purged in a single call — a forgotten listener can
+no longer pollute the console or interfere with the page. Maintenance:
+validation probes updated (cleanup convention documented).
 
 **New in v1.13.0 — 🔊 Sound (one-click volume presets)**: in Settings → *Sound*
-group, four presets (Max, High, Normal, Low) set `audio.volume` (+ booster if
-needed) and apply it **live on the current session** through the native slider
-channel — no need for the volume dropdown.
+group, four presets (🔇 Mute / 🔉 Low / 🔊 Normal / 📢 Boost) set
+`audio.volume` (+ booster if needed) and apply it **live on the current
+session** through the native slider channel — no need for the volume
+dropdown.
 
 **New in v1.12.0 — ⚡ Apply best region**: after the latency test, a button
 sets `server.region` directly to the lowest-ping region measured (⭐
@@ -124,10 +131,10 @@ contract in `bench/preview/port/README.md`):
 |---|---|---|
 | Role | The classic optimized fork — xbox.com/play (Webpack SPA, WebGL2 renderer) | The variant for the new web client (React Router 7 + rolldown, Babylon.js renderer) |
 | File | `better-xcloud.user.js` | `better-xcloud-preview.user.js` (+ `.meta.js`) |
-| Version | `1.13.0` | `1.13.0-preview1` (prerelease) |
+| Version | `1.13.1` | `1.13.1-preview1` (prerelease) |
 | `@name` | `EvenBetterXcloud` | `EvenBetterXcloud (Preview)` |
 | `@match` | `www.xbox.com/*/play*` | `play.xbox.com/*` only |
-| Auto-update | `releases/latest` (stable channel) | dedicated tag `evenbetter-xcloud-v1.13.0-preview1` (never the `latest`) |
+| Auto-update | `releases/latest` (stable channel) | dedicated tag `evenbetter-xcloud-v1.13.1-preview1` (never the `latest`) |
 
 Both builds **coexist without mixing**: distinct identity
 (name/version/updateURL) and disjoint matches (the preview never runs on
@@ -147,7 +154,7 @@ https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-
 Preview Features enabled):
 
 ```
-https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.13.0-preview1/better-xcloud-preview.user.js
+https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.13.1-preview1/better-xcloud-preview.user.js
 ```
 
 The preview is **playable and validated live**: settings button in the top
@@ -248,7 +255,7 @@ remaining measurable gain comes from **user preferences**:
 | `server.region` + "📡 Test latency" (v1.10.0) | Lowest-ping region (e.g. CSE 30 ms ⭐ vs UKS 43 ms from France) | ✅ Always useful |
 | "📊 Data" group (v1.11.0) — one-click presets | 🚀 Max / ⚖️ Balanced (10 Mbps) / 🌱 Eco (5 Mbps + 720p), applied at next session start | ✅ The maxBitrate cap is the only setting that saves bandwidth without losing definition |
 | "⚡ Apply best region" (v1.12.0) | Sets `server.region` to the lowest-ping region (⭐ recommendation of the test) | ✅ The companion of the latency test — one click after the test |
-| "🔊 Sound" group (v1.13.0) — volume presets | Max / High / Normal / Low set `audio.volume`, applied **live** on the current session | ✅ One-click volume, no dropdown |
+| "🔊 Sound" group (v1.13.0) — volume presets | 🔇 Mute / 🔉 Low / 🔊 Normal / 📢 Boost set `audio.volume`, applied **live** on the current session | ✅ One-click volume, no dropdown |
 
 **Codec (final verdict, stable + preview)**: both clients negotiate
 **H.264 Constrained High** (`4d001f`) — the only codec the server keeps.

@@ -46,6 +46,21 @@ Dernière passe : **19 août ~23:30 — PREVIEW_VERSION branché sur le bump
 (source de vérité unique, GATE si absent) + ordre es2017 preview corrigé**
 (commit en cours).
 
+## Règle — le README doit toujours être à jour (20 août, directive utilisateur)
+
+**« J'ajoute une règle, le README doit toujours être à jour »** — règle
+encodée :
+- **Après chaque changement de version (bump, release, feature), vérifier et
+  mettre à jour TOUS les READMEs** qui mentionnent une version : `README.md`
+  (principal, version + liens release + table Deux versions + lien preview),
+  `README.en.md`, `bench/README.md`, `mobile/README.md` (versions d'APK,
+  exemples de build, tableau des variants), `bench/preview/port/README.md`.
+- **Une référence de version périmée = bug de doc** : l'audit grep
+  `grep -rn "<ancienne version>" <READMEs>` doit revenir vide (sauf
+  mentions historiques datées, ex. « Feature Son v1.13.0 » dans un journal).
+- **Au même rythme que le commit du bump** : jamais de commit bump sans la
+  passe README qui suit (ou précède) dans le même lot.
+
 ## Routine de purge des listeners de diagnostic — BX_PURGE_DIAG (19-20 août)
 
 **Problème** : pendant une session CDP on attache des listeners de diagnostic

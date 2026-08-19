@@ -1,4 +1,4 @@
-# EvenBetterXcloud — v1.13.0
+# EvenBetterXcloud — v1.13.1
 
 [![Release](https://img.shields.io/github/v/release/Endymi0n74/EvenBetter-Xcloud?style=for-the-badge&color=green)](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest)
 [![Install](https://img.shields.io/badge/Install-userscript-blue?style=for-the-badge)](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-xcloud.user.js)
@@ -8,13 +8,19 @@
 
 Fork performance du userscript [Better xCloud](https://github.com/redphx/better-xcloud)
 (redphx), orienté **performance** + **fonctionnalités utilisateur**. Dernière
-release : [evenbetter-xcloud-v1.13.0](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/tag/evenbetter-xcloud-v1.13.0).
+release : [evenbetter-xcloud-v1.13.1](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/tag/evenbetter-xcloud-v1.13.1).
+
+**Nouveauté v1.13.1 — robustesse (routine `BX_PURGE_DIAG`)** : les listeners
+de diagnostic attachés à `window` pendant les sessions de test (marqueur
+`win-capture`) sont tracés au démarrage et purgés en un appel — un listener
+oublié ne peut plus polluer la console ni gêner la page. Maintien : probes de
+validation mises à jour (convention de nettoyage documentée).
 
 **Nouveauté v1.13.0 — 🔊 Son (presets de volume en un clic)** : dans les
-settings → groupe *Son*, quatre presets (Max, Fort, Normal, Faible) posent
-`audio.volume` (+ le booster si besoin) et l'appliquent **en direct sur la
-session en cours** via le canal du slider natif — sans passer par le menu
-déroulant du volume.
+settings → groupe *Son*, quatre presets (🔇 Muet / 🔉 Doux / 🔊 Normal /
+📢 Boost) posent `audio.volume` (+ le booster si besoin) et l'appliquent
+**en direct sur la session en cours** via le canal du slider natif — sans
+passer par le menu déroulant du volume.
 
 **Nouveauté v1.12.0 — ⚡ Appliquer la meilleure région** : après le test de
 latence, un bouton pose directement `server.region` sur la région au ping le
@@ -129,10 +135,10 @@ détaillé dans `bench/preview/port/README.md`) :
 |---|---|---|
 | Rôle | Le fork optimisé classique — xbox.com/play (SPA Webpack, renderer WebGL2) | La variante du nouveau client web (React Router 7 + rolldown, renderer Babylon.js) |
 | Fichier | `better-xcloud.user.js` | `better-xcloud-preview.user.js` (+ `.meta.js`) |
-| Version | `1.13.0` | `1.13.0-preview1` (prerelease) |
+| Version | `1.13.1` | `1.13.1-preview1` (prerelease) |
 | `@name` | `EvenBetterXcloud` | `EvenBetterXcloud (Preview)` |
 | `@match` | `www.xbox.com/*/play*` | `play.xbox.com/*` uniquement |
-| Auto-update | `releases/latest` (canal stable) | tag dédié `evenbetter-xcloud-v1.13.0-preview1` (jamais le `latest`) |
+| Auto-update | `releases/latest` (canal stable) | tag dédié `evenbetter-xcloud-v1.13.1-preview1` (jamais le `latest`) |
 
 Les deux builds **cohabitent sans se confondre** : identité distincte
 (name/version/updateURL) et matches disjoints (le preview ne s'exécute jamais
@@ -152,7 +158,7 @@ https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-
 Preview Features activé) :
 
 ```
-https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.13.0-preview1/better-xcloud-preview.user.js
+https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.13.1-preview1/better-xcloud-preview.user.js
 ```
 
 Le preview est **jouable et validé en réel** : bouton settings dans le top bar
@@ -255,7 +261,7 @@ Tout gain mesurable restant passe par les **préférences utilisateur** :
 | `server.region` + « 📡 Tester la latence » (v1.10.0) | Région au ping le plus bas (ex. CSE 30 ms ⭐ vs UKS 43 ms depuis la France) | ✅ Toujours utile |
 | Groupe « 📊 Données » (v1.11.0) — presets en un clic | 🚀 Max / ⚖️ Équilibré (10 Mbps) / 🌱 Économe (5 Mbps + 720p), appliqués au prochain lancement | ✅ Le cap maxBitrate est le seul réglage qui économise sans perdre la définition |
 | « ⚡ Appliquer la meilleure région » (v1.12.0) | Pose `server.region` sur la région au ping le plus bas (recommandation ⭐ du test) | ✅ Le complément du test latence — un clic après le test |
-| Groupe « 🔊 Son » (v1.13.0) — presets de volume | Max / Fort / Normal / Faible posent `audio.volume`, appliqués **en direct** sur la session en cours | ✅ Le volume en un clic, sans le menu déroulant |
+| Groupe « 🔊 Son » (v1.13.0) — presets de volume | 🔇 Muet / 🔉 Doux / 🔊 Normal / 📢 Boost posent `audio.volume`, appliqués **en direct** sur la session en cours | ✅ Le volume en un clic, sans le menu déroulant |
 
 **Codec (verdict final, stable + preview)** : les deux clients négocient du
 **H.264 Constrained High** (`4d001f`) — le seul codec que le serveur retient.
