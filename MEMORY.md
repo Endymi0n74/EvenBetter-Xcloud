@@ -9,9 +9,52 @@ Mémoire de travail des sessions. Détails dans `bench/preview/port/session.md`
 L'utilisateur demande une mise à jour de ce fichier **au moins toutes les
 ~2 h de travail cumulé** (et à chaque fin de session), sans attendre d'être
 relancé : après ~2 h d'actions, journaliser l'état (fichiers touchés,
-verdicts, pièges nouveaux, en attente). Dernière passe : **19 août ~17:30 —
-Injection APK vraiment document-start (shouldInterceptRequest) + validation
-WebView BlueStacks**.
+verdicts, pièges nouveaux, en attente). Dernière passe : **19 août ~18:30 —
+Release v1.12.0 (APK doc-start) + cycle d'auto-update vérifié**.
+
+## Release v1.12.0 rafraîchie (APK doc-start) + cycle auto-update (19 août ~18:30)
+
+**« Déjà fait ? » — OUI pour le fix BACK en stream** : le tag
+`evenbetter-xcloud-v1.12.0` contient `6d4d63a` (BACK en stream = navigation
+home) — l'APK publié depuis le 19 août ~13:30Z embarquait déjà les 2 fixes
+BACK (back prédictif désactivé + double-BACK).
+
+**Rafraîchi** : les 3 APK rebuildés avec l'injection document-start (commit
+e8ef24e) ont été re-uploadés (gh release upload --clobber, copies /tmp au
+nom exact — piège #newname) : v1.12.0 (`evenbetter-xcloud-1.12.0.apk` +
+nom stable `evenbetter-xcloud.apk`, sha 928b6ea byte-identiques) et
+v1.12.0-preview1 (`evenbetter-xcloud-1.12.0-preview1.apk`). Garde-fou
+release 10/10 vert (4/4 liens, APK bannière 200 + byte-identique, APK
+preview 200).
+
+**Cycle d'auto-update vérifié (partie déterministe) :**
+- Meta servie à `releases/latest/download/better-xcloud.meta.js` :
+  @name EvenBetterXcloud, @version 1.12.0, @updateURL/@downloadURL
+  corrects. Preview pinné : 1.12.0-preview1 → son tag.
+- user.js servie = byte-identique au tag (garde-fou).
+- Côté client réel : dans le Tampermonkey BETA du profil datasaver (Edge
+  9225), version simulée **1.9.0** installée (gist temporaire + ask.html
+  « EvenBetterXcloud v1.9.0 » → Installer) avec @updateURL → notre meta. Le
+  **service worker** de TM (MV3 : `background.js`, pas la page) joint le
+  meta (fetch 200 → release-assets) — donc 1.12.0 SERA proposée au prochain
+  check (périodique ou manuel).
+- **Limite rencontrée** : le clic final « Mettre à jour » dans le dashboard
+  Tampermonkey BETA n'est pas automatisable en CDP — les actions batch
+  (checkbox + select « Lancer une MàJ » + Démarrer) ne se déclenchent pas
+  (les vrais clics souris CDP non plus) et la page se bloque. Quirk UI du
+  dashboard MV3, PAS un problème du contrat release (le SW joint le meta).
+  Pièges pour la prochaine fois : le check d'update tourne dans le SW (pas
+  la page options.html) ; Tampermonkey n'intercepte PAS 127.0.0.1 (install
+  via gist/GitHub URL) ; le dashboard ne se rafraîchit pas tout seul
+  (reload requis) ; `Input.dispatchKeyEvent`/`mousePressed` sur le select
+  natif peuvent laisser la page bloquée (reload pour repartir).
+- **Restant** : le script simulé 1.9.0 est resté installé dans le
+  Tampermonkey du profil datasaver (la suppression batch a planté) — il
+  s'auto-mettra à jour vers 1.12.0 au prochain check (preuve vivante du
+  cycle) ; sinon le supprimer depuis le dashboard. Greasemonkey réel de
+  l'utilisateur : introuvable dans les profils Firefox de la machine
+  (aucun manager userscript ni le script) — la vérification finale
+  (badge → clic → 1.12.0) reste un test manuel de 30 s côté utilisateur.
 
 ## Injection APK vraiment document-start — shouldInterceptRequest (19 août ~17:30)
 
