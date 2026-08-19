@@ -1,4 +1,4 @@
-# EvenBetterXcloud — v1.11.0
+# EvenBetterXcloud — v1.12.0
 
 [![Release](https://img.shields.io/github/v/release/Endymi0n74/EvenBetter-Xcloud?style=for-the-badge&color=green)](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest)
 [![Install](https://img.shields.io/badge/Install-userscript-blue?style=for-the-badge)](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-xcloud.user.js)
@@ -8,7 +8,12 @@
 
 Fork performance du userscript [Better xCloud](https://github.com/redphx/better-xcloud)
 (redphx), orienté **performance** + **fonctionnalités utilisateur**. Dernière
-release : [evenbetter-xcloud-v1.11.0](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/tag/evenbetter-xcloud-v1.11.0).
+release : [evenbetter-xcloud-v1.12.0](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/tag/evenbetter-xcloud-v1.12.0).
+
+**Nouveauté v1.12.0 — ⚡ Appliquer la meilleure région** : après le test de
+latence, un bouton pose directement `server.region` sur la région au ping le
+plus bas mesuré (recommandation ⭐) — fini le copier-coller de la meilleure
+région dans le menu déroulant.
 
 **Nouveauté v1.11.0 — 📊 Données (presets débit/résolution en un clic)** :
 dans les settings → groupe *Données*, trois presets basés sur nos **mesures
@@ -118,10 +123,10 @@ détaillé dans `bench/preview/port/README.md`) :
 |---|---|---|
 | Rôle | Le fork optimisé classique — xbox.com/play (SPA Webpack, renderer WebGL2) | La variante du nouveau client web (React Router 7 + rolldown, renderer Babylon.js) |
 | Fichier | `better-xcloud.user.js` | `better-xcloud-preview.user.js` (+ `.meta.js`) |
-| Version | `1.11.0` | `1.11.0-preview2` (prerelease) |
+| Version | `1.12.0` | `1.12.0-preview1` (prerelease) |
 | `@name` | `EvenBetterXcloud` | `EvenBetterXcloud (Preview)` |
 | `@match` | `www.xbox.com/*/play*` | `play.xbox.com/*` uniquement |
-| Auto-update | `releases/latest` (canal stable) | tag dédié `evenbetter-xcloud-v1.11.0-preview2` (jamais le `latest`) |
+| Auto-update | `releases/latest` (canal stable) | tag dédié `evenbetter-xcloud-v1.12.0-preview1` (jamais le `latest`) |
 
 Les deux builds **cohabitent sans se confondre** : identité distincte
 (name/version/updateURL) et matches disjoints (le preview ne s'exécute jamais
@@ -141,7 +146,7 @@ https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-
 Preview Features activé) :
 
 ```
-https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.11.0-preview2/better-xcloud-preview.user.js
+https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.12.0-preview1/better-xcloud-preview.user.js
 ```
 
 Le preview est **jouable et validé en réel** : bouton settings dans le top bar
@@ -156,7 +161,10 @@ page stream immersive de play.xbox.com n'a ni header ni nav — T9). Depuis
 **1.11.0-preview1**, le preview embarque aussi le groupe « 📊 Données » du
 stable, et **1.11.0-preview2** corrige l'overlay mobile en WebView téléphone
 (FAB < 768 px + re-arm après remplacement du document — le bouton ne
-« disparaissait » plus en session). Le stable n'est jamais affecté.
+« disparaissait » plus en session). Depuis **1.12.0-preview1**, le groupe
+*Server* (📡 test latence + ⚡ meilleure région) est utilisable sur
+play.xbox.com (fix `window.STATES`, patch 23) et l'APK embarque l'injection
+document-start. Le stable n'est jamais affecté.
 
 ### Pourquoi le preview ne fait pas partie des PR upstream
 
@@ -240,6 +248,7 @@ Tout gain mesurable restant passe par les **préférences utilisateur** :
 | `stream.video.resolution` = 1080p / 1080p-hq | **Aucun effet sur PC** (toujours 1440p natif — no-op documenté) | ⚠️ Ne rien y toucher |
 | `server.region` + « 📡 Tester la latence » (v1.10.0) | Région au ping le plus bas (ex. CSE 30 ms ⭐ vs UKS 43 ms depuis la France) | ✅ Toujours utile |
 | Groupe « 📊 Données » (v1.11.0) — presets en un clic | 🚀 Max / ⚖️ Équilibré (10 Mbps) / 🌱 Économe (5 Mbps + 720p), appliqués au prochain lancement | ✅ Le cap maxBitrate est le seul réglage qui économise sans perdre la définition |
+| « ⚡ Appliquer la meilleure région » (v1.12.0) | Pose `server.region` sur la région au ping le plus bas (recommandation ⭐ du test) | ✅ Le complément du test latence — un clic après le test |
 
 **Codec (verdict final, stable + preview)** : les deux clients négocient du
 **H.264 Constrained High** (`4d001f`) — le seul codec que le serveur retient.

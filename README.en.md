@@ -1,4 +1,4 @@
-# EvenBetterXcloud — v1.11.0
+# EvenBetterXcloud — v1.12.0
 
 [![Release](https://img.shields.io/github/v/release/Endymi0n74/EvenBetter-Xcloud?style=for-the-badge&color=green)](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest)
 [![Install](https://img.shields.io/badge/Install-userscript-blue?style=for-the-badge)](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-xcloud.user.js)
@@ -8,7 +8,11 @@
 
 Performance-oriented fork of the [Better xCloud](https://github.com/redphx/better-xcloud)
 userscript (redphx), performance-oriented **+ user features**. Latest release:
-[evenbetter-xcloud-v1.11.0](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/tag/evenbetter-xcloud-v1.11.0).
+[evenbetter-xcloud-v1.12.0](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/tag/evenbetter-xcloud-v1.12.0).
+
+**New in v1.12.0 — ⚡ Apply best region**: after the latency test, a button
+sets `server.region` directly to the lowest-ping region measured (⭐
+recommendation) — no more copy-pasting the best region into the dropdown.
 
 **New in v1.11.0 — 📊 Data (one-click bitrate/resolution presets)**: in
 Settings → *Data* group, three presets based on our **real measurements** (the
@@ -115,10 +119,10 @@ contract in `bench/preview/port/README.md`):
 |---|---|---|
 | Role | The classic optimized fork — xbox.com/play (Webpack SPA, WebGL2 renderer) | The variant for the new web client (React Router 7 + rolldown, Babylon.js renderer) |
 | File | `better-xcloud.user.js` | `better-xcloud-preview.user.js` (+ `.meta.js`) |
-| Version | `1.11.0` | `1.11.0-preview2` (prerelease) |
+| Version | `1.12.0` | `1.12.0-preview1` (prerelease) |
 | `@name` | `EvenBetterXcloud` | `EvenBetterXcloud (Preview)` |
 | `@match` | `www.xbox.com/*/play*` | `play.xbox.com/*` only |
-| Auto-update | `releases/latest` (stable channel) | dedicated tag `evenbetter-xcloud-v1.11.0-preview2` (never the `latest`) |
+| Auto-update | `releases/latest` (stable channel) | dedicated tag `evenbetter-xcloud-v1.12.0-preview1` (never the `latest`) |
 
 Both builds **coexist without mixing**: distinct identity
 (name/version/updateURL) and disjoint matches (the preview never runs on
@@ -138,7 +142,7 @@ https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-
 Preview Features enabled):
 
 ```
-https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.11.0-preview2/better-xcloud-preview.user.js
+https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.12.0-preview1/better-xcloud-preview.user.js
 ```
 
 The preview is **playable and validated live**: settings button in the top
@@ -153,7 +157,10 @@ during a session (the immersive stream page of play.xbox.com has neither
 header nor nav — T9). Since **1.11.0-preview1**, the preview also ships the
 stable's "📊 Data" group, and **1.11.0-preview2** fixes the mobile overlay in a
 phone WebView (FAB < 768 px + re-arm after document replacement — the button
-no longer "vanishes" during a session). The stable is never affected.
+no longer "vanishes" during a session). Since **1.12.0-preview1**, the
+*Server* group (📡 latency test + ⚡ best region) works on play.xbox.com
+(`window.STATES` fix, patch 23) and the APK embeds the document-start
+injection. The stable is never affected.
 
 ### Why the preview is not part of the upstream PRs
 
@@ -235,6 +242,7 @@ remaining measurable gain comes from **user preferences**:
 | `stream.video.resolution` = 1080p / 1080p-hq | **No effect on PC** (always native 1440p — documented no-op) | ⚠️ Leave untouched |
 | `server.region` + "📡 Test latency" (v1.10.0) | Lowest-ping region (e.g. CSE 30 ms ⭐ vs UKS 43 ms from France) | ✅ Always useful |
 | "📊 Data" group (v1.11.0) — one-click presets | 🚀 Max / ⚖️ Balanced (10 Mbps) / 🌱 Eco (5 Mbps + 720p), applied at next session start | ✅ The maxBitrate cap is the only setting that saves bandwidth without losing definition |
+| "⚡ Apply best region" (v1.12.0) | Sets `server.region` to the lowest-ping region (⭐ recommendation of the test) | ✅ The companion of the latency test — one click after the test |
 
 **Codec (final verdict, stable + preview)**: both clients negotiate
 **H.264 Constrained High** (`4d001f`) — the only codec the server keeps.

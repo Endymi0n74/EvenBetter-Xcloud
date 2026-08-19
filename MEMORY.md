@@ -23,8 +23,9 @@ survit). Application concrète :
   chances de planter ou de prendre du temps, noter au fil de l'eau ce qui
   est déjà acquis (le contexte ne survit pas à un restart).
 
-Dernière passe : **19 août ~18:30 — Release v1.12.0 (APK doc-start) +
-cecle d'auto-update vérifié** (commit e1435bc).
+Dernière passe : **19 août ~19:00 — Passe de cohérence : README FR/EN
+ré-alignés sur v1.12.0 / 1.12.0-preview1, ÉTAT COURANT des releases corrigé
+(ils étaient restés sur v1.11.0)** — à committer.
 
 ## Release v1.12.0 rafraîchie (APK doc-start) + cycle auto-update (19 août ~18:30)
 
@@ -606,14 +607,16 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
 
 ## Releases & pipeline de publication
 
-- **ÉTAT COURANT (19 août ~14:30)** : **v1.11.0** (Latest,
-  `evenbetter-xcloud-v1.11.0` — user.js ES2017 + meta + APK versionné +
-  APK stable) · **1.11.0-preview2** (`evenbetter-xcloud-v1.11.0-preview2` —
-  preview user/meta + APK) · **1.8.0-preview4** (cran de secours). 4/4 liens
-  d'auto-update 200 + byte-identiques (garde-fou vert, relancé après la
-  publication preview2). Les paragraphes ci-dessous sont l'historique depuis
-  le 17 août — la section « En attente » + `upstream-prs/README.md` portent
-  l'état vivant.
+- **ÉTAT COURANT (19 août ~18:30)** : **v1.12.0** (Latest,
+  `evenbetter-xcloud-v1.12.0` — user.js ES2017 + meta + APK versionné +
+  nom stable `evenbetter-xcloud.apk`, sha 928b6ea byte-identiques) ·
+  **1.12.0-preview1** (`evenbetter-xcloud-v1.12.0-preview1` — preview
+  user/meta + APK) · **1.8.0-preview4** (cran de secours). 4/4 liens
+  d'auto-update 200 + byte-identiques (garde-fou 10/10 vert, relancé après
+  le re-upload des APK doc-start). README FR/EN alignés sur v1.12.0 /
+  1.12.0-preview1 (passe de cohérence 19 août ~19:00). Les paragraphes
+  ci-dessous sont l'historique depuis le 17 août — la section « En attente »
+  + `upstream-prs/README.md` portent l'état vivant.
 - **État au 17 août ~23:30 (rétention appliquée, historique)** : 12
   anciennes releases purgées (v1.0.0 → v1.7.0 stables, 1.7.0-preview1,
   1.8.0-preview1/2/3).
