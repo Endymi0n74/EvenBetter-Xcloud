@@ -136,10 +136,14 @@ addEventListener`/`removeEventListener`, enregistre les listeners marqués et
 expose `window.BX_PURGE_DIAG()` (retire uniquement ceux-là, appelé au
 démarrage + utilisable en fin de probe). Gate CI `bench/feature-diag-purge.
 test.js` : présence stable+preview, ancres, **test fonctionnel vm** (2 marqués
-purges, normal conservé) + self-test. Pièges documentés : les exceptions des
-listeners ne remontent PAS au dispatcher (compter via le handler `error` de
-window) ; après purge du ScriptCache MV3 + relance d'Edge, la page chargée
-avant l'extension n'a pas le bundle → un reload suffit.
+purges, normal conservé) + self-test. Les probes CDP (`feature-sound-probe`,
+`feature-datasaver-probe`, `feature-region-probe`) appellent `BX_PURGE_DIAG()`
+en fin de run (best-effort, no-op si API absente) et documentent la
+convention `win-capture` dans leurs entêtes. Pièges documentés : les
+exceptions des listeners ne remontent PAS au dispatcher (compter via le
+handler `error` de window) ; après purge du ScriptCache MV3 + relance
+Edge, la page chargée avant l'extension n'a pas le bundle → un reload
+suffit.
 
 ## Rebrand EvenBetterXcloud + feature Sound (v1.9.0, 18 août)
 

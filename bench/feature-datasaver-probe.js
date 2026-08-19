@@ -12,6 +12,12 @@
  *   7. ré-ouverture des settings + restauration du preset Max (15360000 =
  *      illimité — forme persistée du slider natif, 0 n'est que le défaut)
  *
+ * Convention diagnostic (BX_PURGE_DIAG) : tout listener de diagnostic attaché
+ * à window pendant la sonde doit contenir le marqueur « win-capture » dans sa
+ * source — la routine du bundle l'enregistre au démarrage et BX_PURGE_DIAG()
+ * le retire. La sonde appelle BX_PURGE_DIAG() en fin de run (no-op si le
+ * bundle ne l'expose pas — ex. version antérieure).
+ *
  * Usage : node bench/feature-datasaver-probe.js [--port=9225]
  */
 const PORT = Number((process.argv.find((a) => a.startsWith("--port=")) || "--port=9225").split("=")[1]);
@@ -179,6 +185,13 @@ const PORT = Number((process.argv.find((a) => a.startsWith("--port=")) || "--por
     // persiste la forme get (15360000) — le stocké 0 n'est que le défaut.
     check("restauration Max (15360000 = illimité)", brMax === 15360000 && !!persist7, JSON.stringify({ br: brMax, storedRaw }));
   }
+
+  // Nettoyage : purge des listeners de diagnostic marqués « win-capture »
+  // (routine du bundle) — best-effort, informatif, no-op si API absente.
+  try {
+    const purged = await ev(`(() => { try { return typeof window.BX_PURGE_DIAG === "function" ? window.BX_PURGE_DIAG() : -1; } catch (e) { return -1; } })()`);
+    if (purged > 0) console.log("[nettoyage] BX_PURGE_DIAG a retiré " + purged + " listener(s) de diagnostic");
+  } catch (e) {}
 
   console.log(failures === 0 ? "\nFeature Data saver : validation OK" : `\n${failures} échec(s)`);
   ws.close();

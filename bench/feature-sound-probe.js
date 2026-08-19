@@ -24,6 +24,12 @@
  *     d'une regex construite) : les labels contiennent des emojis et des
  *     parenthèses (« 🔊 Normal (défaut) ») — une regex les échapperait mal.
  *
+ * Convention diagnostic (BX_PURGE_DIAG) : tout listener de diagnostic attaché
+ * à window pendant la sonde doit contenir le marqueur « win-capture » dans sa
+ * source — la routine du bundle l'enregistre au démarrage et BX_PURGE_DIAG()
+ * le retire. La sonde appelle BX_PURGE_DIAG() en fin de run (no-op si le
+ * bundle ne l'expose pas — ex. version antérieure).
+ *
  * Usage : node bench/feature-sound-probe.js [--port=9225]
  */
 const PORT = Number((process.argv.find((a) => a.startsWith("--port=")) || "--port=9225").split("=")[1]);
@@ -193,6 +199,13 @@ const PRESETS = [
     } catch { return null; }
   })()`, 6000);
   check("audio.volume persisté dans localStorage (BetterXcloud.*)", !!persist, JSON.stringify(persist));
+
+  // 6. nettoyage : purge des listeners de diagnostic marqués « win-capture »
+  // (routine du bundle) — best-effort, informatif, no-op si API absente.
+  try {
+    const purged = await ev(`(() => { try { return typeof window.BX_PURGE_DIAG === "function" ? window.BX_PURGE_DIAG() : -1; } catch (e) { return -1; } })()`);
+    if (purged > 0) console.log("[nettoyage] BX_PURGE_DIAG a retiré " + purged + " listener(s) de diagnostic");
+  } catch (e) {}
 
   console.log(failures === 0 ? "\nFeature Son : validation OK" : `\n${failures} échec(s)`);
   ws.close();
