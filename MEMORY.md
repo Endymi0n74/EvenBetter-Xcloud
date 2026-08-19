@@ -74,8 +74,20 @@ son `--self-test`) lit `VERSION` + `PREVIEW_VERSION` (source de vérité) et :
    tolérées (regex ciblées : tags `evenbetter-xcloud-vX.Y.Z[-previewN]` et
    APK `evenbetter-xcloud-<semver>.apk` uniquement — `1.9.0-test.apk`
    historique n'est pas flagué).
-Self-test : copie corrompue → 23 défaillances attendues, exit 1. Un bump qui
-oublie la passe README casse le CI immédiatement.
+Self-test : copies corrompues → exit 1. Un bump qui oublie la passe README
+casse le CI immédiatement.
+
+**Extension (20 août, directive) — gate bundles + APK** : le même gate
+vérifie aussi (1) les `@version` des 4 bundles (user/meta stable + preview)
+vs VERSION/PREVIEW_VERSION et le pin `@updateURL` preview → piège « bump
+sans rebuild » couvert (bump de fichier sans rebuild = ancienne version ET
+ancien pin → 404 auto-update) ; (2) `mobile/build.sh` dérive les noms d'APK
+de `${VERSION}` / `${PREVIEW_VERSION}` (APK de release présents dans
+`mobile/out/` vérifiés, artefacts intermédiaires base/app-unsigned/
+app-aligned ignorés). **Fix collatéral** : build.sh hardcodait
+`evenbetter-xcloud-${VERSION}-preview1.apk` — le suffixe preview vient
+maintenant de PREVIEW_VERSION, avec GATE ROUGE si absent (piège `set -e` :
+`|| true` nécessaire pour que le message GATE s'affiche avant l'exit).
 
 ## Routine de purge des listeners de diagnostic — BX_PURGE_DIAG (19-20 août)
 

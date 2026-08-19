@@ -18,8 +18,18 @@
  *      (ex. « Nouveauté v1.13.0 ») sont tolérées — seuls les tags au format
  *      `evenbetter-xcloud-vX.Y.Z[-previewN]` et les APK versionnés sont
  *      vérifiés.
- *   3. SELF-TEST (--self-test) : copie corrompue (titre + tag + APK périmés)
- *      → le gate doit sortir en exit 1 avec le message GATE ROUGE.
+ *   3. BUNDLES : les `@version` de better-xcloud.user.js/.meta.js et
+ *      better-xcloud-preview.user.js/.meta.js doivent égaler VERSION /
+ *      PREVIEW_VERSION, et le pin `@updateURL` du preview (tag dédié) doit
+ *      pointer la version courante — un bump de fichier SANS rebuild laisse
+ *      l'ancienne version ET l'ancien pin (→ 404 auto-update) : piège
+ *      « bump sans rebuild » couvert.
+ *   4. APK : mobile/build.sh doit dériver les noms d'APK de VERSION (stable)
+ *      et PREVIEW_VERSION (preview — jamais de suffixe -previewN hardcodé) ;
+ *      si des APK construits sont présents (mobile/out/, gitignoré), leurs
+ *      noms doivent être courants.
+ *   5. SELF-TEST (--self-test) : copies corrompues (READMEs + bundles +
+ *      build.sh) → le gate doit sortir en exit 1 avec le message GATE ROUGE.
  *
  * Sources de vérité : `VERSION` (stable) et `PREVIEW_VERSION` (preview) à la
  * racine — les mêmes fichiers lus par bump-version.sh et build-preview.js.
@@ -44,6 +54,8 @@ if (!/^\d+\.\d+\.\d+$/.test(VERSION) || !/^\d+\.\d+\.\d+-preview\d+$/.test(PREVI
 // READMEs audités (présence obligatoire) ; « FRONT » = docs utilisateur dont
 // les mentions de version en prose doivent rester à jour (les journaux
 // bench/ tolèrent les mentions historiques, mais PAS les liens/APK périmés).
+// S'ajoutent les bundles (en-têtes @version + pin) et mobile/build.sh (noms
+// d'APK dérivés de VERSION/PREVIEW_VERSION).
 const FILES = [
   "README.md",
   "README.en.md",
@@ -51,8 +63,22 @@ const FILES = [
   "bench/README.md",
   "bench/preview/README.md",
   "bench/preview/port/README.md",
+  "better-xcloud.user.js",
+  "better-xcloud.meta.js",
+  "better-xcloud-preview.user.js",
+  "better-xcloud-preview.meta.js",
+  "mobile/build.sh",
 ];
 const FRONT = new Set(["README.md", "README.en.md", "mobile/README.md"]);
+
+// Bundles : version attendue + pin d'auto-update (le preview est pinné sur
+// un tag dédié, le stable suit le canal latest — sans version dans l'URL).
+const BUNDLES = [
+  { file: "better-xcloud.user.js", ver: VERSION, pin: null },
+  { file: "better-xcloud.meta.js", ver: VERSION, pin: null },
+  { file: "better-xcloud-preview.user.js", ver: PREVIEW, pin: `evenbetter-xcloud-v${PREVIEW}` },
+  { file: "better-xcloud-preview.meta.js", ver: PREVIEW, pin: `evenbetter-xcloud-v${PREVIEW}` },
+];
 
 function loadFiles(overrides) {
   const map = {};
@@ -105,7 +131,7 @@ function runChecks(files) {
   for (const f of FILES) {
     const c = files[f];
     if (c == null) {
-      check(`${f} : fichier présent`, false, "README manquant");
+      check(`${f} : fichier présent`, false, "fichier manquant");
       continue;
     }
     // tags en prose : docs front uniquement
@@ -139,6 +165,49 @@ function runChecks(files) {
     }
   }
 
+  // ---- 3. bundles : @version + pin preview ----
+  console.log("== 3. Bundles : @version et pin auto-update ==");
+  for (const b of BUNDLES) {
+    const c = files[b.file];
+    check(`${b.file} : fichier présent`, c != null, "bundle manquant (bump sans rebuild ?)");
+    if (c == null) continue;
+    const m = /@version\s+([\w.-]+)/.exec(c);
+    check(`${b.file} : @version ${b.ver}`, m != null && m[1] === b.ver,
+      "trouvé : " + (m ? m[1] : "absent") + " — bump de fichier sans rebuild ?");
+    if (b.pin) {
+      check(`${b.file} : @updateURL pinné sur ${b.pin}`, c.includes(b.pin),
+        "l'ancien pin → 404 auto-update (piège bump sans rebuild)");
+    }
+  }
+
+  // ---- 4. APK : noms dérivés des fichiers de version ----
+  console.log("== 4. APK : noms dérivés de VERSION / PREVIEW_VERSION ==");
+  const buildSh = files["mobile/build.sh"];
+  check("mobile/build.sh : fichier présent", buildSh != null, "build script manquant");
+  if (buildSh != null) {
+    check("build.sh : APK stable dérivé de ${VERSION}",
+      buildSh.includes('APK_NAME="evenbetter-xcloud-${VERSION}.apk"'));
+    check("build.sh : APK preview dérivé de ${PREVIEW_VERSION}",
+      buildSh.includes('APK_NAME="evenbetter-xcloud-${PREVIEW_VERSION}.apk"'),
+      "le suffixe -previewN doit venir de PREVIEW_VERSION, jamais hardcodé");
+  }
+  const outDir = path.join(ROOT, "mobile", "out");
+  let foundApk = false;
+  if (fs.existsSync(outDir)) {
+    for (const f of fs.readdirSync(outDir)) {
+      // APK de RELEASE uniquement (evenbetter-xcloud-<v>.apk) — les
+      // artefacts intermédiaires (base.apk, app-unsigned.apk, app-aligned.apk)
+      // sont ignorés.
+      if (!/^evenbetter-xcloud-.*\.apk$/.test(f)) continue;
+      foundApk = true;
+      const exp = f.includes("preview")
+        ? `evenbetter-xcloud-${PREVIEW}.apk`
+        : `evenbetter-xcloud-${VERSION}.apk`;
+      check(`out/${f} : nom courant`, f === exp, "attendu : " + exp);
+    }
+  }
+  if (!foundApk) console.log("  (aucun APK construit présent — check build.sh seul, attendu en CI)");
+
   ok.forEach((l) => console.log("  ✅ " + l));
   failures.forEach((l) => console.error("  ❌ " + l));
   return failures;
@@ -161,6 +230,30 @@ function selfTest() {
     }
     overrides[f] = bad;
   }
+  // bundles : @version périmé + pin preview cassé (piège « bump sans rebuild »)
+  for (const b of BUNDLES) {
+    const src = fs.readFileSync(path.join(ROOT, b.file), "utf8");
+    let bad = src
+      .replace(new RegExp("@version\\s+" + b.ver.replace(/\./g, "\\.")), "@version 9.9.9")
+      .split(b.pin || "evenbetter-xcloud-v" + b.ver).join("evenbetter-xcloud-v9.9.9");
+    if (bad === src) {
+      console.error("❌ SELF-TEST : impossible de corrompre le bundle " + b.file + " (ancre absente ?)");
+      process.exit(1);
+    }
+    overrides[b.file] = bad;
+  }
+  // build.sh : noms d'APK hardcodés au lieu des variables de version
+  {
+    const src = fs.readFileSync(path.join(ROOT, "mobile", "build.sh"), "utf8");
+    const bad = src
+      .split('APK_NAME="evenbetter-xcloud-${VERSION}.apk"').join('APK_NAME="evenbetter-xcloud-9.9.9.apk"')
+      .split('APK_NAME="evenbetter-xcloud-${PREVIEW_VERSION}.apk"').join('APK_NAME="evenbetter-xcloud-9.9.8-preview1.apk"');
+    if (bad === src) {
+      console.error("❌ SELF-TEST : impossible de corrompre mobile/build.sh (ancre absente ?)");
+      process.exit(1);
+    }
+    overrides["mobile/build.sh"] = bad;
+  }
   const failures = runChecks(loadFiles(overrides));
   if (failures.length === 0) {
     console.error("❌ SELF-TEST : le gate n'a PAS détecté la copie corrompue — GATE INEFFICACE");
@@ -175,10 +268,12 @@ if (isSelfTest) selfTest();
 
 const failures = runChecks(loadFiles(null));
 if (failures.length > 0) {
-  console.error(`\n❌ GATE ROUGE — README périmé (${failures.length} défaillance(s)). ` +
-    `Après un bump, mettre à jour tous les READMEs citant une version ` +
-    `(titre, table Deux versions, tags/liens release, APK mobile) dans le même lot.`);
+  console.error(`\n❌ GATE ROUGE — version périmée quelque part (${failures.length} défaillance(s)). ` +
+    `Après un bump : mettre à jour les READMEs citant une version (titre, ` +
+    `table Deux versions, tags/liens release, APK mobile) ET REBUILDER les ` +
+    `bundles (en-têtes @version + pin preview) dans le même lot — un bump de ` +
+    `fichier sans rebuild laisse l'ancienne version ET l'ancien pin auto-update.`);
   process.exit(1);
 }
-console.log("\n✅ GATE VERT — tous les READMEs citent les versions courantes (" + VERSION + " / " + PREVIEW + ")");
+console.log("\n✅ GATE VERT — READMEs, bundles et APK à jour (" + VERSION + " / " + PREVIEW + ")");
 process.exit(0);

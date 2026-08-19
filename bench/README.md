@@ -161,11 +161,27 @@ Règle utilisateur : « le README doit toujours être à jour » — le gate CI
    dont le tag/version n'est ni VERSION ni PREVIEW_VERSION → GATE ROUGE
    (la rétention purge les anciennes releases → 404 auto-update). Les
    mentions historiques en prose (ex. « Nouveauté v1.13.0 ») sont tolérées.
+3. **Bundles** — `@version` de better-xcloud.user.js/.meta.js (stable) et
+   better-xcloud-preview.user.js/.meta.js (preview) doivent égaler
+   VERSION/PREVIEW_VERSION, et le pin `@updateURL` du preview doit pointer
+   le tag courant → piège **« bump sans rebuild »** couvert (un bump de
+   fichier sans rebuild laisse l'ancienne version ET l'ancien pin → 404
+   auto-update).
+4. **APK** — `mobile/build.sh` doit dériver les noms d'APK de `${VERSION}`
+   (stable) et `${PREVIEW_VERSION}` (preview) ; si des APK de release sont
+   présents dans `mobile/out/`, leurs noms doivent être courants (les
+   artefacts intermédiaires base.apk/app-unsigned.apk/app-aligned.apk sont
+   ignorés).
 
-`--self-test` : copie corrompue (titre + tag + APK périmés) → le gate doit
-sortir ROUGE (23 défaillances attendues). Le CI lance le gate + son
-self-test à chaque push/PR — un bump qui oublie la passe README casse le
-job immédiatement.
+`--self-test` : copies corrompues (titre + tag + APK + `@version` + pin +
+build.sh) → le gate doit sortir ROUGE. Le CI lance le gate + son self-test
+à chaque push/PR — un bump qui oublie la passe README OU le rebuild casse
+le job immédiatement.
+
+**Fix collatéral (20 août)** : `mobile/build.sh` hardcodait
+`evenbetter-xcloud-${VERSION}-preview1.apk` — le suffixe `-previewN` vient
+maintenant de `PREVIEW_VERSION` (GATE ROUGE si le fichier est absent, message
+clair grâce à `|| true` sous `set -euo pipefail`).
 
 ## Rebrand EvenBetterXcloud + feature Sound (v1.9.0, 18 août)
 

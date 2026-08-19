@@ -12,21 +12,28 @@ OUT="$ROOT/out"
 STORE_PASS="bxperf-keystore"
 ORIG_KEYSTORE="/d/Codex/EvenBetterXcloud/bx-apk/bxperf.keystore"
 
-# Version : source de vérité = VERSION (racine du repo), bumpée par
-# bench/bump-version.sh — les noms d'APK suivent (rebrand 18 août :
-# EvenBetterXcloud, tag evenbetter-xcloud-v*).
+# Version : source de vérité = VERSION + PREVIEW_VERSION (racine du repo),
+# bumpés par bench/bump-version.sh — les noms d'APK suivent (rebrand 18
+# août : EvenBetterXcloud, tag evenbetter-xcloud-v*). Gate CI
+# bench/readme-version.test.js vérifie que ces dérivations restent exactes
+# (le suffixe -previewN vient de PREVIEW_VERSION, jamais hardcodé).
 VERSION=$(cat "$ROOT/../VERSION")
+PREVIEW_VERSION=$(cat "$ROOT/../PREVIEW_VERSION" 2>/dev/null || true)
 
 # VARIANT (env) : stable (défaut, www.xbox.com/play + better-xcloud.user.js)
 # ou preview (play.xbox.com + better-xcloud-preview.user.js + package
 # com.bxperf.preview — les deux APK s'installent côte à côte).
 VARIANT="${VARIANT:-stable}"
 if [ "$VARIANT" = "preview" ]; then
+  if [ -z "$PREVIEW_VERSION" ]; then
+    echo "GATE ROUGE : PREVIEW_VERSION absent à la racine du repo — bump incomplet ?" >&2
+    exit 1
+  fi
   START_URL="https://play.xbox.com"
   BUNDLE_SRC_DEFAULT="$ROOT/../better-xcloud-preview.user.js"
   PACKAGE="com.bxperf.preview"
   APP_LABEL="EvenBetterXcloud Preview"
-  APK_NAME="evenbetter-xcloud-${VERSION}-preview1.apk"
+  APK_NAME="evenbetter-xcloud-${PREVIEW_VERSION}.apk"
 else
   START_URL="https://www.xbox.com/play"
   BUNDLE_SRC_DEFAULT="$ROOT/../better-xcloud.user.js"
