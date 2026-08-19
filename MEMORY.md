@@ -593,6 +593,11 @@ fichier .ps1 obligatoire).
   README Deux versions FR/EN). Ancre T10 :
   `if (!UserAgent.#config.custom) UserAgent.#config.custom = "";UserAgent.spoof();`
   (unique). Probes + node --check OK.
+- **Validé en réel par l'utilisateur (19 août, Firefox)** : preview2 avec
+  `userAgent.profile` = default → gate passé, **Halo lancé et jouable au pad**
+  sous Firefox. Contre-test Chromium automatisé (`bench/t10-counters-test.js`,)
+  : UA intacte, script actif, pas de dialog, home OK — T10 ne spoofe que hors
+  Chromium. Validation T10 bouclée des deux côtés (commit `a34d5d9`).
 
 ## Publication v1.10.0 (18 août ~22:30) — feature latence + releases
 

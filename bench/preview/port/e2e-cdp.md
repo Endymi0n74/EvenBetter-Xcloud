@@ -798,6 +798,11 @@ T10 = le même contournement, sans intervention. Release publiée :
 `evenbetter-xcloud-v1.10.0-preview2` (3 assets dont APK preview), garde-fou
 10/10 vert.
 
+**Complément utilisateur (19 août ~01:30)** : sous preview2 + default,
+**Halo lancé et joué au pad** dans Firefox — le flux complet (gate → stream
+→ input gamepad) passe. La validation n'est plus « le dialog disparaît »
+mais le jeu jouable de bout en bout sur Firefox.
+
 ### Contre-test Chromium (T10 ne casse rien sur Edge) — 18 août
 
 `node bench/t10-counters-test.js --port=9222` sur Edge 152 réel (profil
