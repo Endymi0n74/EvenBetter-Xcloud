@@ -44,7 +44,7 @@ const EOL = "\n";
 // ---- contrat « deux versions » : identité DISTINCTE du build preview ----
 // (rebrand 18 août : EvenBetterXcloud + tag evenbetter-xcloud-v* — les
 // ancres T1 ci-dessous matchent le stable REBRANDÉ par bench/rebrand-bundle.js)
-const PREVIEW_VERSION = "1.10.0-preview2";
+const PREVIEW_VERSION = "1.10.0-preview3";
 const PREVIEW_NAME = "EvenBetterXcloud (Preview)";
 const PREVIEW_TAG = "evenbetter-xcloud-v" + PREVIEW_VERSION; // releases/download/<tag>/...
 
@@ -150,15 +150,37 @@ if (BX_PREVIEW) {
     _t: 0,
     _injected: false,
     tryInject() {
+      var section = HeaderSection.getInstance();
+      section.$btnSettings.classList.remove("bx-gone");
+      var wrapper = this._wrapper || (this._wrapper = section.$buttonsWrapper);
+      /* 19 août : shell MOBILE (play.xbox.com en WebView téléphone) — pas de
+         nav.col-container ni de <header> (observé à 390 px, CDP emulation
+         BlueStacks) → le top bar desktop n'existe pas et T4 ne trouvait
+         aucune ancre : aucun bouton, aucun accès aux settings. Fallback :
+         bouton flottant (FAB) fixe au-dessus de la mini-nav basse,
+         indépendant de la structure du site. Circulaire compact (56 px),
+         z-index au-dessus de z-shell-bottom. */
+      if (window.innerWidth < 768) {
+        wrapper.classList.add("bx-mobile-fab");
+        if (!document.getElementById("bx-mobile-fab-css")) {
+          var st = document.createElement("style");
+          st.id = "bx-mobile-fab-css";
+          st.textContent = ".bx-mobile-fab{position:fixed!important;right:16px!important;bottom:112px!important;z-index:9999!important;pointer-events:auto!important;margin:0!important;}.bx-mobile-fab [class*=\\\"bx-header-settings\\\"]{height:48px!important;min-height:48px!important;padding:0 18px!important;border-radius:999px!important;box-shadow:0 4px 12px rgba(0,0,0,.5)!important;}";
+          document.documentElement.appendChild(st);
+        }
+        if (!wrapper.isConnected) {
+          document.documentElement.appendChild(wrapper);
+          BxLogger.info("PreviewSettingsEntry", "bouton settings mobile (FAB) injecte");
+        }
+        this._injected = true;
+        return true;
+      }
       var $header = null, i = 0;
       for (; i < this.SELECTORS.length; i++) { $header = document.querySelector(this.SELECTORS[i]); if ($header) break; }
       if (!$header) return false;
       var $target = null, j = 0;
       for (; j < this.TARGET_SELECTORS.length; j++) { $target = $header.querySelector(this.TARGET_SELECTORS[j]); if ($target) break; }
       $target = $target || $header;
-      var section = HeaderSection.getInstance();
-      section.$btnSettings.classList.remove("bx-gone");
-      var wrapper = this._wrapper || (this._wrapper = section.$buttonsWrapper);
       /* 17 août : le top bar preview est dans un container pointer-events-none
          (z-shell-top) — chaque élément interactif du site se ré-arme en
          pointer-events:auto. Le wrapper du bouton doit faire pareil, sinon les
@@ -374,6 +396,7 @@ for (const probe of [
   "static checkChunks(item) {if (BX_PREVIEW) return;",
   "if (!BX_PREVIEW && !window.location.pathname.match(/^\\/[a-zA-Z]{2}-[a-zA-Z]{2}\\/play/)) throw Error(\"[Better xCloud] Not xCloud page\");",
   "var PreviewSettingsEntry = {",
+  "bx-mobile-fab",
   "if (BX_PREVIEW) {",
   "installKeepAliveIdle",
   "window.PreviewKeepAliveIdle",
