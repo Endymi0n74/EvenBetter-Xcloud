@@ -153,8 +153,10 @@ function runChecks(files) {
             "la rétention purge cette release → 404 pour l'auto-update");
       }
     }
-    // APK versionnés : doivent être courants (partout)
-    {
+    // APK versionnés : doivent être courants dans les docs FRONT (un nom
+    // d'APK historique cité dans un journal bench/ est légitime — ce n'est
+    // pas un lien vers une release purgée, contrairement aux URLs ci-dessus).
+    if (FRONT.has(f)) {
       let m;
       const re = apkRe("g");
       while ((m = re.exec(c))) {

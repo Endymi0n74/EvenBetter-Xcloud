@@ -171,12 +171,25 @@ Règle utilisateur : « le README doit toujours être à jour » — le gate CI
    (stable) et `${PREVIEW_VERSION}` (preview) ; si des APK de release sont
    présents dans `mobile/out/`, leurs noms doivent être courants (les
    artefacts intermédiaires base.apk/app-unsigned.apk/app-aligned.apk sont
-   ignorés).
+   ignorés). Noms d'APK périmés vérifiés dans les docs FRONT uniquement :
+   un nom historique cité dans un journal bench/ est légitime (ce n'est pas
+   un lien vers une release purgée — contrairement aux URLs, vérifiées
+   partout).
 
 `--self-test` : copies corrompues (titre + tag + APK + `@version` + pin +
 build.sh) → le gate doit sortir ROUGE. Le CI lance le gate + son self-test
 à chaque push/PR — un bump qui oublie la passe README OU le rebuild casse
 le job immédiatement.
+
+**Simulation bump 1.13.2 (20 août, clone local, rien publié)** : cycle
+complet rejoué — `bump-version.sh 1.13.2` (VERSION/PREVIEW_VERSION, 5
+@version, BX_VERSION, manifest vc 11) → `build-preview.js` (re-pin preview
+sur `evenbetter-xcloud-v1.13.2-preview1`) → passe README structurelle →
+**gate VERT de bout en bout** (self-test : 37 défaillances détectées sur les
+copies corrompues). Contre-preuve : sans la passe README, le gate sort ROUGE
+(27 défaillances, exit 1) — le bump seul ne suffit pas, la passe README est
+bien exigée par le CI. Au passage : le gate flaggait les noms d'APK
+historiques des journaux bench/ après bump → check restreint aux docs FRONT.
 
 **Fixes collatéraux (20 août)** : `mobile/build.sh` hardcodait
 `evenbetter-xcloud-${VERSION}-preview1.apk` — le suffixe `-previewN` vient

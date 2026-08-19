@@ -75,7 +75,16 @@ son `--self-test`) lit `VERSION` + `PREVIEW_VERSION` (source de vérité) et :
    APK `evenbetter-xcloud-<semver>.apk` uniquement — `1.9.0-test.apk`
    historique n'est pas flagué).
 Self-test : copies corrompues → exit 1. Un bump qui oublie la passe README
-casse le CI immédiatement.
+casse le CI immédiatement. **Nuance journal** : les noms d'APK périmés ne
+sont vérifiés que dans les docs FRONT (un nom historique cité dans un
+journal bench/ est légitime — seules les URLs sont vérifiées partout).
+
+**Simulation bump 1.13.2 (20 août, clone local supprimé après)** : cycle
+complet validé de bout en bout — bump → build-preview (re-pin) → passe
+README → gate VERT ; sans la passe README, gate ROUGE (27 défaillances) —
+la passe README est réellement exigée par le CI, le bump seul ne suffit
+pas. Le gate flaggait les noms d'APK historiques des journaux → check
+restreint aux docs FRONT (commité).
 
 **Extension (20 août, directive) — gate bundles + APK** : le même gate
 vérifie aussi (1) les `@version` des 4 bundles (user/meta stable + preview)
