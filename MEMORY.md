@@ -23,9 +23,9 @@ survit). Application concrète :
   chances de planter ou de prendre du temps, noter au fil de l'eau ce qui
   est déjà acquis (le contexte ne survit pas à un restart).
 
-Dernière passe : **19 août ~19:00 — Passe de cohérence : README FR/EN
-ré-alignés sur v1.12.0 / 1.12.0-preview1, ÉTAT COURANT des releases corrigé
-(ils étaient restés sur v1.11.0)** — à committer.
+Dernière passe : **19 août ~19:30 — Mobile doc-start re-validé (GATE VERT
+BlueStacks) + re-baseline stable PASS 6/6 + sonde permanente
+bench/mobile-regions-probe.js** (commit en cours).
 
 ## Release v1.12.0 rafraîchie (APK doc-start) + cycle auto-update (19 août ~18:30)
 
@@ -70,6 +70,36 @@ preview 200).
   l'utilisateur : introuvable dans les profils Firefox de la machine
   (aucun manager userscript ni le script) — la vérification finale
   (badge → clic → 1.12.0) reste un test manuel de 30 s côté utilisateur.
+
+## Re-validation mobile doc-start + re-baseline stable soir (19 août ~19:30)
+
+**Mobile — doc-start re-validé sur le build APK preview actuel (BlueStacks,
+emulator-5554, APK `evenbetter-xcloud-1.12.0-preview1.apk` doc-start réinstallé) :**
+- Sonde CDP (port 9342 forwardé sur `webview_devtools_remote_<pid>`) :
+  `ebxInjected:true` (script inline AVANT les modules), `BX_EXPOSED`/
+  `BX_FETCH` actifs, `window.STATES` exposé (patch 23), `settingsBtn:true`
+  avec EXACTEMENT 1 bouton — **idempotence vérifiée au reload** (re-injection
+  à chaque GET main-frame par shouldInterceptRequest, marqueur
+  `__EBX_INJECTED__` empêche le doublon). GATE VERT.
+- **nbRegions:0 / isSignedIn:false** : BlueStacks n'a AUCUNE session Xbox →
+  les régions se peuplent au LOGIN (interception du POST /v2/login/user par
+  XcloudInterceptor.handleLogin) — impossible de valider le peuplement sans
+  session authentifiée. **Le téléphone (session réelle) est le seul device
+  valide** : quand il est branché → install APK preview, forward, sonde.
+- **Nouvelle sonde permanente `bench/mobile-regions-probe.js`** (remplace le
+  .tmp) : usage documenté en tête de fichier (force-stop → start → forward
+  localabstract → sonde), vérifie les marqueurs doc-start + état session +
+  nbRegions, exit 0/1. Flux complet rejouable en une commande quand le
+  téléphone revient.
+
+**Stable — re-baseline complète `run-all.sh` (soir, build v1.12.0 inchangé) :**
+**PASS 6/6, bornes CI tiennent.** Parse 0,125→0,135 ms (bruité) · IDLE ×10,5
+(364,4→34,8 ns) · Home ×7,2 (1406,8→196,2 ns) · updateCanvas ×16,9
+(239,9→14,2 ns) · updateFrame stable · éval page 28,2→25,6 ms (−9,2 %) ·
+profil startup plat (getSupportedCodecProfiles sorti du load) · cold eval
+528,7→33,9 ms (−93,6 %) · cold-getcap 526,3 ms one-shot (2e appel 0,1 ms).
+Lignes ajoutées aux tables Sessions startup + Sessions hot loops de
+bench/README.md (état bas).
 
 ## Injection APK vraiment document-start — shouldInterceptRequest (19 août ~17:30)
 

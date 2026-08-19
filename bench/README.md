@@ -495,6 +495,24 @@ aucune régression. Publication v1.12.0 + preview1 validée juste avant
 | Éval page à froid (5 runs) | 574,9 ms | 25,6 ms (23,9–32,1) | build ≤ 50 ms ✅ · Δ −95,5 % |
 | cold-getcap | 528,2 ms (one-shot) | eval 25,6 ms | one-shot stable, 2e appel 0,1 ms ✅ |
 
+### Re-baseline du 19 août ~19:15 (post-doc-start APK + passe de cohérence) — mêmes bornes ✅
+
+`run-all.sh` complet, build stable **v1.12.0** (inchangé) vs perf10 (055d3a0),
+relancé après la validation mobile doc-start (APK preview) et la passe de
+cohérence docs. Verdict : **PASS 6/6** — aucune régression, bornes CI tiennent.
+
+| Harnais | perf10 | build | Verdict CI |
+|---|---|---|---|
+| Parse/compile | 0,125 ms | 0,135 ms | négligeable (sub-ms bruité, +8,4 %) |
+| Hot loop controller IDLE | 364,4 ns | 34,8 ns | ×10,5 [≥ 4] ✅ |
+| poll_gamepad relâchement Home | 1 406,8 ns | 196,2 ns | ×7,2 [≥ 4] ✅ |
+| updateCanvas (chemin 60 Hz) | 239,9 ns | 14,2 ns | ×16,9 [≥ 12] ✅ + flag dirty (4 vs 860 004 uniform1f) |
+| updateFrame | 187,8 ns | 185,7 ns | stable [0,5–2] ✅ |
+| Éval page (20 runs) | 28,2 ms méd (p95 547,0) | 25,6 ms méd (p95 28,9) | build ≤ 50 ms ✅ · écart médiane −9,2 % |
+| Profil startup | `getSupportedCodecProfiles` 18,42 ms (71,1 %) | plat (72,4 % natif/GC) | one-shot différé intact ✅ |
+| Éval page à froid (5 runs) | 528,7 ms (505,0–532,4) | 33,9 ms (27,0–34,6) | build ≤ 50 ms ✅ · Δ −93,6 % |
+| cold-getcap | 526,3 ms (one-shot) | eval 33,9 ms | one-shot stable, 2e appel 0,1 ms ✅ |
+
 ## Profil CPU du startup (fonction-par-fonction)
 
 `startup-profile.js` échantillonne le **eval document-start** (même protocole que
@@ -723,6 +741,7 @@ absolue mais la comparaison relative entre les deux builds.
 | CI 16 août (dispatch validation) | 609,9 (553,1–824,5) | 29,3 (22,8–41,3) | −95,2 % | bas | ✅ |
 | CI 16 août (dispatch, après merge) | 576,0 (528,9–639,0) | 27,1 (22,8–34,8) | −95,3 % | bas | ✅ |
 | 19 août (v1.12.0, re-baseline) | 574,9 (520,8–613,1) | 25,6 (23,9–32,1) | −95,5 % | bas | ✅ |
+| 19 août (v1.12.0, soir) | 528,7 (505,0–532,4) | 33,9 (27,0–34,6) | −93,6 % | bas | ✅ |
 
 La série perf11 (re-mesurée sur le build v1.6.0 officiel) visait le **runtime**
 (hot loops, GPU, caches), pas le chargement — confirmé v1.6.0 : coût de démarrage identique.
@@ -773,6 +792,7 @@ alimentera la classification.
 | v1.6.0 (3 seeds, release) | ~333 (303–335) | ~29,8 (30–38) | **×11,2** | bas | ~1224 → ~152 (−87,6 %) |
 | CI 2026-08-16 (hotloops, dispatch GPU) | 487,50 (458,00–487,80) | 49,70 (48,00–50,20) | **×9,81** | transitionnel | 1374,20 → 205,60 (−85 %) |
 | CI 2026-08-16 (hotloops, PR #9) | 506,80 (502,80–530,70) | 46,70 (44,10–46,70) | **×10,85** | bas | 1439,50 → 207,30 (−86 %) |
+| 19 août (v1.12.0, soir) | 364,4 (328,1–409,4) | 34,8 (31,4–58,6) | **×10,5** | bas | 1406,8 → 196,2 (−86 %) |
 
 Notes :
 
