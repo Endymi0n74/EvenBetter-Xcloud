@@ -6,7 +6,7 @@ amont `redphx/better-xcloud` (branche `typescript`, baseline 6.7.12) via des
 
 ## Environnement
 
-- Clone de travail : `D:\Codex\better-xcloud-upstream` (remote `origin` = redphx,
+- Clone de travail : `D:\Codex\EvenBetterXcloud\better-xcloud-upstream` (remote `origin` = redphx,
   remote `mine` = fork `Endymi0n74/better-xcloud`).
 - Le repo amont est **source-based** (src/, build via `bun build.ts
   --version 6.7.12 --variant full [--pretty|--meta]` — bun 1.3.14 requis,
@@ -49,6 +49,7 @@ amont `redphx/better-xcloud` (branche `typescript`, baseline 6.7.12) via des
 | 12 | BxSelect observer délégué + debugger | 06/10 | un seul MutationObserver | ✅ **PR #1004 ouverte** (commit `b6b49ac`, 2 fichiers : `bx-select.ts` observer global délégué + `translation.ts` debugger retiré, corps avec near-miss translation.ts ↔ #908/#938/#468) |
 | 13 | fix share-delete | 11 | bug fix | ✅ **PR #1001 ouverte** (commit `2eaa2ac`, `controller-customization.ts` seul +6/−2 — `delete mapping['Share']` retiré : `mapping` est une référence live vers les settings stockés, le delete détruisait la config Share de l'utilisateur au premier press) |
 | 13b | opacity cache fix | 07 | bug fix | **annulé — no-op amont** : `_cachedOpacity`/`_cachedTextSize` n'ont **jamais existé** dans l'historique amont (`git log -S` vide) — le cache était un ajout du fork, retiré par son propre patch 07 ; `refreshStyles()` amont lit déjà `getStreamPref` directement. Rien à porter (comme #4/#11) |
+| 14 | data usage presets (maxBitrate + resolution) | — | cap 10 Mbps → 6,6 Mbps réels (1440p conservé) ; 720p → 1280×720 réel | 🔧 **branche PRÊTE `feat/data-presets` (commit `77c1fcf`), NON ouverte** — feature v1.11.0 du fork (« 📊 Données »), corps prêt dans `body-data-presets.md` ; à ouvrir au premier retour mainteneur (comme prévu pour #10-12 avant leur ouverture) |
 
 **À NE PAS proposer** : patch 01 (header/version fork), patch 09 (single-pass
 collect — mesuré ~7 % réaliste, négatif à 500 entrées), portage preview
@@ -72,11 +73,18 @@ collect — mesuré ~7 % réaliste, négatif à 500 entrées), portage preview
 | #1004 | BxSelect observer délégué | OPEN, mergeable, 1 commit — ouvert le 18 août ~00:35, aucun retour | idem |
 | #1005 | fix #991 (garde `buttons?.[16]`) | OPEN, mergeable, 1 commit — ouvert le 18 août ~00:50, **lié sur l'issue #991** (commentaire pour le rapporteur), aucun retour | idem |
 
-## Portage terminé — aucune branche en attente
+## Branche en attente — data presets (19 août)
 
-**Toutes les branches prêtes ont été ouvertes.** La dernière (`feat/poll-gamepad-crash-guard`,
-fix #991, commit `29f87b1`) est devenue **PR #1005** le 18 août ~00:50, avec
-commentaire sur l'issue #991 pour le rapporteur (test demandé sur GameSir G7 SE).
+**Toutes les PR prêtes ont été ouvertes sauf la nouvelle `feat/data-presets`**
+(commit `77c1fcf`, 2 fichiers : settings-dialog.ts + translation.ts, build
+amont exit 0, feature présente dans le bundle). **NON poussée / NON ouverte** —
+la queue attend le retour du mainteneur sur les 13 PR (aucun retour depuis le
+17 août, rythme semaines/mois, rappel prévu ~24 août). Corps de PR prêt :
+`upstream-prs/body-data-presets.md`. Ouverture au premier retour :
+`gh pr create -R redphx/better-xcloud -B typescript -H Endymi0n74:feat/data-presets
+--title "feat: data usage presets — cap video bitrate & resolution in one click"
+--body-file upstream-prs/body-data-presets.md` (après push de la branche sur
+le fork).
 
 Fix #991 (garde crash) : les objets Gamepad ne garantissent pas un tableau
 `buttons` à chaque poll (GameSir G7 SE) — `buttons[16]` levait une exception
