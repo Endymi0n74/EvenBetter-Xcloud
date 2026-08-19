@@ -455,7 +455,25 @@ Verdict `check-ratios.js` : **PASS 6/6**.
 | Profil startup | `getSupportedCodecProfiles` 76,4 % | plat, 81,2 % natif/GC | one-shot différé intact |
 | cold-getcap | 566,2 ms (one-shot) | eval 30,9 ms (Δ −94,7 %) | one-shot stable, 2e appel 0,1 ms |
 
+### Re-validation du 19 août ~14:00 (post-réorganisation EvenBetterXcloud) — mêmes bornes ✅
 
+Harnais **complet** `run-all.sh` (parse + hot loops + éval page 20 runs +
+profil startup + cold-getcap) relancé depuis les nouveaux chemins
+(`D:\Codex\EvenBetterXcloud\better-xcloud-fork`, workspace réorganisé) sur le
+build stable v1.11.0 (487 269 o, feature « 📊 Données » incluse) vs perf10
+(055d3a0). Verdict `check-ratios.js` : **PASS 6/6**. Aucune régression — la
+réorganisation n'a rien cassé.
+
+| Harnais | perf10 | build | Verdict CI |
+|---|---|---|---|
+| Parse/compile | 0,118 ms | 0,117 ms | négligeable (sub-ms bruité) |
+| Hot loop controller IDLE | 378,4 ns | 40,7 ns | ×9,30 [≥ 4] ✅ (état haut) |
+| poll_gamepad relâchement Home | 1 247,2 ns | 163,5 ns | ×7,63 [≥ 4] ✅ |
+| updateCanvas (chemin 60 Hz) | 255,1 ns | 15,2 ns | ×16,78 [≥ 12] ✅ + flag dirty (4 vs 860 004 uniform1f) |
+| updateFrame | 178,0 ns | 171,2 ns | stable [0,5–2] ✅ · ACTIF/commun 0,98–1,24 ✅ |
+| Éval page (20 runs) | 29,9 ms méd (p95 640,4) | 26,1 ms méd (p95 36,9) | build ≤ 50 ms ✅ · écart médiane −12,7 % |
+| Profil startup | `getSupportedCodecProfiles` 19,1 ms (75,7 %) | plat (71,9 % natif/GC) | one-shot différé intact ✅ |
+| cold-getcap | 553,6 ms (one-shot) | eval 33,7 ms (Δ −94,0 %) | one-shot stable, 2e appel 0,1 ms ✅ |
 
 ## Profil CPU du startup (fonction-par-fonction)
 
