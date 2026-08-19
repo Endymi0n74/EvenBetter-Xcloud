@@ -219,10 +219,16 @@ label/UA/logs de l'APK, icône APK (nuage + flèche verte).
   (GATE ROUGE si un pattern a dérivé dans une future version du bundle).
   Idempotent (no-op si déjà rebrandé) ; `--bump-only` pour ne changer que la
   version (headers + BX_VERSION + commentaire OPTIMISATIONS).
-- `bash bench/bump-version.sh <v> [--preview=...] [--build-apk]` — bump
-  CENTRALISÉ : VERSION (racine), stable, es2017 (régénéré), preview, metas,
-  manifest APK (versionName/versionCode). Le badge du menu affiche alors la
-  nouvelle version. **À exécuter à chaque changement de version.**
+- `bash bench/bump-version.sh <v> [--preview=...] [--build-apk] [--no-verify]`
+  — bump CENTRALISÉ, **cycle complet en UNE commande** : VERSION (racine),
+  stable, es2017 (régénéré), preview, metas, manifest APK
+  (versionName/versionCode) + **passe README structurelle** (README.md /
+  README.en.md / mobile/README.md : titre, table Deux versions, tags/liens,
+  APK — les mentions historiques en prose ne sont pas touchées) + rebuild
+  preview (build-preview.js re-pinne `@updateURL` sur le nouveau tag) + gate
+  `readme-version.test.js` final (GATE ROUGE → exit 1 si un README ou un
+  bundle garde l'ancienne version). `--no-verify` saute le rebuild + gate
+  (rare). **À exécuter à chaque changement de version.**
 - La version est lue par `mobile/build.sh` (`VERSION` racine) pour nommer les
   APK : `evenbetter-xcloud-<v>.apk` / `evenbetter-xcloud-<v>-preview1.apk`.
 - `node bench/verify-badge.js [--port=9224] [--banner]` — valide EN RÉEL le

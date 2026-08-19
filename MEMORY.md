@@ -74,16 +74,22 @@ son `--self-test`) lit `VERSION` + `PREVIEW_VERSION` (source de vérité) et :
    tolérées (regex ciblées : tags `evenbetter-xcloud-vX.Y.Z[-previewN]` et
    APK `evenbetter-xcloud-<semver>.apk` uniquement — `1.9.0-test.apk`
    historique n'est pas flagué).
-Self-test : copies corrompues → exit 1. Un bump qui oublie la passe README
-casse le CI immédiatement. **Nuance journal** : les noms d'APK périmés ne
-sont vérifiés que dans les docs FRONT (un nom historique cité dans un
-journal bench/ est légitime — seules les URLs sont vérifiées partout).
+Self-test : copies corrompues → exit 1. Un README/bundle qui garde
+l'ancienne version casse le CI immédiatement. **Nuance journal** : les noms
+d'APK périmés ne sont vérifiés que dans les docs FRONT (un nom historique
+cité dans un journal bench/ est légitime — seules les URLs sont vérifiées
+partout).
 
-**Simulation bump 1.13.2 (20 août, clone local supprimé après)** : cycle
-complet validé de bout en bout — bump → build-preview (re-pin) → passe
-README → gate VERT ; sans la passe README, gate ROUGE (27 défaillances) —
-la passe README est réellement exigée par le CI, le bump seul ne suffit
-pas. Le gate flaggait les noms d'APK historiques des journaux → check
+**Passe README AUTOMATISÉE dans le bump (20 août)** : `bump-version.sh`
+fait maintenant le cycle complet en UNE commande — bump → passe README
+structurelle (titre, table Deux versions, tags/liens, APK mobile ; les
+mentions historiques en prose « Nouveauté v1.13.1 » ne sont pas touchées,
+remplacement OLD→NEW sur patterns structurés uniquement) → rebuild preview
+(build-preview.js re-pinne @updateURL) → gate readme-version final (exit 1
+si quelque chose garde l'ancienne version). `--no-verify` saute rebuild +
+gate. Validé en clone : bump 1.13.2 une commande → gate VERT ; cas
+`--preview=1.13.2-preview3` (changement de suffixe) OK ; prose historique
+intacte. Le gate flaggait les noms d'APK historiques des journaux → check
 restreint aux docs FRONT (commité).
 
 **Extension (20 août, directive) — gate bundles + APK** : le même gate
