@@ -479,7 +479,11 @@ nom) ; GitHub ne ré-attribue pas Latest après purge (`PATCH make_latest=true`)
 
 **Prochaines étapes candidates** : (a) valider la migration Greasemonkey chez
 l'utilisateur (badge 1.9.0 en Firefox — le build est bon, l'ancien script peut
-tourner encore) ; (b) supprimer `better-xcloud-perf-1.8.0-test.apk` ; (c)
+tourner encore) ; (b) ~~supprimer `better-xcloud-perf-1.8.0-test.apk`~~ **fait le 19
+août — l'asset n'existait plus nulle part** (purge avec l'ancienne release
+`better-xcloud-perf-v1.8.0` lors de la rétention du 18 août : aucun asset
+« test » sur GitHub, aucun fichier local, garde-fou 10/10 vert après
+vérification) ; (c)
 reprendre la queue du stable : `bench/live-profile.js` pour identifier la
 dominante runtime réelle ; (d) upstream : 13 PR ouvertes (redphx), rappel
 prévu ~24 août ; (e) APK preview : overlay absent sur play.xbox.com en WebView
