@@ -67,6 +67,25 @@ mesure par itération fiable. Le `p95` de parse capture les outliers GC
 (absorbés par la médiane) ; l'écart perf10/build est dans le bruit inter-seed
 (≈ ±10-20 % run à run) — le protocole le montre au lieu de figer un chiffre.
 
+## Feature « 📊 Données » — presets débit/résolution (v1.11.0, 19 août)
+
+Nouvelle feature utilisateur via le pattern `feature-latency.js` :
+
+- **`bench/feature-datasaver.js`** — injecte un groupe « 📊 Données » dans
+  les settings (3 presets 🚀 Max / ⚖️ Équilibré / 🌱 Économe) avec gates
+  (GATE ROUGE si une ancre dérive) + `--self-test` + idempotence. Basé sur
+  les mesures du 18 août (le cap maxBitrate est le seul réglage qui
+  économise sans perdre la définition).
+- **`bench/feature-datasaver-probe.js`** — validation CDP en réel
+  (Edge guard-badge + extension `.edge-inject-stable`) : groupe rendu même
+  déconnecté, clic preset → prefs posées via `getGlobalPref`/`setGlobalPref`
+  (`stream.video.*` sont des prefs **globales** — `getStreamPref` THROWE),
+  restauration illimité.
+- **Pièges** : `maxBitrate` a un `transformValue` (max slider 15360000 ↔
+  stocké 0) — écrire 0 est clampé à 102400, écrire **15360000** = illimité ;
+  l'extension d'injection lit `stable.js` au démarrage d'Edge (relancer
+  Edge après un rebuild).
+
 ## Rebrand EvenBetterXcloud + feature Sound (v1.9.0, 18 août)
 
 Le fork est **renommé EvenBetterXcloud** (repo `Endymi0n74/EvenBetter-Xcloud`)

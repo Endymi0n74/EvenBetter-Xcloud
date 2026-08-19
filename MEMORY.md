@@ -9,7 +9,38 @@ Mémoire de travail des sessions. Détails dans `bench/preview/port/session.md`
 L'utilisateur demande une mise à jour de ce fichier **au moins toutes les
 ~2 h de travail cumulé** (et à chaque fin de session), sans attendre d'être
 relancé : après ~2 h d'actions, journaliser l'état (fichiers touchés,
-verdicts, pièges nouveaux, en attente). Dernière passe : 18 août ~10:15.
+verdicts, pièges nouveaux, en attente). Dernière passe : 19 août (v1.11.0).
+
+## v1.11.0 — Feature « 📊 Données » (presets débit/résolution) — 19 août
+
+- **Feature utilisateur** (hors perf, la queue JS étant au plancher) :
+  `bench/feature-datasaver.js` injecte un groupe « 📊 Données » dans les
+  settings (pattern feature-latency : gates + self-test + idempotence).
+  3 presets basés sur nos mesures réelles : 🚀 Max (illimité),
+  ⚖️ Équilibré (cap 10 Mbps, 1440p conservé) et 🌱 Économe (5 Mbps + 720p).
+  Visible même déconnecté (ajout au filtre renderFullSettings=false).
+- **Piège storage** : `stream.video.*` sont des prefs **GLOBALES**
+  (ALL_PREFS.global) — `getStreamPref`/`setStreamPref` THROWE pour ces clés
+  (définitions absentes du storage stream). Utiliser
+  `getGlobalPref`/`setGlobalPref(key, value, "ui")`.
+- **Piège maxBitrate** : la pref a `transformValue` (max slider 15360000 ↔
+  stocké 0 = illimité). Écrire 0 → clampé à 102400 (min) ! Le preset « Max »
+  écrit **15360000** (la forme get persistée par setSetting est 15360000,
+  équivalente au défaut 0 — le stocké 0 n'est que le défaut initial).
+- **Validé en réel** (Edge guard-badge, `feature-datasaver-probe.js`) :
+  15 checks verts — groupe rendu, 3 presets, clic Équilibré → prefs posées
+  (10240000/auto, persisté), restauration Max → 15360000 (illimité).
+  Piège extension : `stable.js` est lu au **démarrage** d'Edge — copier le
+  bundle ne suffit pas, il faut relancer Edge (ou le fichier est servi
+  périmé ; un onglet restauré de session peut aussi ne pas re-injecter).
+- **Build-preview.js** : les ancres `@version` et header OPTIMISATIONS
+  étaient durcies à 1.10.0 → rendues **dynamiques** (stableVersion extraite
+  du bundle source) pour survivre aux bumps.
+- **Bump centralisé** `bash bench/bump-version.sh 1.11.0` : stable 1.11.0,
+  es2017 −16,2 %, preview 1.11.0-preview1 (rebuild build-preview + probes
+  OK), metas, manifest versionCode 5. APK stable (es2017 embarqué) +
+  preview rebuildés. README FR/EN mis à jour (table Deux versions →
+  1.11.0 / 1.11.0-preview1).
 
 ## Harnais preview — réécriture injection (18 août ~07:00)
 

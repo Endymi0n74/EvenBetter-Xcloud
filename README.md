@@ -1,4 +1,4 @@
-# EvenBetterXcloud — v1.10.0
+# EvenBetterXcloud — v1.11.0
 
 [![Release](https://img.shields.io/github/v/release/Endymi0n74/EvenBetter-Xcloud?style=for-the-badge&color=green)](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest)
 [![Install](https://img.shields.io/badge/Install-userscript-blue?style=for-the-badge)](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-xcloud.user.js)
@@ -8,7 +8,15 @@
 
 Fork performance du userscript [Better xCloud](https://github.com/redphx/better-xcloud)
 (redphx), orienté **performance** + **fonctionnalités utilisateur**. Dernière
-release : [evenbetter-xcloud-v1.10.0](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/tag/evenbetter-xcloud-v1.10.0).
+release : [evenbetter-xcloud-v1.11.0](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/tag/evenbetter-xcloud-v1.11.0).
+
+**Nouveauté v1.11.0 — 📊 Données (presets débit/résolution en un clic)** :
+dans les settings → groupe *Données*, trois presets basés sur nos **mesures
+réelles** (le cap `maxBitrate` est le seul réglage qui économise SANS perdre la
+définition) : 🚀 Max (illimité, défaut), ⚖️ Équilibré (cap 10 Mbps · 1440p
+conservé, ~6,6 Mbps réels) et 🌱 Économe (cap 5 Mbps · 720p, ~4,7 Mbps). Le
+groupe est visible même déconnecté pour poser le preset avant de lancer une
+session.
 
 **Nouveauté v1.10.0 — 📡 Test de latence serveur** : dans les settings →
 groupe *Server*, un bouton « Tester la latence des serveurs » mesure le RTT
@@ -110,10 +118,10 @@ détaillé dans `bench/preview/port/README.md`) :
 |---|---|---|
 | Rôle | Le fork optimisé classique — xbox.com/play (SPA Webpack, renderer WebGL2) | La variante du nouveau client web (React Router 7 + rolldown, renderer Babylon.js) |
 | Fichier | `better-xcloud.user.js` | `better-xcloud-preview.user.js` (+ `.meta.js`) |
-| Version | `1.10.0` | `1.10.0-preview3` (prerelease) |
+| Version | `1.11.0` | `1.11.0-preview1` (prerelease) |
 | `@name` | `EvenBetterXcloud` | `EvenBetterXcloud (Preview)` |
 | `@match` | `www.xbox.com/*/play*` | `play.xbox.com/*` uniquement |
-| Auto-update | `releases/latest` (canal stable) | tag dédié `evenbetter-xcloud-v1.10.0-preview3` (jamais le `latest`) |
+| Auto-update | `releases/latest` (canal stable) | tag dédié `evenbetter-xcloud-v1.11.0-preview1` (jamais le `latest`) |
 
 Les deux builds **cohabitent sans se confondre** : identité distincte
 (name/version/updateURL) et matches disjoints (le preview ne s'exécute jamais
@@ -133,7 +141,7 @@ https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-
 Preview Features activé) :
 
 ```
-https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.10.0-preview3/better-xcloud-preview.user.js
+https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.11.0-preview1/better-xcloud-preview.user.js
 ```
 
 Le preview est **jouable et validé en réel (17 août)** : bouton settings dans le
@@ -144,8 +152,9 @@ configuration de la session live). P1 (anti-kick idle) est en place via
 build n'override plus `osName=tizen` (A/B mesuré : no-op en PC — résolution ET
 bitrate identiques au natif) — le play part sans réécriture. Depuis
 **preview4**, le bouton settings est aussi dans la **game bar** en session (la
-page stream immersive de play.xbox.com n'a ni header ni nav — T9). Le stable
-n'est jamais affecté.
+page stream immersive de play.xbox.com n'a ni header ni nav — T9). Depuis
+**1.11.0-preview1**, le preview embarque aussi le groupe « 📊 Données » du
+stable. Le stable n'est jamais affecté.
 
 ## Optimisations perf11 + perf13
 
@@ -192,6 +201,7 @@ Tout gain mesurable restant passe par les **préférences utilisateur** :
 | `stream.video.resolution` = **720p** | 1280×720 @ 6,4 Mbps (vs 1440p @ 24,2) | ✅ Très faible débit / data mobile |
 | `stream.video.resolution` = 1080p / 1080p-hq | **Aucun effet sur PC** (toujours 1440p natif — no-op documenté) | ⚠️ Ne rien y toucher |
 | `server.region` + « 📡 Tester la latence » (v1.10.0) | Région au ping le plus bas (ex. CSE 30 ms ⭐ vs UKS 43 ms depuis la France) | ✅ Toujours utile |
+| Groupe « 📊 Données » (v1.11.0) — presets en un clic | 🚀 Max / ⚖️ Équilibré (10 Mbps) / 🌱 Économe (5 Mbps + 720p), appliqués au prochain lancement | ✅ Le cap maxBitrate est le seul réglage qui économise sans perdre la définition |
 
 **Codec (verdict final, stable + preview)** : les deux clients négocient du
 **H.264 Constrained High** (`4d001f`) — le seul codec que le serveur retient.

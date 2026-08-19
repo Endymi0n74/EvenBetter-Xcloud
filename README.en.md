@@ -1,4 +1,4 @@
-# EvenBetterXcloud — v1.10.0
+# EvenBetterXcloud — v1.11.0
 
 [![Release](https://img.shields.io/github/v/release/Endymi0n74/EvenBetter-Xcloud?style=for-the-badge&color=green)](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest)
 [![Install](https://img.shields.io/badge/Install-userscript-blue?style=for-the-badge)](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-xcloud.user.js)
@@ -8,7 +8,15 @@
 
 Performance-oriented fork of the [Better xCloud](https://github.com/redphx/better-xcloud)
 userscript (redphx), performance-oriented **+ user features**. Latest release:
-[evenbetter-xcloud-v1.10.0](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/tag/evenbetter-xcloud-v1.10.0).
+[evenbetter-xcloud-v1.11.0](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/tag/evenbetter-xcloud-v1.11.0).
+
+**New in v1.11.0 — 📊 Data (one-click bitrate/resolution presets)**: in
+Settings → *Data* group, three presets based on our **real measurements** (the
+`maxBitrate` cap is the only setting that saves bandwidth WITHOUT losing
+definition): 🚀 Max (unlimited, default), ⚖️ Balanced (10 Mbps cap · 1440p
+kept, ~6.6 Mbps actual) and 🌱 Eco (5 Mbps cap + 720p, ~4.7 Mbps). The group
+is visible even while logged out so you can pick a preset before starting a
+session.
 
 **New in v1.10.0 — 📡 Server latency test**: in Settings → *Server* group, a
 "Test server latency" button measures the RTT to each of the 19 xCloud regions
@@ -107,10 +115,10 @@ contract in `bench/preview/port/README.md`):
 |---|---|---|
 | Role | The classic optimized fork — xbox.com/play (Webpack SPA, WebGL2 renderer) | The variant for the new web client (React Router 7 + rolldown, Babylon.js renderer) |
 | File | `better-xcloud.user.js` | `better-xcloud-preview.user.js` (+ `.meta.js`) |
-| Version | `1.10.0` | `1.10.0-preview3` (prerelease) |
+| Version | `1.11.0` | `1.11.0-preview1` (prerelease) |
 | `@name` | `EvenBetterXcloud` | `EvenBetterXcloud (Preview)` |
 | `@match` | `www.xbox.com/*/play*` | `play.xbox.com/*` only |
-| Auto-update | `releases/latest` (stable channel) | dedicated tag `evenbetter-xcloud-v1.10.0-preview3` (never the `latest`) |
+| Auto-update | `releases/latest` (stable channel) | dedicated tag `evenbetter-xcloud-v1.11.0-preview1` (never the `latest`) |
 
 Both builds **coexist without mixing**: distinct identity
 (name/version/updateURL) and disjoint matches (the preview never runs on
@@ -130,7 +138,7 @@ https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-
 Preview Features enabled):
 
 ```
-https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.10.0-preview3/better-xcloud-preview.user.js
+https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.11.0-preview1/better-xcloud-preview.user.js
 ```
 
 The preview is **playable and validated live (Aug 17)**: settings button in
@@ -140,9 +148,10 @@ live session configuration). P1 (anti-kick idle) is in place via
 `wrapSession` — observed server idle threshold > 1 h. Since **preview3**, the
 build no longer overrides `osName=tizen` (measured A/B: no-op on PC —
 resolution AND bitrate identical to native) — the play goes out without
-rewriting. Since **preview4**, the settings button is also in the **game bar**
-during a session (the immersive stream page of play.xbox.com has neither
-header nor nav — T9). The stable is never affected.
+rewriting. Since**preview4**, the settings button is also in the **game bar** during
+a session (the immersive stream page of play.xbox.com has neither
+header nor nav — T9). Since **1.11.0-preview1**, the preview also ships the
+stable's "📊 Data" group. The stable is never affected.
 
 ## perf11 + perf13 optimizations
 
@@ -189,6 +198,7 @@ remaining measurable gain comes from **user preferences**:
 | `stream.video.resolution` = **720p** | 1280×720 @ 6.4 Mbps (vs 1440p @ 24.2) | ✅ Very low bandwidth / mobile data |
 | `stream.video.resolution` = 1080p / 1080p-hq | **No effect on PC** (always native 1440p — documented no-op) | ⚠️ Leave untouched |
 | `server.region` + "📡 Test latency" (v1.10.0) | Lowest-ping region (e.g. CSE 30 ms ⭐ vs UKS 43 ms from France) | ✅ Always useful |
+| "📊 Data" group (v1.11.0) — one-click presets | 🚀 Max / ⚖️ Balanced (10 Mbps) / 🌱 Eco (5 Mbps + 720p), applied at next session start | ✅ The maxBitrate cap is the only setting that saves bandwidth without losing definition |
 
 **Codec (final verdict, stable + preview)**: both clients negotiate
 **H.264 Constrained High** (`4d001f`) — the only codec the server keeps.
