@@ -850,6 +850,46 @@ Harnais : `bench/mobile-t4-diagnose.js` (modes fab/desktop/shell/bottomnav/
 html — l'override CDP est par-session, appliqué PUIS probe dans le même
 script). Screenshot `/tmp/mobile-fab-preview2.png`.
 
+## T4 — résilience au remplacement du document (19 août ~13:00, v1.11.0-preview2) ✅
+
+**Symptôme utilisateur (19 août)** : APK preview sur téléphone — le jeu se
+lance mais « des fois écran noir et pas de menu EvenBetterXcloud ».
+
+**Reproduction en WebView (BlueStacks, APK preview, 390 px)** :
+
+1. FAB présent et connecté (état initial).
+2. `document.open()` + `document.write(minimal)` + `document.close()`
+   (simulation du remplacement du shell au démarrage du stream — le même
+   mécanisme que la section T7 : les nœuds finissent sous un ancien `<html>`
+   détaché).
+3. **Sans fix** : après 5 s le FAB est `false` — l'observer T4 observe
+   l'ancien `document.body` (mort), et T7 ne ré-injectait que dialog + CSS
+   → le bouton ne revient JAMAIS. C'est le « pas de menu » intermittent :
+   il dépend de si le remplacement a eu lieu pendant la session.
+
+**Fix (build-preview.js)** : `PreviewSettingsEntry.arm()` réutilisable
+(re-crée l'observer sur le document courant, stocke `_observer`/`_root`),
+`start()` l'appelle, et l'interval T7 a un point 3 — si
+`document.documentElement` change d'identité → re-arm + log « observer
+re-arme » ; si le wrapper est détaché ou `_injected` false → `tryInject()`
+(ré-appende le FAB au document courant).
+
+**Validé en réel (bundle preview2 sur BlueStacks)** :
+
+| Étape | Résultat |
+|---|---|
+| FAB initial (390 px) | présent, connecté |
+| document.open (shell stream) | FAB détaché |
+| Après 6-7 s (interval T7 = 2 s) | **FAB revenu**, connecté ✅ |
+| Clic FAB après re-arm | dialog ouvert ✅ |
+| Gate navigateur + version | UA Chromium, `@version 1.11.0-preview2`, 18 patches |
+
+Sans fix (bundle précédent), le même scénario laissait le FAB définitivement
+absent. ⚠ Le black screen vidéo, lui, n'a PAS pu être reproduit (BlueStacks
+non connecté à un compte Xbox) — à re-tester par l'utilisateur sur téléphone
+avec preview2 ; si l'écran noir persiste, `adb logcat -s EvenBetterXcloud`
+pour diagnoser.
+
 ## Rejouabilité
 
 Le protocole est manuel (2 runs × ~2 min) tant que la session est

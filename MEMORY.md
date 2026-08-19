@@ -76,6 +76,39 @@ après le déplacement.
   (l'asset garde le nom source) — passer par des copies /tmp avec le nom
   cible exact.
 
+## v1.11.0-preview2 — icône APK officielle + fix overlay preview (19 août ~13:00)
+
+- **Icône APK depuis le logo officiel** (fourni par l'utilisateur, banner
+  1024×559 « EvenBetterXcloud ») : `mobile/gen-icon.js` réécrit — décodeur
+  PNG pur Node (zlib + unfilter), découpe de l'emblème (anneau + X vert,
+  détecté x 341-681 y 44-384, centre (511,214), texte sous le cercle exclu),
+  512×512 coins arrondis, repli sur l'ancienne icône procédurale si le
+  banner manque. Source committée : `mobile/assets/evenbetterxcloud-logo.png`
+  (exception .gitignore `mobile/assets/*` + négation — un répertoire exclu
+  ne peut PAS ré-inclure un fichier dedans).
+- **Fix overlay preview — « des fois pas de menu »** : reproduit en WebView
+  (BlueStacks, 390 px) — quand le shell preview remplace le document
+  (document.open au démarrage du stream), l'observer T4 meurt (il observe
+  l'ancien body) et le FAB ne revient JAMAIS (reproduit : FAB false après
+  remplacement, sans fix). Fix dans build-preview.js : `arm()` réutilisable
+  (re-crée l'observer sur le document courant) + point 3 dans l'interval T7
+  (re-arm si documentElement change d'identité + ré-injection tryInject si
+  wrapper détaché). Validé en réel BlueStacks : FAB revient en 7 s après
+  document.open, clic → dialog OK. Tests CI (feature-datasaver, t10,
+  keepalive, self-test) verts.
+- **Livré** : commits `1283528` (self-test feature-datasaver + fix CRLF/LF)
+  et `f2ea3ce` (icône + fix T4 + bundle preview2), poussés. Release
+  `evenbetter-xcloud-v1.11.0-preview2` (bundle preview2 + meta + APK),
+  APK stable re-uploadé sur v1.11.0 avec la nouvelle icône (les DEUX noms
+  d'asset : versionné + stable, mêmes bytes). Garde-fou 10/10 vert, rétention
+  OK (v1.11.0 + preview2 + preview4 secours).
+- **Piège build** (rappel) : `VARIANT=preview bash mobile/build.sh` purge
+  `mobile/out/` (rm -rf $OUT) → l'APK stable builté avant est perdu.
+  Toujours rebuild le stable APRÈS le preview, ou copier l'APK stable avant.
+- **Restant utilisateur** : tester preview2 sur téléphone — si l'écran noir
+  vidéo persiste (le menu, lui, est corrigé), capturer logcat
+  (`adb logcat -s EvenBetterXcloud`) pendant le stream noir pour diagnoser.
+
 ## Harnais preview — réécriture injection (18 août ~07:00)
 
 - **`inject-preview.js` réécrit en WebSocket CDP brut + wrapper IIFE** :
