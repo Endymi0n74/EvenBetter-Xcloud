@@ -44,7 +44,25 @@ const EOL = "\n";
 // ---- contrat « deux versions » : identité DISTINCTE du build preview ----
 // (rebrand 18 août : EvenBetterXcloud + tag evenbetter-xcloud-v* — les
 // ancres T1 ci-dessous matchent le stable REBRANDÉ par bench/rebrand-bundle.js)
-const PREVIEW_VERSION = "1.13.0-preview1";
+//
+// Version preview : lue depuis PREVIEW_VERSION (racine) — source de vérité
+// UNIQUE écrite par bench/bump-version.sh. Ne JAMAIS hardcoder la version
+// ici (piège f39aeb2, revécu le 19 août : le rebuild après bump avait
+// re-réinitialisé le preview en 1.12.0-preview1). GATE ROUGE si le fichier
+// est absent ou vide : un clone frais / un bump incomplet se voit refuser le
+// build au lieu de publier un preview mal versionné.
+const PREVIEW_VERSION_FILE = path.join(ROOT, "PREVIEW_VERSION");
+let PREVIEW_VERSION;
+try {
+  PREVIEW_VERSION = fs.readFileSync(PREVIEW_VERSION_FILE, "utf8").replace(/\r\n/g, "").trim();
+} catch (e) {
+  console.error("[build-preview] GATE ROUGE : " + PREVIEW_VERSION_FILE + " introuvable — lancer bash bench/bump-version.sh <version> d'abord");
+  process.exit(1);
+}
+if (!PREVIEW_VERSION) {
+  console.error("[build-preview] GATE ROUGE : " + PREVIEW_VERSION_FILE + " vide — lancer bash bench/bump-version.sh <version> d'abord");
+  process.exit(1);
+}
 const PREVIEW_NAME = "EvenBetterXcloud (Preview)";
 const PREVIEW_TAG = "evenbetter-xcloud-v" + PREVIEW_VERSION; // releases/download/<tag>/...
 

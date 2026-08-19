@@ -42,9 +42,42 @@ partout où utile »** — règle encodée :
 - Appliquer aussi dans les nouveaux fichiers publics (docs, inventaires)
   quand c'est pertinent — pas dans le code technique des harnais bench.
 
-Dernière passe : **19 août ~23:10 — releases v1.13.0 + v1.13.0-preview1
-publiées (notes FR/EN vibe-coding), garde-fou 10/10 vert, rétention
-automatique OK** (commit en cours).
+Dernière passe : **19 août ~23:30 — PREVIEW_VERSION branché sur le bump
+(source de vérité unique, GATE si absent) + ordre es2017 preview corrigé**
+(commit en cours).
+
+## Fix piège PREVIEW_VERSION — source de vérité unique (19 août ~23:30)
+
+**Problème** (piège f39aeb2 revécu le 19 août) : `build-preview.js`
+hardcodait `const PREVIEW_VERSION = "1.13.0-preview1"` alors que
+bump-version.sh calcule sa propre version preview (`$NEW-preview1` ou
+`--preview=...`) → un rebuild après bump re-réinitialisait le preview en
+1.12.0-preview1.
+
+**Fix** :
+- **Nouveau fichier `PREVIEW_VERSION`** (racine, source de vérité UNIQUE,
+  comme `VERSION` pour le stable) — écrit par bump-version.sh
+  (`echo "$PREVIEW" > PREVIEW_VERSION`), lu par build-preview.js.
+- **build-preview.js : GATE ROUGE (exit 1)** si PREVIEW_VERSION absent ou
+  vide — un clone frais / bump incomplet se voit refuser le build au lieu de
+  publier un preview mal versionné. Testé : exit 1 absent + exit 1 vide.
+- **Bug latent d'ordre corrigé dans bump-version.sh** : le es2017 preview
+  était généré AVANT le rebrand du preview (rebrand-bundle.js --version) →
+  l'es2017 gardait l'ANCIENNE version preview. Ordre inversé : rebrand
+  preview d'abord, puis sa transpilation ES2017.
+- Vérifications du bump enrichies : `VERSION=… · PREVIEW_VERSION=…` affiché.
+
+**Tests** : bump de contrôle 1.13.1 (defaut) + 1.13.2 --preview=1.13.2-preview3
+(le cas explicite qui piégeait) → fichiers + bundles alignés, build-preview
+lit le fichier (1.13.2-preview3), puis tout restauré depuis /tmp. Gates
+tous verts (features ×3, p2-schema, e2e0).
+
+⚠ Piège de chemin : p2-schema.test.js est à `bench/preview/` (PAS
+`bench/preview/port/`) — bench.yml l'appelle correctement sans `port/`.
+
+Rappel du contrat : release-guard.sh / release-prune.sh lisent le tag
+pinné depuis le BUILD (`better-xcloud-preview.user.js` @updateURL), pas
+depuis PREVIEW_VERSION — reste cohérent (le build est le reflet du fichier).
 
 ## Publication v1.13.0 + v1.13.0-preview1 (19 août ~23:00)
 

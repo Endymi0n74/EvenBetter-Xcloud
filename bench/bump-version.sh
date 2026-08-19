@@ -3,7 +3,10 @@
 #
 # « La version est mise à jour à chaque changement » : ce script est la seule
 # porte de bump. Il met à jour TOUT ce qui porte la version, en une commande :
-#   - VERSION            (source de vérité, racine du repo)
+#   - VERSION            (source de vérité stable, racine du repo)
+#   - PREVIEW_VERSION    (source de vérité PREVIEW — lue par build-preview.js,
+#                         qui a un GATE si le fichier est absent : ne JAMAIS
+#                         hardcoder la version preview dans le build)
 #   - stable             better-xcloud.user.js  (header @version + BX_VERSION + badge)
 #   - es2017             better-xcloud.es2017.user.js (régénéré depuis le stable)
 #   - preview            better-xcloud-preview.user.js (@version + BX_VERSION)
@@ -30,14 +33,16 @@ for a in "$@"; do [ "$a" = "--build-apk" ] && BUILD_APK=1; done
 
 echo "== bump EvenBetterXcloud -> $NEW (preview: $PREVIEW) =="
 echo "$NEW" > VERSION
+echo "$PREVIEW" > PREVIEW_VERSION
 
 node bench/rebrand-bundle.js better-xcloud.user.js --version="$NEW" --bump-only
 bun bench/es2017-build.mjs
 # Le preview a aussi sa transpilation ES2017 (vieux WebView Android TV /
 # Freebox Pop) : générée au bump comme le stable, embarquée par build.sh
-# (VARIANT=preview).
-bun bench/es2017-build.mjs --src better-xcloud-preview.user.js --out better-xcloud-preview.es2017.user.js
+# (VARIANT=preview). IMPORTANT : rebrand du preview AVANT sa transpilation
+# (sinon l'es2017 garderait l'ancienne version preview).
 node bench/rebrand-bundle.js better-xcloud-preview.user.js --version="$PREVIEW" --bump-only
+bun bench/es2017-build.mjs --src better-xcloud-preview.user.js --out better-xcloud-preview.es2017.user.js
 node bench/rebrand-bundle.js better-xcloud.meta.js --version="$NEW" --bump-only
 node bench/rebrand-bundle.js better-xcloud-preview.meta.js --version="$PREVIEW" --bump-only
 
@@ -47,6 +52,7 @@ sed -i "s/android:versionCode=\"[0-9]*\"/android:versionCode=\"$(( $(grep -o 'an
 
 echo
 echo "== vérifications =="
+echo "VERSION=$(cat VERSION) · PREVIEW_VERSION=$(cat PREVIEW_VERSION)"
 grep -h "^// @version" better-xcloud.user.js better-xcloud.es2017.user.js better-xcloud-preview.user.js better-xcloud.meta.js better-xcloud-preview.meta.js
 grep -h "BX_VERSION = \"" better-xcloud.user.js better-xcloud-preview.user.js
 grep -h "versionName\|versionCode" mobile/AndroidManifest.template.xml
