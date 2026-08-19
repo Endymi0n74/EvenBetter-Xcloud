@@ -180,6 +180,57 @@ Région / Profil UA / Effacer les données) — c'est le comportement upstream
 connecter dans l'appli (bouton « CONNEXION » de la page) débloque toutes les
 options (résolution, bitrate, MKB, touch…).
 
+## Compatibilité Android TV / Freebox Pop (19 août)
+
+La Freebox Pop (Player TV Free 4K, Android TV 9) a un **AOSP System WebView
+~Chromium 61** : il ne supporte ni l'optional chaining (`?.`) ni le nullish
+(`??`) du bundle moderne → l'APK moderne plantait en SyntaxError (écran vide
+/ « ne fait rien »). La compatibilité box est assurée par 4 mécanismes :
+
+1. **Double bundle embarqué** — `build.sh` embarque le build moderne
+   (`better-xcloud.user.js` **et** `better-xcloud-preview.user.js` pour le
+   variant preview) **plus** sa transpilation ES2017 (`better-xcloud.es2017.user.js`
+   / `better-xcloud-preview.es2017.user.js`, générées par `bun bench/es2017-build.mjs`
+   au bump — `bench/bump-version.sh` les régénère automatiquement).
+2. **Choix du bundle au runtime par l'UA** — `MainActivity.chooseBundle()` :
+   `Chrome/≥80` (ou WebView moderne) → bundle moderne ; `Chrome/<80` ou
+   absence de token Chrome (vieux AOSP) → **es2017**. Choix **synchrone** :
+   un callback `ValueCallback` asynchrone plante le d8 34.0.0 (classe
+   implémentant une interface du `--lib`).
+3. **Défauts « box » une fois** — sur Android TV (`UI_MODE_TYPE_TELEVISION`,
+   détecté au `onCreate`), avant l'injection du script : preset **Économe**
+   (cap 5 Mbps + 720p), animations réduites et pas de fusée au loading,
+   posés dans le localStorage du script (`_bxTvDefaults`, idempotent).
+4. **Télécommande D-pad → clavier** — sur TV, les touches D-pad
+   (UP/DOWN/LEFT/RIGHT/CENTER/ENTER) sont traduites en `Arrow*` / `Enter`
+   dispatchés à la page (le client xCloud écoute ces touches ; sans ça, le
+   D-pad natif ne fait que le focus HTML). `Enter` clique aussi l'élément
+   actif (`BUTTON`/`A`/`INPUT`/`SELECT`).
+
+**Leanback** : catégorie `LEANBACK_LAUNCHER` ajoutée au manifest (sans elle,
+ l'app n'apparaît pas dans la rangée du launcher TV), bannière TV
+ `tv_banner.png` (320×180, générée depuis le logo par `mobile/gen-tv-banner.js`
+ — même décodeur PNG que `gen-icon.js`), et `hardwareAccelerated=true`
+ (rendu WebView + fullscreen vidéo).
+
+**Validé (19 août ~14:00)** :
+- Les **deux APK** (stable + preview) buildent avec l'es2017 embarqué
+  (asset `assets/better-xcloud.es2017.user.js` présent, badging
+  `leanback-launchable-activity` OK).
+- **Chemin moderne en réel sur BlueStacks** (Android 13, WebView moderne) :
+  `bundle choisi: modern`, page `/fr-FR/play` chargée, `mobile-probe.js`
+  **SONDE OK** (`BX_EXPOSED=object`, `BX_FETCH=function`, bouton settings
+  présent + visible).
+- **Logique de fallback UA** vérifiée (4/4) : Chromium 61 → es2017,
+  Chrome/120 → modern, AOSP sans token → es2017, UA iOS sans Chrome → es2017.
+- Le bundle es2017 ne contient aucun `?.`/`??` hors chaînes littérales
+  (les sources de patches dans les template literals sont du texte, jamais
+  parsées par le vieux moteur).
+
+À tester en réel sur la box (non disponible ici) : le stream xCloud sur un
+vrai AOSP WebView — si un écran noir apparaît, diagnostiquer avec
+`adb logcat -s EvenBetterXcloud` pendant le stream.
+
 ## Limites connues
 
 - **WebView ≠ navigateur complet** : le client xCloud web s'affiche en plein

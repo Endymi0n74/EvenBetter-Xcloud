@@ -42,6 +42,21 @@ mkdir -p "$ROOT/assets"
 BUNDLE_SRC="${BUNDLE_SRC:-$BUNDLE_SRC_DEFAULT}"
 cp "$BUNDLE_SRC" "$ROOT/assets/better-xcloud.user.js"
 echo "    asset : $(wc -c < "$ROOT/assets/better-xcloud.user.js") o ($(basename "$BUNDLE_SRC"))"
+
+# Deuxième asset : la transpilation ES2017 du bundle (vieux WebView — Freebox
+# Pop / Android TV 9 : Chrome < 80 sans ?. / ??). MainActivity teste la
+# capacité du WebView au runtime et choisit le bundle à injecter.
+ES2017_SRC_DEFAULT="$ROOT/../better-xcloud.es2017.user.js"
+if [ "$VARIANT" = "preview" ]; then
+  ES2017_SRC_DEFAULT="$ROOT/../better-xcloud-preview.es2017.user.js"
+fi
+ES2017_SRC="${ES2017_SRC:-$ES2017_SRC_DEFAULT}"
+if [ -f "$ES2017_SRC" ]; then
+  cp "$ES2017_SRC" "$ROOT/assets/better-xcloud.es2017.user.js"
+  echo "    asset es2017 : $(wc -c < "$ROOT/assets/better-xcloud.es2017.user.js") o ($(basename "$ES2017_SRC"))"
+else
+  echo "    ⚠ es2017 absent ($ES2017_SRC) — APK sans repli vieux WebView"
+fi
 echo "    variant: $VARIANT | START_URL=$START_URL | package=$PACKAGE | apk=$APK_NAME"
 
 # Keystore : réutiliser la clé d'origine (D:\Codex\bx-apk) pour que les
@@ -56,9 +71,11 @@ if [ ! -f "$ROOT/bxperf.keystore" ]; then
   fi
 fi
 
-# L'icône est régénérée pour chaque variant (sinon cache du même fichier).
-echo "==> 1/7 icône"
+# L'icône et la bannière TV sont régénérées pour chaque variant (sinon cache
+# du même fichier).
+echo "==> 1/7 icône + bannière TV"
 node "$ROOT/gen-icon.js"
+node "$ROOT/gen-tv-banner.js"
 
 echo "==> 2/7 aapt2 compile + link"
 rm -rf "$OUT" "$ROOT/gen"

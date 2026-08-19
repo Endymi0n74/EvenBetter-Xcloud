@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.net.http.SslError;
@@ -78,6 +79,26 @@ public class MainActivity extends Activity {
 
     private WebView webView;
     private String userscript;
+    // Deux bundles embarqués : le build moderne (better-xcloud.user.js) et sa
+    // transpilation ES2017 (better-xcloud.es2017.user.js) pour les VIEUX
+    // Android System WebView (Chrome < 80 : pas de ?. / ?? — Freebox Pop /
+    // Android TV 9). Un test de capacité JS au démarrage choisit le bundle :
+    // le code moderne crasherait en SyntaxError sur la box.
+    private String userscriptModern;
+    private String userscriptLegacy;
+    private boolean isTv;
+
+    // Défauts « box » (Android TV / Freebox Pop) : la box a un WebView faible →
+    // on pose une fois les réglages légers du script (Économe : cap 5 Mbps +
+    // 720p + animations réduites + pas de fusée) pour que le stream rame pas.
+    // Idempotent via le marqueur _bxTvDefaults dans le même localStorage.
+    private static final String JS_TV_DEFAULTS =
+        "(function(){try{var s=JSON.parse(localStorage.getItem(\"BetterXcloud\")||\"{}\");"
+        + "if(s[\"_bxTvDefaults\"]!==1){s[\"stream.video.maxBitrate\"]=5120000;"
+        + "s[\"stream.video.resolution\"]=\"720p\";s[\"ui.reduceAnimations\"]=true;"
+        + "s[\"loadingScreen.rocket\"]=\"hide\";s[\"_bxTvDefaults\"]=1;"
+        + "localStorage.setItem(\"BetterXcloud\",JSON.stringify(s));"
+        + "console.log(\"EvenBetterXcloud TV: defauts box appliques\");}}" + "catch(e){}})();";
 
     // Fullscreen video support (the xCloud player uses the browser fullscreen API)
     private View customView;
@@ -98,12 +119,20 @@ public class MainActivity extends Activity {
         // overlay DOM) via CDP over `adb forward` (chrome://inspect).
         WebView.setWebContentsDebuggingEnabled(true);
 
+        isTv = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_TYPE_MASK)
+            == Configuration.UI_MODE_TYPE_TELEVISION;
+
         webView = new WebView(this);
         setContentView(webView);
+        Log.d("EvenBetterXcloud", "uiMode: " + getResources().getConfiguration().uiMode
+            + " isTv=" + isTv + " ua=" + webView.getSettings().getUserAgentString().substring(0, 40));
 
-        userscript = loadAsset("better-xcloud.user.js");
+        userscriptModern = loadAsset("better-xcloud.user.js");
+        userscriptLegacy = loadAsset("better-xcloud.es2017.user.js");
+        userscript = userscriptModern; // choisi définitivement après le test de capacité
         diagJs = loadAsset("diag.js");
-        Log.d("EvenBetterXcloud", "assets: userscript=" + (userscript == null ? "NULL" : userscript.length())
+        Log.d("EvenBetterXcloud", "assets: userscript=" + (userscriptModern == null ? "NULL" : userscriptModern.length())
+            + " es2017=" + (userscriptLegacy == null ? "NULL" : userscriptLegacy.length())
             + " diag=" + (diagJs == null ? "NULL" : diagJs.length()));
 
         WebSettings settings = webView.getSettings();
@@ -115,6 +144,10 @@ public class MainActivity extends Activity {
         settings.setSupportZoom(false);
         settings.setBuiltInZoomControls(false);
         settings.setDisplayZoomControls(false);
+        // Perf WebView faible (box TV) : priorité de rendu haute (ignoré sur
+        // les WebView modernes, aide les vieux), pas de fenêtres multiples.
+        settings.setRenderPriority(WebSettings.RenderPriority.HIGH);
+        settings.setSupportMultipleWindows(false);
         // UA suffix : version réelle de l'APK (versionName du manifest —
         // source unique VERSION à la racine, plus de hardcode 1.9.0)
         String bxVer = "unknown";
@@ -132,7 +165,38 @@ public class MainActivity extends Activity {
         // Gaming: keep the screen on
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
+        // Choix du bundle (moderne vs es2017) par l'UA du WebView, SYNCHRONE :
+        // l'optional chaining (?. ) est supporté à partir de Chrome 80. La box
+        // (Android TV 9 — Freebox Pop) a un AOSP WebView ~Chrome 61 → bundle
+        // es2017, sinon SyntaxError sur la 1re page. Un callback asynchrone
+        // (ValueCallback) est ÉVITÉ : d8 34.0.0 plante sur les classes qui
+        // implémentent une interface du --lib (android.jar).
+        userscript = chooseBundle(webView.getSettings().getUserAgentString());
+        Log.d("EvenBetterXcloud", "bundle choisi: " + (userscript == userscriptModern ? "modern" : "ES2017 legacy")
+            + " (" + (userscript == null ? "NULL" : userscript.length()) + " o)");
+
+        // Gaming: keep the screen on
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
         webView.loadUrl(START_URL);
+    }
+
+    /**
+     * UA du WebView → bundle. Chrome/≥80 (ou sans token Chrome) = moderne ;
+     * Chrome/<80 = es2017 (?. absent avant 80).
+     */
+    private String chooseBundle(String userAgent) {
+        if (userAgent != null) {
+            java.util.regex.Matcher m =
+                java.util.regex.Pattern.compile("Chrome/(\\d+)").matcher(userAgent);
+            if (m.find()) {
+                try {
+                    int v = Integer.parseInt(m.group(1));
+                    return v >= 80 ? userscriptModern : userscriptLegacy;
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        return userscriptLegacy; // WebView sans token Chrome (vieille AOSP) → es2017
     }
 
     // ---------- Robustesse : chargement / erreurs ----------
@@ -261,6 +325,31 @@ public class MainActivity extends Activity {
             webView.goBack();
             return true;
         }
+        // Télécommande Android TV (Freebox Pop) : traduire le D-pad en
+        // événements clavier pour la page web (le client xCloud écoute
+        // ArrowUp/Down/Left/Right/Enter — le D-pad natif WebView ne fait que
+        // le focus HTML). Retourne true pour ne pas déclencher le scroll natif
+        // en plus (double mouvement).
+        if (webView != null && isTv) {
+            String key = null;
+            if (keyCode == KeyEvent.KEYCODE_DPAD_UP) key = "ArrowUp";
+            else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) key = "ArrowDown";
+            else if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) key = "ArrowLeft";
+            else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) key = "ArrowRight";
+            else if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER
+                || keyCode == KeyEvent.KEYCODE_ENTER
+                || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) key = "Enter";
+            if (key != null) {
+                webView.evaluateJavascript(
+                    "(function(){try{"
+                    + "var ae=document.activeElement;"
+                    + "document.dispatchEvent(new KeyboardEvent('keydown',{key:'" + key + "',code:'" + key + "',bubbles:true,cancelable:true}));"
+                    + "if('" + key + "'==='Enter'&&ae&&(ae.tagName==='BUTTON'||ae.tagName==='A'||ae.tagName==='INPUT'||ae.tagName==='SELECT')){ae.click();}"
+                    + "}catch(e){}})();",
+                    null);
+                return true;
+            }
+        }
         return super.onKeyDown(keyCode, event);
     }
 
@@ -331,6 +420,11 @@ public class MainActivity extends Activity {
             // script no-ops internally on non-play pages.
             String userscript = activity.userscript;
             if (isXbox && userscript != null) {
+                // TV : poser les défauts « box » AVANT le script (le script lit
+                // localStorage à l'init) — idempotent, une seule fois.
+                if (activity.isTv) {
+                    view.evaluateJavascript(JS_TV_DEFAULTS, null);
+                }
                 view.evaluateJavascript(
                     "(function(){try{" + userscript + "}catch(e){console.error('EvenBetterXcloud inject',e)}})();",
                     null);

@@ -10,19 +10,23 @@
  *   - la sémantique du code (downlevel ?. → ternaires, ?? → ||, class fields
  *     → defineProperty, private fields → WeakMap, ...).
  *
- * Usage : bun bench/es2017-build.mjs [--out <fichier>] [--minify]
- *   défaut : écrit `better-xcloud.es2017.user.js` à la racine (minifié),
+ * Usage : bun bench/es2017-build.mjs [--src <bundle>] [--out <fichier>] [--minify]
+ *   défaut : source `better-xcloud.user.js` (stable) → écrit
+ *   `better-xcloud.es2017.user.js` à la racine (minifié),
  *   imprime la taille, le delta et les compteurs de syntaxe ES2020 résiduelle.
+ *   Le preview : --src better-xcloud-preview.user.js
+ *   --out better-xcloud-preview.es2017.user.js (appelé par bump-version.sh).
  */
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { build } from "esbuild";
 
 const argv = process.argv.slice(2);
-const outPath =
-  argv[argv.indexOf("--out") + 1] || "better-xcloud.es2017.user.js";
+const srcArg = argv[argv.indexOf("--src") + 1];
+const outArg = argv[argv.indexOf("--out") + 1];
 const minify = argv.includes("--minify") || !argv.includes("--pretty");
 
-const SRC = "better-xcloud.user.js";
+const SRC = srcArg || "better-xcloud.user.js";
+const outPath = outArg || "better-xcloud.es2017.user.js";
 
 // ---- extraire le header userscript (bloc // ==UserScript== ... ==/UserScript==)
 const src = readFileSync(SRC, "utf8");

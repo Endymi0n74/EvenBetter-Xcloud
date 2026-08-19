@@ -138,18 +138,21 @@ function crc32(buf) {
   return (c ^ 0xffffffff) >>> 0;
 }
 
-function encodePNG(rgba) {
-  const S = SIZE;
+function encodePNG(rgba, size = SIZE) {
+  // size = côté (carré) pour l'icône ; (w, h) pour la bannière TV 320×180.
+  const S = size;
+  const W = Array.isArray(size) ? size[0] : size;
+  const H = Array.isArray(size) ? size[1] : size;
   const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(S, 0);
-  ihdr.writeUInt32BE(S, 4);
+  ihdr.writeUInt32BE(W, 0);
+  ihdr.writeUInt32BE(H, 4);
   ihdr[8] = 8;  // bit depth
   ihdr[9] = 6;  // RGBA
-  const stride = S * 4 + 1;
-  const filtered = Buffer.alloc(stride * S);
-  for (let y = 0; y < S; y++) {
+  const stride = W * 4 + 1;
+  const filtered = Buffer.alloc(stride * H);
+  for (let y = 0; y < H; y++) {
     filtered[y * stride] = 0;
-    rgba.copy(filtered, y * stride + 1, y * S * 4, (y + 1) * S * 4);
+    rgba.copy(filtered, y * stride + 1, y * W * 4, (y + 1) * W * 4);
   }
   return Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
@@ -260,4 +263,10 @@ function main() {
   console.log('icône EvenBetterXcloud écrite:', file, png.length, 'octets (' + source + ')');
 }
 
-main();
+// Export pour réutilisation (gen-tv-banner.js) : decodePNG / pixel / encodePNG
+// / CROP / EXPECT. main() ne tourne que si le script est exécuté directement.
+module.exports = { decodePNG, pixel, encodePNG, CROP, EXPECT, SIZE, ASSET };
+
+if (require.main === module) {
+  main();
+}

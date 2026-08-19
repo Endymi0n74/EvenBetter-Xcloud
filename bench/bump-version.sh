@@ -33,6 +33,10 @@ echo "$NEW" > VERSION
 
 node bench/rebrand-bundle.js better-xcloud.user.js --version="$NEW" --bump-only
 bun bench/es2017-build.mjs
+# Le preview a aussi sa transpilation ES2017 (vieux WebView Android TV /
+# Freebox Pop) : générée au bump comme le stable, embarquée par build.sh
+# (VARIANT=preview).
+bun bench/es2017-build.mjs --src better-xcloud-preview.user.js --out better-xcloud-preview.es2017.user.js
 node bench/rebrand-bundle.js better-xcloud-preview.user.js --version="$PREVIEW" --bump-only
 node bench/rebrand-bundle.js better-xcloud.meta.js --version="$NEW" --bump-only
 node bench/rebrand-bundle.js better-xcloud-preview.meta.js --version="$PREVIEW" --bump-only

@@ -9,9 +9,9 @@ Mémoire de travail des sessions. Détails dans `bench/preview/port/session.md`
 L'utilisateur demande une mise à jour de ce fichier **au moins toutes les
 ~2 h de travail cumulé** (et à chaque fin de session), sans attendre d'être
 relancé : après ~2 h d'actions, journaliser l'état (fichiers touchés,
-verdicts, pièges nouveaux, en attente). Dernière passe : **19 août ~20:00 —
-Feature « ⚡ Appliquer la meilleure région » v1.12.0** (implémentation +
-gates + probe 100 % vert en réel).
+verdicts, pièges nouveaux, en attente). Dernière passe : **19 août ~14:15 —
+Compatibilité Freebox Pop / Android TV** (es2017 embarqué, fallback UA,
+leanback, défauts box, D-pad — APK validé sur BlueStacks, sieste utilisateur).
 
 ## v1.12.0 — Feature « ⚡ Appliquer la meilleure région » — 19 août ~20:00
 
@@ -57,6 +57,43 @@ APK versionCode 6). Tous les gates CI verts en local (region, datasaver,
 t10, keepalive, p2-schema, pr-comment-merge, Étape 0). Prochaine étape :
 publier la release v1.12.0 + APK (bump --build-apk) et le rappel de la
 validation sur téléphone si besoin.
+
+## Compatibilité Freebox Pop / Android TV — 19 août ~14:15 (sieste utilisateur)
+
+La box (Android TV 9, AOSP System WebView ~Chromium 61) ne supporte PAS
+l'optional chaining du bundle moderne → l'APK moderne plantait (scénario
+« ne fait rien » du 19 août). Pendant la sieste de l'utilisateur :
+
+- **Double bundle embarqué** : `mobile/build.sh` embarque le build moderne
+  + sa transpilation **ES2017** (`better-xcloud.es2017.user.js` /
+  `better-xcloud-preview.es2017.user.js`). `bench/es2017-build.mjs`
+  paramétrable (`--src`/`--out`), les deux transpilations régénérées par
+  `bench/bump-version.sh` au bump.
+- **Choix au runtime par l'UA** (`MainActivity.chooseBundle`) :
+  `Chrome/≥80` → moderne ; `<80` ou pas de token Chrome (vieux AOSP) →
+  es2017. SYNCHRONE (un `ValueCallback` asynchrone plante le d8 34.0.0).
+- **Défauts « box » une fois** (TV détecté via `UI_MODE_TYPE_TELEVISION`) :
+  preset Économe (5 Mbps + 720p) + animations réduites + pas de fusée,
+  posés dans le localStorage du script avant injection (`_bxTvDefaults`,
+  idempotent).
+- **D-pad → clavier** (`onKeyDown`, TV only) : UP/DOWN/LEFT/RIGHT/CENTER/
+  ENTER → `Arrow*`/`Enter` dispatchés à la page + `click()` sur l'élément
+  actif pour Enter (le D-pad natif ne fait que le focus HTML).
+- **Leanback** : `LEANBACK_LAUNCHER` + bannière TV 320×180
+  (`mobile/gen-tv-banner.js`, réutilise le décodeur PNG de gen-icon.js
+  paramétré par taille) + `hardwareAccelerated=true`.
+- **Validé (14:00-14:15)** : les 2 APK (stable 1.12.0 + preview 1.12.0-preview1)
+  buildent avec l'es2017 embarqué + badging leanback OK. **BlueStacks
+  (Tiramisu64, adb connect 127.0.0.1:5555) : install stable → `bundle
+  choisi: modern`, `mobile-probe.js` SONDE OK** (BX_EXPOSED object,
+  BX_FETCH function, bouton settings présent + visible). Logique UA 4/4
+  (Chromium 61 → es2017, Chrome/120 → modern, sans token → es2017, iOS →
+  es2017). es2017 exempt de `?.`/`??` hors template literals (texte, jamais
+  parsé par le vieux moteur).
+- **Piège re-rencontré** : `VARIANT=preview build.sh` purge `mobile/out/` →
+  l'APK stable buildé avant est perdu (rebuild stable après).
+- **À tester en réel sur la box** (non disponible ici) : stream xCloud sur
+  le vrai AOSP WebView — si écran noir, `adb logcat -s EvenBetterXcloud`.
 
 ## Réorganisation du workspace (19 août ~11:30) — tout sous EvenBetterXcloud
 
