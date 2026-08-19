@@ -41,6 +41,18 @@ verdicts, pièges nouveaux, en attente). Dernière passe : 19 août (v1.11.0).
   OK), metas, manifest versionCode 5. APK stable (es2017 embarqué) +
   preview rebuildés. README FR/EN mis à jour (table Deux versions →
   1.11.0 / 1.11.0-preview1).
+- **⚠ Piège CDN GitHub (nouveau, 19 août)** : juste après une publication, le
+  lien public `releases/download/<tag>/better-xcloud.user.js` peut 404
+  (XML Azure `BlobNotFound`) pendant **plusieurs minutes** — le redirect
+  302 du CDN pointe vers un blob stale (les autres assets du même tag
+  servent 200, et l'API `Accept: application/octet-stream` sert le bon
+  blob). Le garde-fou release peut donc **faux-positiver** immédiatement
+  après une publication : attendre ~10-30 min puis relancer
+  `bash bench/release-guard.sh`. Si le 404 persiste : supprimer/recréer la
+  release (le tag reste) et re-tester. Autre piège : le rename `#` de
+  `gh release create`/`upload` ne fonctionne PAS avec des chemins relatifs
+  (l'asset garde le nom source) — passer par des copies /tmp avec le nom
+  cible exact.
 
 ## Harnais preview — réécriture injection (18 août ~07:00)
 
