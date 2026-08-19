@@ -49,8 +49,8 @@ amont `redphx/better-xcloud` (branche `typescript`, baseline 6.7.12) via des
 | 12 | BxSelect observer délégué + debugger | 06/10 | un seul MutationObserver | ✅ **PR #1004 ouverte** (commit `b6b49ac`, 2 fichiers : `bx-select.ts` observer global délégué + `translation.ts` debugger retiré, corps avec near-miss translation.ts ↔ #908/#938/#468) |
 | 13 | fix share-delete | 11 | bug fix | ✅ **PR #1001 ouverte** (commit `2eaa2ac`, `controller-customization.ts` seul +6/−2 — `delete mapping['Share']` retiré : `mapping` est une référence live vers les settings stockés, le delete détruisait la config Share de l'utilisateur au premier press) |
 | 13b | opacity cache fix | 07 | bug fix | **annulé — no-op amont** : `_cachedOpacity`/`_cachedTextSize` n'ont **jamais existé** dans l'historique amont (`git log -S` vide) — le cache était un ajout du fork, retiré par son propre patch 07 ; `refreshStyles()` amont lit déjà `getStreamPref` directement. Rien à porter (comme #4/#11) |
-| 14 | data usage presets (maxBitrate + resolution) | — | cap 10 Mbps → 6,6 Mbps réels (1440p conservé) ; 720p → 1280×720 réel | 🔧 **branche PRÊTE `feat/data-presets` (commit `77c1fcf`), NON ouverte** — feature v1.11.0 du fork (« 📊 Données »), corps prêt dans `body-data-presets.md` ; à ouvrir au premier retour mainteneur (comme prévu pour #10-12 avant leur ouverture) |
-| 15 | test latence serveur (ping gssv 19 régions) | — | ⭐ CSE 30 ms vs UKS défaut 43 ms en réel ; NATIVE_FETCH + `?probe=1` (mesure pure, hors interception) | 🔧 **branche PRÊTE `feat/latency-test` (commit `071ff73`), NON ouverte** — feature v1.10.0 du fork (« 📡 Latence serveur »), corps prêt dans `body-latency-test.md` ; à ouvrir au premier retour mainteneur |
+| 14 | data usage presets (maxBitrate + resolution) | — | cap 10 Mbps → 6,6 Mbps réels (1440p conservé) ; 720p → 1280×720 réel | ✅ **PR #1006 ouverte** (commit `77c1fcf`, 2 fichiers : settings-dialog.ts + translation.ts — feature v1.11.0 du fork « 📊 Données ») |
+| 15 | test latence serveur (ping gssv 19 régions) | — | ⭐ CSE 30 ms vs UKS défaut 43 ms en réel ; NATIVE_FETCH + `?probe=1` (mesure pure, hors interception) | ✅ **PR #1007 ouverte** (commit `071ff73`, 3 fichiers : latency-test.ts + settings-dialog.ts + translation.ts — feature v1.10.0 du fork « 📡 Latence serveur ») |
 
 **À NE PAS proposer** : patch 01 (header/version fork), patch 09 (single-pass
 collect — mesuré ~7 % réaliste, négatif à 500 entrées), portage preview
@@ -73,20 +73,18 @@ collect — mesuré ~7 % réaliste, négatif à 500 entrées), portage preview
 | #1003 | checkForUpdate throttle | OPEN, mergeable, 1 commit — ouvert le 18 août ~00:35, aucun retour | idem |
 | #1004 | BxSelect observer délégué | OPEN, mergeable, 1 commit — ouvert le 18 août ~00:35, aucun retour | idem |
 | #1005 | fix #991 (garde `buttons?.[16]`) | OPEN, mergeable, 1 commit — ouvert le 18 août ~00:50, **lié sur l'issue #991** (commentaire pour le rapporteur), aucun retour | idem |
+| #1006 | data usage presets | OPEN, mergeable, 1 commit — ouvert le 19 août ~14:20, aucun retour | idem |
+| #1007 | server latency test (gssv ping) | OPEN, mergeable, 1 commit — ouvert le 19 août ~14:20, aucun retour | idem |
 
-## Branches en attente — data presets + latence serveur (19 août)
+## Branches poussées + PR ouvertes — data presets + latence serveur (19 août)
 
-**Toutes les PR prêtes ont été ouvertes sauf les deux features récentes du
-fork** — `feat/data-presets` (commit `77c1fcf`, 2 fichiers :
-settings-dialog.ts + translation.ts) et `feat/latency-test` (commit
-`071ff73`, 3 fichiers : settings-dialog.ts + translation.ts +
-latency-test.ts, build amont exit 0, feature présente dans le bundle).
-**NON poussées / NON ouvertes** — la queue attend le retour du mainteneur sur
-les 13 PR (aucun retour depuis le 17 août, rythme semaines/mois, rappel prévu
-~24 août). Corps prêts : `upstream-prs/body-data-presets.md` +
-`upstream-prs/body-latency-test.md`. Ouverture au premier retour :
-`gh pr create -R redphx/better-xcloud -B typescript -H Endymi0n74:feat/data-presets --title "feat: data usage presets — cap video bitrate & resolution in one click" --body-file upstream-prs/body-data-presets.md`
-et idem avec `feat/latency-test` (`--title "feat: server latency test — ping gssv regions to pick the fastest server.region"`) après push des branches sur le fork.
+Les deux features récentes du fork ont été poussées sur le fork
+(`feat/data-presets` `77c1fcf`, `feat/latency-test` `071ff73`) et **ouvertes** :
+- **PR #1006** data usage presets — `gh pr create -R redphx/better-xcloud -B typescript -H Endymi0n74:feat/data-presets`
+- **PR #1007** server latency test — `-H Endymi0n74:feat/latency-test`
+Les deux : MERGEABLE, 1 commit, build amont exit 0, feature présente dans le
+bundle. Queue upstream complète : **15 PR ouvertes** (993-1007). Rappel
+mainteneur prévu ~24 août.
 
 Fix #991 (garde crash) : les objets Gamepad ne garantissent pas un tableau
 `buttons` à chaque poll (GameSir G7 SE) — `buttons[16]` levait une exception
