@@ -22,6 +22,7 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.Toast;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -319,11 +320,33 @@ public class MainActivity extends Activity {
         return false;
     }
 
+    // Double-BACK pour quitter l'appli depuis la home (fix 19 août) : le geste
+    // BACK faisait goBack() dans l'historique SPA (7+ entrées), qui RENTRAIT
+    // dans le stream après « Quitter » — « ça revient ». Hors /stream/, le
+    // premier BACK affiche un toast, le second (2 s) ferme l'appli.
+    private long lastBackPressed = 0;
+
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (keyCode == KeyEvent.KEYCODE_BACK && webView != null && webView.canGoBack()) {
-            webView.goBack();
-            return true;
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            String url = webView != null ? webView.getUrl() : null;
+            boolean inStream = url != null && url.contains("/stream/");
+            if (!inStream) {
+                // Home / produits / login : ne JAMAIS goBack() (l'historique SPA
+                // re-rentre dans le stream). Double-BACK = quitter l'appli.
+                long now = System.currentTimeMillis();
+                if (now - lastBackPressed < 2000) {
+                    finish();
+                } else {
+                    lastBackPressed = now;
+                    Toast.makeText(this, "Appuyez encore pour quitter", Toast.LENGTH_SHORT).show();
+                }
+                return true;
+            }
+            if (webView != null && webView.canGoBack()) {
+                webView.goBack();
+                return true;
+            }
         }
         // Télécommande Android TV (Freebox Pop) : traduire le D-pad en
         // événements clavier pour la page web (le client xCloud écoute

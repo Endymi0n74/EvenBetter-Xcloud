@@ -18,7 +18,8 @@
         android:banner="@drawable/tv_banner"
         android:hardwareAccelerated="true"
         android:usesCleartextTraffic="false"
-        android:theme="@android:style/Theme.Material.NoActionBar">
+        android:theme="@android:style/Theme.Material.NoActionBar"
+        android:enableOnBackInvokedCallback="false">
 
         <!-- Nom de classe COMPLET (com.bxperf.app.MainActivity) : le package
              du manifest change selon le variant (com.bxperf.app /

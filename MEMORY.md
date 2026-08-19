@@ -9,9 +9,33 @@ Mémoire de travail des sessions. Détails dans `bench/preview/port/session.md`
 L'utilisateur demande une mise à jour de ce fichier **au moins toutes les
 ~2 h de travail cumulé** (et à chaque fin de session), sans attendre d'être
 relancé : après ~2 h d'actions, journaliser l'état (fichiers touchés,
-verdicts, pièges nouveaux, en attente). Dernière passe : **19 août ~14:15 —
-Compatibilité Freebox Pop / Android TV** (es2017 embarqué, fallback UA,
-leanback, défauts box, D-pad — APK validé sur BlueStacks, sieste utilisateur).
+verdicts, pièges nouveaux, en attente). Dernière passe : **19 août ~15:05 —
+Fix « quitter ça revient » (BACK Android) + harnais stream-instrument**.
+
+## Fix « Quitter ça revient » — BACK Android (19 août ~15:00, APK vc 8)
+
+L'utilisateur ne pouvait pas fermer l'appli : après avoir quitté un stream,
+le geste BACK **re-rentrait dans le stream** au lieu de fermer l'appli.
+**Cause racine en 2 couches** (téléphone Xiaomi 14T, Android 16) :
+1. **Back prédictif Android 13+** : `onKeyDown(KEYCODE_BACK)` n'est PLUS
+   appelé (le geste passe par `OnBackInvokedDispatcher` et c'est le WebView
+   qui gère tout seul → `goBack()`). Notre gestion BACK était morte sur
+   téléphone moderne. Fix : `android:enableOnBackInvokedCallback="false"`
+   dans AndroidManifest.template.xml → `onKeyDown` reçoit le BACK.
+2. **`onKeyDown` naïf** : `webView.goBack()` tant que `canGoBack()` (SPA =
+   7 entrées d'historique) → rembobinait l'historique du site et RETOURNAIT
+   dans le stream. Fix : hors URL `/stream/`, plus de goBack() — **double-
+   BACK** (toast « Appuyez encore pour quitter », fenêtre 2 s) → `finish()`.
+   En `/stream/`, goBack() conservé (quitter le stream).
+**Validé en réel (adb)**: BACK #1 → appli reste (focus MainActivity),
+BACK #2 à 1 s → appli fermée (focus rendu à l'appli précédente). Piège de
+re-test : avec `sleep 2` entre les deux BACK, la fenêtre `< 2000 ms` est
+ratée de justesse → re-toast (tester à 1 s). Preuves :
+`mobile/validation-phone-back-fix-state.png` / `-toast.png`.
+⚠ `VARIANT=preview bash build.sh` (env, pas argument) — `bash build.sh
+preview` build le STABLE silencieusement. APK installé sur le téléphone :
+`evenbetter-xcloud-1.12.0-preview1.apk` (vc 8, signé même clé, update in
+place, session conservée).
 
 ## v1.12.0 — Feature « ⚡ Appliquer la meilleure région » — 19 août ~20:00
 
