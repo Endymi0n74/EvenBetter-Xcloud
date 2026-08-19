@@ -4,13 +4,27 @@ Mémoire de travail des sessions. Détails dans `bench/preview/port/session.md`
 (étude protocole), `bench/preview/port/e2e-cdp.md` (protocole E2E + journal),
 `bench/preview/port/anchors.md`, `bench/preview/port/classify.md`.
 
-## Discipline de mémoire
+## Discipline de mémoire — « mémoire avant tout » (19 août, directive utilisateur)
 
-L'utilisateur demande une mise à jour de ce fichier **au moins toutes les
-~2 h de travail cumulé** (et à chaque fin de session), sans attendre d'être
-relancé : après ~2 h d'actions, journaliser l'état (fichiers touchés,
-verdicts, pièges nouveaux, en attente). Dernière passe : **19 août ~18:30 —
-Release v1.12.0 (APK doc-start) + cycle d'auto-update vérifié**.
+**Règle stricte posée par l'utilisateur : « mémoire avant tout, quoi que je
+fasse, mémoire. »** — cette mémoire est le fil conducteur de toutes les
+sessions (les restarts Freebuff effacent le contexte ; seul ce fichier
+survit). Application concrète :
+- Journaliser **à chaque étape significative**, pas seulement toutes les 2 h :
+  avant une séquence longue → où j'en suis ; après chaque verdict/validation/
+  échec → le résultat, le « pourquoi », les pièges nouveaux. Un commit de
+  MEMORY.md accompagne chaque fin de séquence.
+- Commencer chaque session en **relisant l'état courant** (sections récentes +
+  « En attente ») et terminer par une passe de journalisation AVANT de
+  répondre.
+- Priorité à la **reproductibilité** : commandes exactes, chemins, versions,
+  sorties chiffrées, pièges (un piège oublié = temps perdu en re-diagnostic).
+- La règle s'applique aussi aux actions en cours : si une étape a des
+  chances de planter ou de prendre du temps, noter au fil de l'eau ce qui
+  est déjà acquis (le contexte ne survit pas à un restart).
+
+Dernière passe : **19 août ~18:30 — Release v1.12.0 (APK doc-start) +
+cecle d'auto-update vérifié** (commit e1435bc).
 
 ## Release v1.12.0 rafraîchie (APK doc-start) + cycle auto-update (19 août ~18:30)
 
