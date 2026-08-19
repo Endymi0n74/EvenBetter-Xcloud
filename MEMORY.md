@@ -84,6 +84,46 @@ exact — la purge est passée DEVANT). Fix : strip par PLAGE
 nouvelles features). Appliqué aussi à feature-diag-purge.test.js par
 précaution.
 
+## Convention purge dans les probes + validation live Son + release v1.13.1 (19-20 août)
+
+**Convention dans les probes** (commit 69e0a42) : les trois probes CDP
+(`feature-sound-probe`, `feature-datasaver-probe`, `feature-region-probe`)
+documentent la convention `win-capture` dans leurs entêtes et appellent
+`window.BX_PURGE_DIAG()` en fin de run — best-effort (no-op si API absente),
+informatif si des listeners marqués traînaient.
+
+**Validation LIVE de la feature Son — mécanique gain node** : le volume réel
+d'un stream ne passe PAS par `video.volume` (le video est `muted` par design
+xCloud) mais par un **gain node WebAudio** : clic preset →
+`setStreamPref("audio.volume", v, "ui")` → onChange de la pref →
+`SoundShortcut.setGainNodeVolume(v)` → `STATES.currentStream.audioGainNode.
+gain.value = v/100`. ⚠ Le gain node n'existe que si le booster
+(`audio.volume.booster.enabled`) était activé AU SETUP du stream
+(patchAudioMediaStream) — sinon la pref s'applique à la prochaine session.
+Validé en réel (As Dusk Falls, reload du stream booster on) : 100→gain 1.0,
+50→0.5, 200→2.0, 0→0, en direct < 1 s ; prefs restaurées au défaut ensuite.
+
+**Release v1.13.1 (20 août) — bundles avec BX_PURGE_DIAG + APK vc 10** :
+stable `evenbetter-xcloud-v1.13.1` (Latest) + preview `evenbetter-xcloud-
+v1.13.1-preview1` (prerelease, auto-update pinné sur ce tag). Garde-fou
+release 10/10 (4/4 liens byte-identiques, APK 200, stable=versionné),
+rétention auto : v1.13.0 purgée, état final = v1.13.1 + preview1 + secours
+1.8.0-preview4.
+
+**Piège 1 — pin preview périmé au bump** : `rebrand-bundle.js --bump-only`
+change @version mais PAS l'@updateURL/@downloadURL preview (posés par
+build-preview.js depuis PREVIEW_VERSION). Sans rebuild post-bump, le preview
+pointe l'ancien tag (purgé par la rétention → 404 sur l'auto-update).
+Procédure : bump → `node bench/preview/port/build-preview.js` (re-pin) →
+es2017 preview → COMMITTER user.js + meta régénérés.
+
+**Piège 2 — meta régénéré non commité** : le rebuild preview régénère aussi
+`better-xcloud-preview.meta.js` (nouveau pin) ; si on upload l'asset sans
+commit, le garde-fou fait GATE ROUGE (bytes servis ≠ commit tagué). Fix :
+commit du meta puis DÉPLACER les tags release (delete + recreate — GitHub
+supprime la release avec le tag, et laisse des DRAFTS fantômes à nettoyer via
+l'API `gh api -X DELETE /releases/<id>`), puis recréer les releases.
+
 ## Fix piège PREVIEW_VERSION — source de vérité unique (19 août ~23:30)
 
 **Problème** (piège f39aeb2 revécu le 19 août) : `build-preview.js`
