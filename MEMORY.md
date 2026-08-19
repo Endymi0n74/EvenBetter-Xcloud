@@ -42,9 +42,33 @@ partout où utile »** — règle encodée :
 - Appliquer aussi dans les nouveaux fichiers publics (docs, inventaires)
   quand c'est pertinent — pas dans le code technique des harnais bench.
 
-Dernière passe : **19 août ~22:00 — signature vibe-coding ajoutée au
-README FR/EN + en-tête des bundles (v1.13.0), règle encodée ici** (commit
-en cours).
+Dernière passe : **19 août ~23:10 — releases v1.13.0 + v1.13.0-preview1
+publiées (notes FR/EN vibe-coding), garde-fou 10/10 vert, rétention
+automatique OK** (commit en cours).
+
+## Publication v1.13.0 + v1.13.0-preview1 (19 août ~23:00)
+
+**Releases créées** (tags sur 0a94d4d = HEAD) :
+- `evenbetter-xcloud-v1.13.0` (Latest) : better-xcloud.user.js (**build
+  ES2017** — politique v1.8.0, copié depuis better-xcloud.es2017.user.js),
+  meta, APK versionné + nom stable (byte-identiques, sha ce46cf28). Notes
+  FR/EN avec bloc « 🤖 Vibe-coding » (Codebuff — agent Buffy).
+- `evenbetter-xcloud-v1.13.0-preview1` (prerelease) : preview.user.js +
+  meta (pinné sur ce tag), APK preview vc 9. Notes FR/EN idem.
+
+**APK rebuildés** (vc 9, versionName 1.13.0) : `mobile/build.sh` (stable)
++ `VARIANT=preview` — piège connu : chaque build purge `mobile/out/` →
+copier chaque APK vers /tmp AVANT de lancer l'autre build.
+
+**Garde-fou release : 10/10 vert** (relancé APRÈS la purge) : 4/4 liens
+byte-identiques, versions/names cohérents, APK 200. 6/6 liens curl 200
+(user/meta ×2 + APK versionné + APK bannière).
+
+**Rétention AUTOMATIQUE confirmée** : le workflow `release-prune.yml`
+(déclencheur `release: published`) a tourné à chaque publication et purgé
+les v1.12.0 + v1.12.0-preview1 tout seul (runs success 17:09Z). État :
+v1.13.0 (Latest) + v1.13.0-preview1 + secours 1.8.0-preview4. Le prune
+local `--dry-run` ne listait plus rien (déjà purgé).
 
 ## Feature « 🔊 Son » v1.13.0 (19 août ~21:00-21:30)
 
