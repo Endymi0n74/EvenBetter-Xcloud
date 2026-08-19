@@ -598,6 +598,20 @@ fichier .ps1 obligatoire).
   sous Firefox. Contre-test Chromium automatisé (`bench/t10-counters-test.js`,)
   : UA intacte, script actif, pas de dialog, home OK — T10 ne spoofe que hors
   Chromium. Validation T10 bouclée des deux côtés (commit `a34d5d9`).
+- **Gate CI T10 branché (19 août ~09:00)** : `bench/preview/port/t10-auto-spoof.test.js`
+  dans le step preview de bench.yml — extraction du statement T10 du build +
+  pureté du stable + comportement vm sur mock UserAgent (13 checks) +
+  `--self-test` du chemin d'échec. CI main vert (run 32226542845). Commit `2f36360`.
+- **APK preview en WebView Android (19 août ~09:15, BlueStacks)** : l'APK
+  preview2 embarque bien le T10 (1 marker, `windows-edge` ×3, version
+  1.10.0-preview2, byte-identique à la release). Gate validé dans la WebView :
+  UA Chromium Android (Chrome/129) → **pas de dialog** (T10 correctement
+  inactif — la WebView est déjà Chromium, pas de spoof), script preview actif
+  (18 patches), 9 jeux. Nouveau harnais : `bench/mobile-preview-gate.js`.
+- **Fix UA suffix APK (19 août)** : `MainActivity.java` durcissait
+  `EvenBetterXcloud/1.9.0` dans l'UA → lit maintenant le `versionName` du
+  manifest (1.10.0). versionCode 3→4. APK stable + preview rebuildés et
+  re-uploadés (assets versionnés + nom stable byte-identiques), garde-fou 10/10.
 
 ## Publication v1.10.0 (18 août ~22:30) — feature latence + releases
 

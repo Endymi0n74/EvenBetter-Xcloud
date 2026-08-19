@@ -115,7 +115,13 @@ public class MainActivity extends Activity {
         settings.setSupportZoom(false);
         settings.setBuiltInZoomControls(false);
         settings.setDisplayZoomControls(false);
-        settings.setUserAgentString(settings.getUserAgentString() + " EvenBetterXcloud/1.9.0");
+        // UA suffix : version réelle de l'APK (versionName du manifest —
+        // source unique VERSION à la racine, plus de hardcode 1.9.0)
+        String bxVer = "unknown";
+        try {
+            bxVer = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        } catch (Exception ignored) {}
+        settings.setUserAgentString(settings.getUserAgentString() + " EvenBetterXcloud/" + bxVer);
 
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
