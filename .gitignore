@@ -56,3 +56,4 @@ bench/preview/.cdp-profile/
 Thumbs.db
 .edge-tm/
 .edge-inject/
+.edge-inject-stable/

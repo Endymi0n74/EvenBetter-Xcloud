@@ -434,7 +434,7 @@ tiennent**, aucune régression depuis la séquence upstream.
 | cold-getcap | 535,8 ms (one-shot) | eval 23,6 ms (Δ −95,6 %) | one-shot stable, 2e appel 0,1 ms ✅ |
 
 Commandes exactes : `NODE_PATH=/d/Codex/koharu/node_modules bash bench/run-all.sh`
-(Edge 152.0.4191.19 headless, profil D:\edge-profiles).
+(Edge 152.0.4191.19 headless, profil D:\Codex\EvenBetterXcloud\edge-profiles).
 
 ### Re-baseline du 18 août ~01:00 (post-séquence upstream) — mêmes bornes
 

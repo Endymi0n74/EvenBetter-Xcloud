@@ -20,7 +20,7 @@
  *   # depuis l'artefact CI (startup-summary-<sha>/startup-summary.md)
  *   node bench/update-startup-session.js startup-summary.md --label="CI 2026-08-16 (PR #6)"
  *   node bench/update-startup-session.js startup-summary.md --print-only
- *   node bench/update-startup-session.js startup-summary.md --readme=D:/Codex/better-xcloud-fork/bench/README.md
+ *   node bench/update-startup-session.js startup-summary.md --readme=D:/Codex/EvenBetterXcloud/better-xcloud-fork/bench/README.md
  */
 "use strict";
 

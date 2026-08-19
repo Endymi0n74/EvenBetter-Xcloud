@@ -10,7 +10,7 @@
 //
 // Usage :
 //   node gpu-runner.js ... --seed=100 > run-s100.json   (× les seeds)
-//   node gpu-update-readme.js 100 200 300 400 500 600 [--readme=D:\Codex\better-xcloud-fork\bench\README.md]
+//   node gpu-update-readme.js 100 200 300 400 500 600 [--readme=D:\Codex\EvenBetterXcloud\better-xcloud-fork\bench\README.md]
 //   node gpu-update-readme.js 100 200 300 400 500 600 --print-only
 "use strict";
 

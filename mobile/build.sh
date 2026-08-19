@@ -10,7 +10,7 @@ JAVA="$JAVA_HOME/bin"
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 OUT="$ROOT/out"
 STORE_PASS="bxperf-keystore"
-ORIG_KEYSTORE="/d/Codex/bx-apk/bxperf.keystore"
+ORIG_KEYSTORE="/d/Codex/EvenBetterXcloud/bx-apk/bxperf.keystore"
 
 # Version : source de vérité = VERSION (racine du repo), bumpée par
 # bench/bump-version.sh — les noms d'APK suivent (rebrand 18 août :

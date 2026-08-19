@@ -11,15 +11,15 @@
  *   1. Lancer Edge (extension d'injection stable obligatoire) :
  *        "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" \
  *          --remote-debugging-port=9224 \
- *          --user-data-dir=D:\edge-profiles\guard-badge \
- *          --load-extension=D:\Codex\better-xcloud-fork\.edge-inject-stable \
+ *          --user-data-dir=D:\Codex\EvenBetterXcloud\edge-profiles\guard-badge \
+ *          --load-extension=D:\Codex\EvenBetterXcloud\better-xcloud-fork\.edge-inject-stable \
  *          --no-first-run --no-default-browser-check
  *   2. node bench/verify-badge.js [--port=9224] [--url=https://www.xbox.com/fr-FR/play] [--banner]
  *
  * --banner : en plus du badge, vérifie la BANNIÈRE Android (« 🔥 EvenBetterXcloud
  * app for Android ») : UA Android simulé, lien = downloads direct de l'APK
  * (lien stable evenbetter-xcloud.apk), vrai clic CDP et TÉLÉCHARGEMENT réel
- * dans D:/Codex/banner-dl — le fichier téléchargé doit être byte-identique à
+ * dans D:/Codex/EvenBetterXcloud/artifacts/banner-dl — le fichier téléchargé doit être byte-identique à
  * l'asset servi par le lien de la bannière.
  *
  * Exit 0 : badge « EvenBetterXcloud <version> » affiché + clic → releases
@@ -31,7 +31,7 @@ const WITH_BANNER = process.argv.includes("--banner");
 // La bannière n'est poussée dans le menu que sur UA Android (le script teste
 // UserAgent.getDefault().toLowerCase().includes("android")).
 const ANDROID_UA = "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
-const DL_DIR = "D:/Codex/banner-dl";
+const DL_DIR = "D:/Codex/EvenBetterXcloud/artifacts/banner-dl";
 const BANNER_URL = "https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/evenbetter-xcloud.apk";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -140,8 +140,8 @@ async function main() {
 
   // 4. capture preuve avant clic
   const shot = await cdp.send("Page.captureScreenshot", { format: "png" });
-  require("fs").writeFileSync("D:/Codex/badge-proof-1.9.0.png", Buffer.from(shot.data, "base64"));
-  console.log("[badge] preuve : D:/Codex/badge-proof-1.9.0.png");
+  require("fs").writeFileSync("D:/Codex/EvenBetterXcloud/artifacts/badge-proof-1.9.0.png", Buffer.from(shot.data, "base64"));
+  console.log("[badge] preuve : D:/Codex/EvenBetterXcloud/artifacts/badge-proof-1.9.0.png");
 
   // 5. cliquer le badge → doit ouvrir nos releases. Le badge est un lien
   //    natif (createButton avec url → <a class="bx-button" href target=_blank>

@@ -9,7 +9,7 @@ build **stable** (`better-xcloud.user.js`, v1.8.0) dès le début de la page.
 ## APK
 
 `evenbetter-xcloud-1.9.0.apk` (~140 Ko) — package `com.bxperf.app`, signé avec
-le keystore local (`bxperf.keystore`, réutilisé depuis `D:\Codex\bx-apk` par
+le keystore local (`bxperf.keystore`, réutilisé depuis `D:\Codex\EvenBetterXcloud\bx-apk` par
 `build.sh` — la signature est stable d'un build à l'autre, les mises à jour
 passent par-dessus l'APK installé).
 
@@ -49,7 +49,7 @@ bash build.sh
 
 `build.sh` prépare tout seul l'asset : il copie le **build stable courant** de
 la racine du repo (`../better-xcloud.user.js`) vers `assets/` et réutilise le
-keystore d'origine s'il existe (`D:\Codex\bx-apk\bxperf.keystore`) — une
+keystore d'origine s'il existe (`D:\Codex\EvenBetterXcloud\bx-apk\bxperf.keystore`) — une
 nouvelle clé ne serait générée que si aucun keystore n'est trouvé.
 
 Pipeline sans Gradle : `aapt2 compile/link` → `javac` → `d8` → assemblage
@@ -194,7 +194,7 @@ options (résolution, bitrate, MKB, touch…).
 
 ## Keystore
 
-`bxperf.keystore` (copié depuis `D:\Codex\bx-apk\bxperf.keystore` au premier
+`bxperf.keystore` (copié depuis `D:\Codex\EvenBetterXcloud\bx-apk\bxperf.keystore` au premier
 build dans ce dossier, mot de passe `bxperf-keystore`). **Le garder
 précieusement** : le re-signer change l'empreinte, l'APK ne se mettra plus à
 jour par-dessus l'ancien (désinstallation requise). `assets/`, `out/`,

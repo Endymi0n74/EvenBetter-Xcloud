@@ -11,6 +11,28 @@ L'utilisateur demande une mise à jour de ce fichier **au moins toutes les
 relancé : après ~2 h d'actions, journaliser l'état (fichiers touchés,
 verdicts, pièges nouveaux, en attente). Dernière passe : 19 août (v1.11.0).
 
+## Réorganisation du workspace (19 août ~11:30) — tout sous EvenBetterXcloud
+
+Plus rien de nos outils à la racine `D:\Codex` ni à `D:\edge-profiles` :
+- `D:\Codex\EvenBetterXcloud\better-xcloud-fork` (repo de travail — déplacé),
+  `…\better-xcloud-upstream` (clone amont PR), `…\bx-apk` (build APK +
+  keystore), `…\bx-android-ref` (référence Android).
+- `…\edge-profiles\` (edge-cdp, guard-badge, datasaver — venus de
+  `D:\edge-profiles`).
+- `…\artifacts\` (banner-dl, badge-proof png, anciens bundles/APK),
+  `…\legacy\` (anciens harnais v1.6 : gpubench, patches, regen*, …).
+Chemins mis à jour dans : verify-badge.js (DL_DIR/proof/load-extension),
+update-startup-session.js, gpu-update-readme.js, mobile/build.sh
+(ORIG_KEYSTORE), mobile/README.md, upstream-prs/README.md, MEMORY.md,
+bench/README.md. ⚠ Piège : `D:\Codex\.git` est le repo git du projet
+utilisateur ratio-spoof-manager-tauri — ne pas y toucher (rien de nous n'y
+est tracké). ⚠ Le dossier vide `D:\Codex\better-xcloud-fork` (verrou
+Windows : cwd d'un process) reste tant que la session n'est pas finie — il
+est VIDE et sans conséquence. Edge de test relancé depuis
+`D:\Codex\EvenBetterXcloud\edge-profiles\datasaver` + extension
+`.edge-inject-stable` (dans le repo) : feature-datasaver-probe 20/20 vert
+après le déplacement.
+
 ## v1.11.0 — Feature « 📊 Données » (presets débit/résolution) — 19 août
 
 - **Feature utilisateur** (hors perf, la queue JS étant au plancher) :
@@ -85,10 +107,10 @@ documents — vérifié par tests croisés ; le CDP brut WS, si).
 exceptions restantes viennent toutes du **document initial about:blank**
 (hostname vide → garde « Not xCloud page » + 3 fetch) — bruit attendu sur
 profil déconnecté, zéro exception sur la page réelle.
-- **Profil de test sur D:** (18 août) : `D:\edge-profiles\edge-cdp`
+- **Profil de test sur D:** (18 août) : `D:\Codex\EvenBetterXcloud\edge-profiles\edge-cdp`
   (plus jamais C:\edge-*) ; relance Edge : `powershell -Command
   "Start-Process '…msedge.exe' -ArgumentList
-  '--remote-debugging-port=9222','--user-data-dir=D:\edge-profiles\edge-cdp',
+  '--remote-debugging-port=9222','--user-data-dir=D:\Codex\EvenBetterXcloud\edge-profiles\edge-cdp',
   '--no-first-run'"`.
 
 ## Projet
@@ -359,8 +381,8 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
   **redémarrer Edge**.
 - **L'extension `.edge-inject` doit être relancée** : `taskkill //F //IM
   msedge.exe //T` + `Start-Process` (PowerShell) avec profil
-  `D:\edge-profiles\edge-cdp` +
-  `--load-extension=D:\Codex\better-xcloud-fork\.edge-inject` (depuis bash,
+  `D:\Codex\EvenBetterXcloud\edge-profiles\edge-cdp` +
+  `--load-extension=D:\Codex\EvenBetterXcloud\better-xcloud-fork\.edge-inject` (depuis bash,
   passer par `powershell -Command "Start-Process …"`, pas Start-Process
   direct). Profils de test sur D: uniquement (18 août).
 - **Blip « You're offline » d'Edge** (vu 2× le 17 août) : le site se charge en
@@ -392,11 +414,11 @@ Bench rejouable : `bench/` (CPU/GPU/startup) + `bench/preview/` (portage).
   `fs.existsSync` (`8bd1341`) — job échoué AVANT check-ratios → skip propre
   « résumé absent … skippé », plus de crash ENOENT  (validé PR #16, run
   32002128606 ; journal dans e2e-cdp.md). Runner edge-cdp : port 9222,
-  profil `D:\edge-profiles\edge-cdp`, relance : `Start-Process msedge.exe
+  profil `D:\Codex\EvenBetterXcloud\edge-profiles\edge-cdp`, relance : `Start-Process msedge.exe
   -ArgumentList
-  '--remote-debugging-port=9222','--user-data-dir=D:\edge-profiles\edge-cdp',
+  '--remote-debugging-port=9222','--user-data-dir=D:\Codex\EvenBetterXcloud\edge-profiles\edge-cdp',
   '--no-first-run',
-  '--load-extension=D:\Codex\better-xcloud-fork\.edge-inject'`.
+  '--load-extension=D:\Codex\EvenBetterXcloud\better-xcloud-fork\.edge-inject'`.
 
 ## Profil runtime en session réelle — VERDICT (18 août ~19:45, v1.9.0)
 
@@ -505,9 +527,9 @@ CDP, SmartScreen retire le fichier) ; release-guard VERT (local + CI).
 `mobile/build.sh` (`VARIANT=preview`, `BUNDLE_SRC=…es2017.user.js`) ;
 `bench/preview/port/build-preview.js` (builds preview depuis le stable).
 
-**Chemins** : repo `D:\Codex\better-xcloud-fork` ; JDK `C:\Program Files\Zulu\zulu-21` ;
-SDK `/d/android-sdk` ; keystore `D:\Codex\bx-apk\bxperf.keystore` ; profils Edge
-`D:\edge-profiles\` (edge-cdp = play.xbox.com preview) ; extension locale
+**Chemins** : repo `D:\Codex\EvenBetterXcloud\better-xcloud-fork` ; JDK `C:\Program Files\Zulu\zulu-21` ;
+SDK `/d/android-sdk` ; keystore `D:\Codex\EvenBetterXcloud\bx-apk\bxperf.keystore` ; profils Edge
+`D:\Codex\EvenBetterXcloud\edge-profiles\` (edge-cdp = play.xbox.com preview) ; extension locale
 `.edge-inject-stable/stable.js` = copie statique du bundle → **RESYNC après
 chaque changement de bundle**. PC : aucune instance Edge de test ouverte, rien
 en cours d'exécution.
@@ -745,7 +767,7 @@ tag dédié v1.10.0-preview1.
    défense. Nouvelle fenêtre 1 h relancée 17 août 15:09 (monitor-afk-1h-v2.log,
    session CF49BC01) après que la 1re tentative (15:02) est morte à 4,5 min
    (reload du shell + dialog permission micro réapparu — cliqué Autoriser au
-   clavier, mémorisé dans le profil D:\edge-profiles\edge-cdp). **DÉCISION
+   clavier, mémorisé dans le profil D:\Codex\EvenBetterXcloud\edge-profiles\edge-cdp). **DÉCISION
   P1 (17 août) :
    validation clôturée.** Fenêtre longue (2 h) abandonnée — PC indisponible
    2 h de suite, et le timer d'idle serveur ne peut être ni accéléré ni
@@ -837,7 +859,7 @@ tag dédié v1.10.0-preview1.
     `releases/download/better-xcloud-perf-v1.8.0/better-xcloud-perf-1.8.0.apk`,
     re-uploadé et vérifié byte-identique). `mobile/build.sh` : prépare
     l'asset tout seul (copie du stable courant) et **réutilise le keystore
-    d'origine** `D:\Codex\bx-apk\bxperf.keystore` (empreinte SHA-256
+    d'origine** `D:\Codex\EvenBetterXcloud\bx-apk\bxperf.keystore` (empreinte SHA-256
     `63382a05…` inchangée → mise à jour par-dessus l'ancien OK).
     `mobile/assets/`, `out/`, `gen/`, `bxperf.keystore` gitignorés ; l'APK
     signé est le fichier suivi. Build **sans Gradle ni Android Studio** :
