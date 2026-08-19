@@ -259,6 +259,21 @@ client-side (real measurements documented in `bench/README.md`).
 Full perf10 → build numbers (parse, hot loops, updateCanvas, cold startup,
 GPU), tables and measurement protocols: [`bench/README.md`](bench/README.md).
 
+## Credits & vibe-coding
+
+This project is **vibe-coded**: fork and improvements co-created with
+**generative AI assistance (Codebuff — the "Buffy" agent)**, which writes
+and validates most of the code under the human direction of **Endymi0n74**.
+Concretely: the perf measurements, the patches, the preview port, the user
+features (📊 Data, 📡 Latency, ⚡ Region, 🔊 Sound), the Android APK and the
+CI pipeline were produced, tested and validated live by the Codebuff agent.
+
+- **Original credit**: [redphx](https://github.com/redphx) for Better xCloud
+  (MIT) — this fork starts from his `v6.7.12-perf10` baseline and
+  optimizations.
+- **AI assistant**: Codebuff — the "Generated with Codebuff" signature also
+  appears in every commit and in the script header.
+
 ## Repository history
 
 ```

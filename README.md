@@ -267,6 +267,22 @@ codec possible côté client (mesures réelles documentées dans
 Chiffres perf10 → build (parse, hot loops, updateCanvas, startup froid, GPU),
 tables et protocoles de mesure complets : [`bench/README.md`](bench/README.md).
 
+## Crédits & vibe-coding
+
+Ce projet est un **vibe-coding** : fork et améliorations co-créés avec une
+assistance IA générative (**Codebuff** — agent « Buffy »), qui écrit et
+valide la majeure partie du code sous la direction humaine de
+**Endymi0n74**. Concrètement : les mesures de perf, les patches, le portage
+preview, les features utilisateur (📊 Données, 📡 Latence, ⚡ Région, 🔊 Son),
+l'APK Android et le pipeline CI ont été produits, testés et validés en
+réel par l'agent Codebuff.
+
+- **Crédit original** : [redphx](https://github.com/redphx) pour Better
+  xCloud (MIT) — ce fork repart de sa baseline `v6.7.12-perf10` et de ses
+  optimisations.
+- **Assistant IA** : Codebuff — la signature « Generated with Codebuff »
+  apparaît aussi dans chaque commit et dans l'en-tête du script.
+
 ## Historique du dépôt
 
 ```

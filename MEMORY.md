@@ -23,9 +23,28 @@ survit). Application concrète :
   chances de planter ou de prendre du temps, noter au fil de l'eau ce qui
   est déjà acquis (le contexte ne survit pas à un restart).
 
-Dernière passe : **19 août ~21:30 — Feature « 🔊 Son » v1.13.0 implémentée,
-validée en réel (100 %) et gates CI verts (dont réparation du strip
-feature-region)** (commit en cours).
+## Règle — crédits & vibe-coding (19 août, directive utilisateur)
+
+**« Préciser le vibe-code et ton nom/signature à minima sur le README et
+partout où utile »** — règle encodée :
+- **Toujours mentionner le vibe-coding + la signature Codebuff (agent
+  Buffy)** dans les documents publics et l'en-tête des bundles.
+- **README.md + README.en.md** : section « Crédits & vibe-coding »
+  (co-créé avec Codebuff — agent « Buffy » — sous direction humaine
+  Endymi0n74, crédit original redphx, signature « Generated with
+  Codebuff » dans chaque commit).
+- **En-tête des bundles** (`better-xcloud.user.js` + preview) : bloc
+  OPTIMISATIONS → ligne « Vibe-codé avec Codebuff (agent Buffy) ». Les
+  es2017 (minifiés, `legalComments:none`) ne portent pas la signature —
+  normal.
+- **Notes de release** : penser à mentionner le vibe-coding / Codebuff à
+  chaque publication.
+- Appliquer aussi dans les nouveaux fichiers publics (docs, inventaires)
+  quand c'est pertinent — pas dans le code technique des harnais bench.
+
+Dernière passe : **19 août ~22:00 — signature vibe-coding ajoutée au
+README FR/EN + en-tête des bundles (v1.13.0), règle encodée ici** (commit
+en cours).
 
 ## Feature « 🔊 Son » v1.13.0 (19 août ~21:00-21:30)
 

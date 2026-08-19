@@ -51,6 +51,9 @@
    - StreamStats: cache stats.colors + invalidation par event
    - StreamStatsCollector: cache video.maxFps pour toString()
    - BaseCanvasPlayer: shouldDraw optimise (moins de branches)
+
+   Vibe-codé avec Codebuff (agent Buffy) — fork & améliorations par
+   Endymi0n74 avec assistance IA générative (Codebuff).
 */
 "use strict";
 class BxLogger {static info = (tag, ...args) => BX_FLAGS.Debug && BxLogger.log("#008746", tag, ...args);static warning = (tag, ...args) => BX_FLAGS.Debug && BxLogger.log("#c1a404", tag, ...args);static error = (tag, ...args) => BxLogger.log("#c10404", tag, ...args);static log(color, tag, ...args) {console.log("%c[BxC]", `color:${color};font-weight:bold;`, tag, "//", ...args);}}
