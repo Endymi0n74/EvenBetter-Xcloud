@@ -578,6 +578,34 @@ fichier .ps1 obligatoire).
 - Sonde ajoutée : `bench/ua-spoof-probe.js` (UA Firefox via CDP
   Emulation → vérifie l'absence de dialog).
 
+## T4 mobile — overlay settings invisible en WebView téléphone (19 août ~09:45, preview3) ✅ FAB
+
+- **Symptôme** (réservé 18 août) : sur téléphone le preview est loggé mais
+  l'overlay/settings n'apparaît pas sur play.xbox.com en WebView.
+- **Diagnostic (BlueStacks, émulation CDP 390×844)** : viewport <768 px → le
+  shell mobile n'a NI `nav.col-container` NI `<header>` (top bar desktop
+  absente) → T4 sans ancre → aucun bouton. ≥768 px : top bar présent, bouton
+  injecté + dialog (validé). Shell mobile = `nav.z-shell-bottom` (mini-nav
+  basse, items dans des spans `display:contents`).
+- **Fix (build-preview.js T4, 1.10.0-preview3)** : `innerWidth < 768` → FAB
+  fixe `.bx-mobile-fab` au-dessus de la mini-nav (pilule 48 px radius 999,
+  label EvenBetterXcloud), CSS scoped `[class*="bx-header-settings"]` (la
+  classe réelle est `bx-header-settings-button`). Desktop inchangé.
+  ⚠ échappement template : `\"` dans le template littéral → `\\\"` pour
+  sortir `\"` valide dans le bundle (node --check a attrapé l'erreur).
+- **Validé WebView réelle** (APK preview3) : FAB 174×48 radius 999 injecté à
+  390 px, clic → `.bx-settings-dialog` ouvert ; desktop (1280) bouton top bar
+  154×40 sans FAB ; gate toujours passé. Harnais :
+  `bench/mobile-t4-diagnose.js` (fab/desktop/shell/bottomnav/html — override
+  CDP par-session → appliqué PUIS probe dans le même script).
+- **⚠ Piège timing prune (19 août ~09:40)** : publier une release preview
+  SANS avoir poussé le bump d'abord → le prune CI (release: published) lit le
+  tag pinné depuis le bundle COMMITÉ (encore l'ancien preview2) → il purge la
+  nouvelle release preview3 et garde l'ancienne + preview4. **Ordre imposé :
+  bump + build + commit + push PUIS publier.** Recréée ensuite sur le bon
+  commit (tag 5a59c3b), prune correct : preview3 + v1.10.0 + preview4,
+  preview2 purgée, garde-fou 10/10.
+
 ## T10 — auto-spoof UA non-Chromium dans le preview (19 août ~00:45, preview2)
 
 - Le gate play.xbox.com est Chromium-only (`isSupportedChromiumBasedBrowser`

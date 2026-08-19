@@ -820,6 +820,36 @@ navigateur Chromium réel, aucun spoof, aucun effet de bord. Le comportement
 est donc symétrique : Firefox → auto-spoof (gate passé), Edge/Chrome →
 UA native (aucun changement). Validation T10 bouclée des deux côtés.
 
+## T4 mobile — overlay settings invisible en WebView téléphone (19 août) ✅ FAB
+
+**Symptôme (réservé 18 août)** : sur le téléphone, le preview est loggé
+(script actif) mais l'overlay/settings n'apparaît pas sur play.xbox.com.
+
+**Diagnostic (BlueStacks, émulation CDP 390×844)** : sur viewport <768 px,
+le shell mobile de play.xbox.com n'a **ni `nav.col-container` ni `<header>`**
+— le T4 ne trouvait aucune ancre → aucun bouton injecté, aucun accès aux
+settings. Sur viewport ≥768 px (1280 testé) le top bar existe et le bouton
+s'injecte (validé : clic → dialog). Reproduit puis corrigé.
+
+**Fix (build-preview.js T4, preview3)** : si `window.innerWidth < 768`,
+injecter un **FAB fixe** (`.bx-mobile-fab`) au-dessus de la mini-nav basse
+(`nav.z-shell-bottom`) — pilule 48 px, radius 999 px, label EvenBetterXcloud,
+indépendant de la structure du site. Le chemin desktop est inchangé.
+
+**Validé en WebView réelle (BlueStacks, APK preview3)** :
+
+| Vérification | Résultat |
+|---|---|
+| FAB injecté (390 px) | `.bx-mobile-fab` présent |
+| Bouton stylé | 174×48, `border-radius:999px`, label visible |
+| Clic FAB → dialog | `.bx-settings-dialog` ouvert ✅ |
+| Desktop (1280 px) | bouton top bar 154×40, pas de FAB, dialog ✅ |
+| Gate navigateur | toujours passé (UA Chromium Android) |
+
+Harnais : `bench/mobile-t4-diagnose.js` (modes fab/desktop/shell/bottomnav/
+html — l'override CDP est par-session, appliqué PUIS probe dans le même
+script). Screenshot `/tmp/mobile-fab-preview2.png`.
+
 ## Rejouabilité
 
 Le protocole est manuel (2 runs × ~2 min) tant que la session est
