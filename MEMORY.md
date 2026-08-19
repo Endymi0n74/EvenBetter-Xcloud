@@ -118,6 +118,19 @@ Rejeu de la séquence quitter → relancer un stream (Beast of Reincarnation) su
 - **Piège réseau WebView rencontré** : après force-stop + relance, la page affichait « You're offline » persistant (fetch même même-origine = « Failed to fetch ») alors que `ping 8.8.8.8` passait ; DNS/SSL flaky dans logcat (`Failed to read DnsConfig`, handshake failed). Seul un **force-stop + relance complet** a rétabli le réseau WebView (un simple reload n'y suffisait pas). Point de robustesse pour la box/téléphone : un état « offline » WebView persistant = redémarrer l'app, pas la page.
 - Preuve : `mobile/validation-phone-fab-latence-stream.png` (stream 1280×720 live + FAB visible).
 
+## Harnais d'instrumentation écran noir — bench/stream-instrument.js (19 août ~15:00)
+
+Outillage pour capturer l'événement EXACT d'un éventuel écran noir sur le téléphone/box pendant un stream (CDP brut, WebSocket natif) :
+
+- **États video** : readyState, paused, currentTime, error, dimensions — sondés chaque seconde.
+- **Frames réellement présentées** via `requestVideoFrameCallback` (presentedFrames, `--interval` 250 ms-1 s) → **détection freeze** : 0 frame présentée pendant ≥ 2 polls alors que la vidéo joue = FREEZE_CANDIDAT (bisect compositor vs décodeur : rVFC qui avance + écran noir = souci rendu/composition ; rVFC bloqué = décodeur/réseau).
+- **Événements page** (délégation document, survit au remplacement de document) : video error/stalled/waiting/emptied, window error/unhandledrejection, visibilitychange, + événements RTCPeerConnection (wrap du constructeur, connexions futures).
+- **CDP** : Runtime.exceptionThrown, Log.entryAdded, Network.loadingFailed (filtrés gssv/xbox, bruit d'injection exclu via T0).
+- **getStats WebRTC** (framesDropped/packetsLost/jitter/ice/conn) : best-effort — PC de session courante introuvable par walk des fibres (le PC vit dans le SDK, pas dans l'état React accessible ; `STATES` n'est même pas sur window sur le preview) → le wrap couvre les sessions SUIVANTES.
+- Sortie : JSONL (gitignoré) + résumé. Usage : `node bench/stream-instrument.js [--port 9231] [--duration 300] [--interval 1000] [--out ...]`.
+- **Validé en réel (19 août ~14:50-15:00, téléphone, Beast of Reincarnation 1280×720)** : 2 fenêtres propres (30 s + 60 s + 15 s), **0 anomalie**, ~59-61 fps présentés en continu, zéro exception JS après T0, zéro échec réseau gssv — la session du jour n'a PAS reproduit l'écran noir (déjà le cas à 14:45). Les seuls événements CDP notables sont au démarrage de l'injection (télémétrie `Failed to fetch`, bruit connu).
+- **Piège relevé** : le WebView CDP HTTP peut ne pas répondre après une longue session (forward à recréer, parfois 2 essais). Le PC de la session en cours n'est pas accessible (pas de `window.STATES` sur le preview, `BX_EXPOSED.streamSession` absent) — la preuve de santé passe par rVFC, pas par getStats pour la session courante.
+
 ## Réorganisation du workspace (19 août ~11:30) — tout sous EvenBetterXcloud
 
 Plus rien de nos outils à la racine `D:\Codex` ni à `D:\edge-profiles` :

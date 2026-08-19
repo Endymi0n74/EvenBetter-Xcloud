@@ -58,3 +58,4 @@ Thumbs.db
 .edge-tm/
 .edge-inject/
 .edge-inject-stable/
+stream-instrument-*.jsonl
