@@ -108,6 +108,16 @@ l'optional chaining du bundle moderne → l'APK moderne plantait (scénario
 - **Impact** : la feature 📡/⚡ région (v1.10/v1.12) est fonctionnelle sur le STABLE (probe 15/15 sur www.xbox.com), mais inopérante sur le preview tant que les régions ne sont pas pontées. Fix possible : (a) pont SW → page des régions, (b) source token gssv alternative pour le bootstrap xhome du script, (c) hook réponse du login/user côté SW. À décider — c'est un vrai manque à combler pour que le bouton soit utilisable sur play.xbox.com.
 - Preuve : `mobile/validation-phone-v1120p1-region-btn.png` (dialog ouvert sur téléphone avec le bouton).
 
+## Mesure latence FAB téléphone réel (19 août ~14:45) — jamais disparu, aucun remplacement de document
+
+Rejeu de la séquence quitter → relancer un stream (Beast of Reincarnation) sur le téléphone, avec traque `documentElement` (identité) + FAB à 250 ms via CDP :
+
+- **Chemin 1 (relancer depuis la home)** : t0 = URL `/stream/` à +1,2 s après le tap ; vidéo live à ~+7 s ; **FAB présent à +1 s ✓, +3 s ✓, +8 s ✓ et en continu** — **aucun remplacement de document** (identité de `documentElement` inchangée), FAB jamais disparu.
+- **Chemin 2 (page produit → « Préparez-vous à streamer »)** : t0 à +0,8 s, vidéo à ~+6 s, **même verdict : FAB stable, aucun remplacement**.
+- **Interprétation** : le remplacement de document observé les 17/19 août était sur **desktop Edge + BlueStacks (émulation 390 px)** — sur le téléphone réel, le shell SPA navigue sans `document.open` sur ces chemins (ou le re-arm T7 rattrape en < 250 ms). La « latence de réapparition » est donc **nulle sur l'appareil** : rien à ré-apparaître. Les sondes +1/+3/+8 s demandées sont toutes `true`.
+- **Piège réseau WebView rencontré** : après force-stop + relance, la page affichait « You're offline » persistant (fetch même même-origine = « Failed to fetch ») alors que `ping 8.8.8.8` passait ; DNS/SSL flaky dans logcat (`Failed to read DnsConfig`, handshake failed). Seul un **force-stop + relance complet** a rétabli le réseau WebView (un simple reload n'y suffisait pas). Point de robustesse pour la box/téléphone : un état « offline » WebView persistant = redémarrer l'app, pas la page.
+- Preuve : `mobile/validation-phone-fab-latence-stream.png` (stream 1280×720 live + FAB visible).
+
 ## Réorganisation du workspace (19 août ~11:30) — tout sous EvenBetterXcloud
 
 Plus rien de nos outils à la racine `D:\Codex` ni à `D:\edge-profiles` :
