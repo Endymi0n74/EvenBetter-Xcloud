@@ -4,6 +4,34 @@ Mémoire de travail des sessions. Détails dans `bench/preview/port/session.md`
 (étude protocole), `bench/preview/port/e2e-cdp.md` (protocole E2E + journal),
 `bench/preview/port/anchors.md`, `bench/preview/port/classify.md`.
 
+## Session autonome 20 août ~11:15-13:15 (utilisateur absent 2 h — « je te laisse les rennes »)
+
+**Mandat** : utiliser BlueStacks + Freebox Pop, mettre à jour le GitHub
+Endymi0n74, n'installer RIEN hors du dossier de travail, mémo à chaque action.
+
+**Plan** :
+1. Rebuild APK stable (feature « 📥 Session » à jour) + install Freebox → les
+   deux packages (app + preview) ont la feature pour le flux donneur/receveur.
+2. Validation E2E APK↔APK : BlueStacks (donneur) → Freebox (receveur) — le
+   vrai parcours sans téléphone (mécanisme déjà prouvé, reste le parcours
+   complet inter-appareils).
+3. UI réelle du groupe « 📥 Session » sur l'écran de la Freebox (screenshot).
+4. Si le temps : mesures lag manette Freebox (réglages stream 720p/maxBitrate).
+5. Mémo de fin + commit/push de tout le lot.
+
+**État de départ** : Freebox en adb (192.168.1.24:5555, sockets WebView
+stable 13536 + preview 30464) ; BlueStacks lancé + connecté (127.0.0.1:5555).
+Session Freebox : valide jusqu'à ~15:26 locale (RT MSA expiré, accessToken
+encore bon). Dernier commit main : 4796080 (feature Session import).
+
+**Actions ~11:20 (mémo)** : rebuild des deux APK (fix fallback de port) +
+install Freebox ; E2E cross-APK validé — preview (donneur, session réelle
+play.xbox.com) → `send()` Java → stable (receveur même origine) : 4 clés
+msal écrites + cookies XBXXtk/xbl_pa/ASLBSA régénérés. Conflit de port
+validé : les deux serveurs vivent ensemble (stable 8765 + preview 8766),
+les deux répondent `{ok:true}` — fallback 8765→8766 (+10 max) prouvé en
+réel. Les deux APK ont maintenant la feature « 📥 Session » à jour.
+
 ## Freebox Pop — login bloqué par l'anti-bot Microsoft + contournement session (20 août ~09:30)
 
 **Problème** : sur la Freebox Pop (Android 10, armeabi-v7a 32 bits, WebView 152),

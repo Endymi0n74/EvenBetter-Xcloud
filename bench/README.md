@@ -1499,6 +1499,11 @@ session entre appareils du même WiFi :
 - **État transitoire post-install** : juste après `adb install -r` + relance,
   la 1re page peut avoir le marqueur `__EBX_INJECTED` sans le bundle exécuté
   (cache) — un reload règle l'injection complète.
+- **Conflit de port entre les deux APK** (stable + preview installés côte à
+  côte sur le même appareil) : chacun peut lancer son serveur d'import — le
+  premier bind 8765, le second essaie 8766… (+10 max) via la boucle
+  `SessionImportServer`. Le port réellement bindé est renvoyé dans `describe()`
+  (`"port":8766`), donc l'URL affichée est toujours la bonne.
 
 Gates : `bench/feature-session-import.test.js` (présence stable+preview,
 ancres, rejeu + self-test) branché au step preview de bench.yml. La feature
@@ -1510,3 +1515,10 @@ better-xcloud.user.js`) et héritée par le preview (build-preview.js).
 Java) → `{ok:true}` → clé écrite dans le localStorage de la WebView → reload
 → profil + gamertag affichés. Le vrai flux téléphone → Freebox reste à
 rejouer une fois le téléphone re-branché (mécanisme identique).
+
+**E2E cross-APK (20 août ~11:20, session autonome)** : les DEUX APK sur la
+Freebox avec le fix de port — preview (donneur, session play.xbox.com
+réelle) → `send()` Java → stable (receveur, même origine) : 4 clés msal
+écrites, cookies de session régénérés (XBXXtk, xbl_pa, ASLBSA). Serveurs
+simultanés : stable 8765 + preview 8766, les deux répondent `{ok:true}` — le
+fallback de port est validé.

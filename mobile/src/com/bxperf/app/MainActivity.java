@@ -708,7 +708,10 @@ public class MainActivity extends Activity {
         private final MainActivity activity;
         private final String code;
         private final String ip;
-        private final int port;
+        private final int startPort;
+        // Port réellement bindé : si 8765 est occupé (ex. l'autre APK sur le
+        // même appareil a déjà son serveur), on essaie les ports suivants.
+        private volatile int actualPort = 0;
         private volatile ServerSocket serverSocket;
         private volatile boolean bound = false;
 
@@ -716,7 +719,7 @@ public class MainActivity extends Activity {
             this.activity = activity;
             this.code = code;
             this.ip = ip;
-            this.port = port;
+            this.startPort = port;
         }
 
         boolean isBound() {
@@ -729,9 +732,10 @@ public class MainActivity extends Activity {
         }
 
         String describe() {
-            String url = "http://" + ip + ":" + port + "/import/" + code;
+            int p = actualPort > 0 ? actualPort : startPort;
+            String url = "http://" + ip + ":" + p + "/import/" + code;
             return "{\"ok\":true,\"url\":" + jsonQuote(url) + ",\"code\":" + jsonQuote(code)
-                + ",\"ip\":" + jsonQuote(ip) + ",\"port\":" + port + "}";
+                + ",\"ip\":" + jsonQuote(ip) + ",\"port\":" + p + "}";
         }
 
         void close() {
@@ -746,20 +750,30 @@ public class MainActivity extends Activity {
 
         @Override
         public void run() {
-            try {
-                // null = toutes les interfaces (0.0.0.0) — joignable depuis le LAN
-                serverSocket = new ServerSocket(port, 8, null);
-                bound = true;
-                Log.d("EvenBetterXcloud", "SessionImport: écoute sur :" + port);
-                while (isAlive()) {
-                    final Socket socket = serverSocket.accept();
-                    Thread t = new Thread(new ImportRequestHandler(activity, socket, code), "bx-import-req");
-                    t.setDaemon(true);
-                    t.start();
+            // null = toutes les interfaces (0.0.0.0) — joignable depuis le LAN.
+            // Port occupé (ex. l'autre APK sur le même appareil) → essayer les
+            // suivants jusqu'à +10 (une seule app reçoit à la fois en usage réel).
+            IOException last = null;
+            for (int attempt = 0; attempt < 10; attempt++) {
+                int p = startPort + attempt;
+                try {
+                    serverSocket = new ServerSocket(p, 8, null);
+                    actualPort = p;
+                    bound = true;
+                    Log.d("EvenBetterXcloud", "SessionImport: écoute sur :" + p);
+                    while (isAlive()) {
+                        final Socket socket = serverSocket.accept();
+                        Thread t = new Thread(new ImportRequestHandler(activity, socket, code), "bx-import-req");
+                        t.setDaemon(true);
+                        t.start();
+                    }
+                    return;
+                } catch (IOException e) {
+                    last = e;
+                    Log.w("EvenBetterXcloud", "SessionImport: port " + p + " indisponible, essai suivant");
                 }
-            } catch (IOException e) {
-                Log.w("EvenBetterXcloud", "SessionImport: serveur arrêté: " + e);
             }
+            Log.w("EvenBetterXcloud", "SessionImport: aucun port libre (" + last + ")");
         }
     }
 
