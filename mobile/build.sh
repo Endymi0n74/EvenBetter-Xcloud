@@ -8,7 +8,11 @@ BT="$SDK/build-tools/34.0.0"
 PLATFORM="$SDK/platforms/android-34/android.jar"
 JAVA="$JAVA_HOME/bin"
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-OUT="$ROOT/out"
+# OUT par VARIANT (déplacé après le calcul de VARIANT plus bas) : build.sh
+# fait `rm -rf "$OUT"` en cours de build — un OUT partagé entre les deux
+# variants faisait disparaître l'APK stable quand on buildait le preview
+# ensuite (piège vécu le 20 août, doublement : APK stable introuvable après
+# `VARIANT=preview bash build.sh`). Chaque variant a son dossier.
 STORE_PASS="bxperf-keystore"
 ORIG_KEYSTORE="/d/Codex/EvenBetterXcloud/bx-apk/bxperf.keystore"
 
@@ -43,6 +47,7 @@ else
   APK_NAME="evenbetter-xcloud-${VERSION}.apk"
   VERSION_NAME="$VERSION"
 fi
+OUT="$ROOT/out-$VARIANT"
 
 # Asset : le build à jour (la racine du repo), jamais une copie périmée.
 # BUNDLE_SRC (env) : bundle alternatif à embarquer (ex. better-xcloud.es2017.user.js

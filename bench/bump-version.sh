@@ -123,5 +123,5 @@ if [ "$BUILD_APK" = "1" ]; then
   export JAVA_HOME="${JAVA_HOME:-/c/Program Files/Zulu/zulu-21}"
   bash mobile/build.sh
   VARIANT=preview bash mobile/build.sh
-  echo "OK : APK stable + preview rebuildés (mobile/out/)"
+  echo "OK : APK stable + preview rebuildés (mobile/out-stable/ + mobile/out-preview/)"
 fi

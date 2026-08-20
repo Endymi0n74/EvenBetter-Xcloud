@@ -31,6 +31,8 @@ mobile/assets/*
 !mobile/assets/diag.js
 !mobile/assets/evenbetterxcloud-logo.png
 mobile/out/
+mobile/out-stable/
+mobile/out-preview/
 mobile/gen/
 mobile/bxperf.keystore
 mobile/res/drawable-nodpi/

@@ -208,9 +208,13 @@ function runChecks(files) {
       buildSh.includes('VERSION_NAME="$PREVIEW_VERSION"'),
       "l'APK preview doit annoncer 1.13.1-preview1, pas la version stable");
   }
-  const outDir = path.join(ROOT, "mobile", "out");
+  // Out par VARIANT depuis le 20 août (build.sh : `rm -rf $OUT` en cours de
+  // build — un dossier partagé faisait disparaître l'APK stable quand on
+  // buildait le preview ensuite). On scanne les deux dossiers.
+  const outDirs = ["out-stable", "out-preview"].map((d) => path.join(ROOT, "mobile", d));
   let foundApk = false;
-  if (fs.existsSync(outDir)) {
+  for (const outDir of outDirs) {
+    if (!fs.existsSync(outDir)) continue;
     for (const f of fs.readdirSync(outDir)) {
       // APK de RELEASE uniquement (evenbetter-xcloud-<v>.apk) — les
       // artefacts intermédiaires (base.apk, app-unsigned.apk, app-aligned.apk)
@@ -220,7 +224,7 @@ function runChecks(files) {
       const exp = f.includes("preview")
         ? `evenbetter-xcloud-${PREVIEW}.apk`
         : `evenbetter-xcloud-${VERSION}.apk`;
-      check(`out/${f} : nom courant`, f === exp, "attendu : " + exp);
+      check(`${path.basename(outDir)}/${f} : nom courant`, f === exp, "attendu : " + exp);
     }
   }
   if (!foundApk) console.log("  (aucun APK construit présent — check build.sh seul, attendu en CI)");

@@ -20,7 +20,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ADB=/d/android-sdk/platform-tools/adb.exe
 PKG=com.bxperf.app
 ACTIVITY=com.bxperf.app/.MainActivity
-APK_OUT="$ROOT/mobile/out/evenbetter-xcloud-$(cat "$ROOT/VERSION").apk"
+APK_OUT="$ROOT/mobile/out-stable/evenbetter-xcloud-$(cat "$ROOT/VERSION").apk"
 PORT=9341
 SERIAL=""
 DO_BUILD=1
@@ -58,7 +58,7 @@ if [ "$DO_BUILD" = "1" ]; then
   export JAVA_HOME="${JAVA_HOME:-C:\\Program Files\\Zulu\\zulu-21}"
   (cd "$ROOT" && bash mobile/build.sh)
 else
-  echo "==> build APK (skip — réutilise mobile/out/)"
+  echo "==> build APK (skip — réutilise mobile/out-stable/)"
 fi
 [ -f "$APK_OUT" ] || { echo "❌ APK absent : $APK_OUT (lance sans --skip-build)" >&2; exit 1; }
 
