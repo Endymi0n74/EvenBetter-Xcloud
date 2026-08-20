@@ -37,7 +37,7 @@ Les éventuels binaires Playwright vont sur D: via
 | `freeze.sh` | Rejoue le protocole figé (3 seeds × 3 passes), capture l'état machine par seed hotloops et formate les tableaux markdown de `bench/README.md` | Node V8 (+ Edge si `--with-page-eval`) |
 | `check-ratios.js` | CI : parse la sortie de `run-all.sh --skip-page-eval` (ratios hot loops) — `--startup-only` : borne de startup sur la sortie de `page-eval.js --cold` (build ≤ 50 ms, perf10 300–1200 ms) | Node V8 (workflow `.github/workflows/bench.yml`) |
 | `update-startup-session.js` | Insère/remplace la ligne « Sessions startup » de `bench/README.md` à partir d'un résumé `check-ratios.js --startup-only` (artefact `startup-summary-<sha>`) — dédup par libellé, CRLF préservé | Node V8 |
-| `release-prune.sh` | **Rétention des releases** : garde Latest + **le dernier preview** (tri par version, jamais `publishedAt` — une release recréée depuis git reprend une date récente) + le tag pinné par le `@updateURL` du build local, purge le reste (release + tag, `--cleanup-tag`), vérifie les 4 liens d'auto-update (exit 1 = GATE ROUGE) — `--dry-run` pour prévisualiser | bash + gh (à lancer après chaque publication) |
+| `release-prune.sh` | **Rétention des releases** : garde Latest + **le dernier preview** (tri par version, jamais `publishedAt` — une release recréée depuis git reprend une date récente) + le tag pinné par le `@updateURL` du build local + **le canal flottant preview `evenbetter-xcloud-preview-channel` (whitelist absolue — ne JAMAIS purger, il porte l'auto-update de tous les installés)**, purge le reste (release + tag, `--cleanup-tag`), vérifie les 4 liens d'auto-update (exit 1 = GATE ROUGE) — `--dry-run` pour prévisualiser | bash + gh (à lancer après chaque publication) |
 | `stream-instrument.js` | **Observation écran noir pendant un stream** (WebView téléphone/box ou Edge) : états video (readyState/currentTime/error), frames RÉELLEMENT présentées (`requestVideoFrameCallback` → detection freeze compositor vs décodeur), événements page (video error/stalled/waiting, visibilitychange), exceptions JS + échecs réseau (CDP Runtime/Log/Network), et getStats WebRTC (framesDropped/packetsLost/ice) via le PC de session trouvé par walk des fibres React + wrap du constructeur (connexions suivantes). JSONL + résumé — `--duration`, `--interval`, `--out` | CDP brut (Node, WebSocket natif) |
 
 `hotloops.js` et `parse.js` sont stabilisés (même recette que le harnais GPU) :
@@ -68,6 +68,28 @@ node bench/update-startup-session.js startup-summary.md [--label=...] [--print-o
 
 ./bench/release-prune.sh --dry-run   # prévisualiser la purge (ne supprime rien)
 ./bench/release-prune.sh             # purge + vérifie les 4 liens d'auto-update
+
+### Canal flottant preview (auto-update — fix du 20 août)
+
+Le `@updateURL`/`@downloadURL` du preview pointe **le canal**
+`evenbetter-xcloud-preview-channel` (release dédiée, ré-uploadée à chaque
+publication preview) et JAMAIS un tag versionné : la rétention purge
+l'ancienne release → pin 404 pour tout install existant, et même vivante la
+meta resterait figée à l'ancienne `@version` (TM/GM ne proposerait jamais la
+suivante). À chaque publication preview :
+
+```
+gh release upload evenbetter-xcloud-preview-channel better-xcloud-preview.user.js better-xcloud-preview.meta.js --clobber
+```
+
+Le harnais `bench/update-test/update-mechanism.test.js` reproduit le
+mécanisme exact de TM/GM (fetch de la meta au pin installé + comparaison
+semver) sur les vraies URLs GitHub — à lancer en local après chaque
+publication preview (il ne tourne pas au CI, réseau obligatoire) :
+
+```
+node bench/update-test/update-mechanism.test.js
+```
 ```
 
 `parse.js` chronomètre par itération en `process.hrtime.bigint()` (résolution

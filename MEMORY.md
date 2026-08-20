@@ -4,6 +4,56 @@ Mémoire de travail des sessions. Détails dans `bench/preview/port/session.md`
 (étude protocole), `bench/preview/port/e2e-cdp.md` (protocole E2E + journal),
 `bench/preview/port/anchors.md`, `bench/preview/port/classify.md`.
 
+## Auto-update preview : canal flottant `evenbetter-xcloud-preview-channel` (20 août ~09:00)
+
+**Demande** : « Vérifie en réel que Greasemonkey/Tampermonkey propose la mise
+à jour 1.13.1-preview2 depuis la 1.13.1-preview1 via le meta pinné. »
+
+**Verdict de la vérification — ça NE POUVAIT PAS marcher par conception, deux
+défauts indépendants :**
+1. **Pin tag-figé 404** : le bundle preview1 publié (commit 304891e) pointait
+   `releases/download/evenbetter-xcloud-v1.13.1-preview1/...` — release purgée
+   par la rétention (le prune ne garde que le dernier preview + le tag pinné) →
+   HTTP 404 vérifié. Tout utilisateur installé en preview1 avait un pin mort.
+2. **Meta figée à l'ancienne version** : même si la release avait survécu, la
+   meta à cette URL dit `@version 1.13.1-preview1` → TM compare servi vs
+   installé = égal → jamais de proposition. Le stable marche car son pin
+   pointe `releases/latest/download/...` (URL flottante) ; le preview pinnait
+   SON tag (fixe).
+
+**Fix — canal flottant preview** (symétrique du latest stable ; GitHub ne
+sert pas les prereleases par `releases/latest`, donc un tag fixe dédié) :
+- `build-preview.js` : pin `@updateURL`/`@downloadURL` du preview →
+  `releases/download/evenbetter-xcloud-preview-channel/...` ; invariants +
+  probes interdisent désormais détournement vers le latest stable ET pin sur
+  un tag versionné (GATE ROUGE).
+- `release-prune.sh` : whitelist absolue du canal dans KEEP (jamais purgé).
+- `release-guard.sh` : preview comparé au **build local** (le canal n'est pas
+  un tag git — plus de `git rev-list` dessus), `@version` servi =
+  PREVIEW_VERSION, APK preview vérifié sur la release versionnée.
+- `readme-version.test.js` : pin attendu = canal + garde anti-tag-versionné ;
+  self-test reproduit le bug réel (pin tag → ROUGE, 33 défaillances).
+- `bench/update-test/update-mechanism.test.js` : harnais rejouable du
+  mécanisme TM/GM (fetch meta au pin + comparaison semver) sur les vraies
+  URLs GitHub — scénarios 404 (repro avant fix) et canal (proposition
+  preview2 depuis preview1, VERT). Réseau obligatoire : local seulement.
+
+**Opérations** : commit `2ae4cfd` + push. Piège vécu : le workflow
+`release-prune.yml` (sur `release: published`) utilise le script de MAIN —
+la première création du canal a été purgée par l'ancien script (deux runs
+06:47/06:48) ; il faut pousser AVANT, puis créer. Découverte collatérale : le
+check APK preview du guard (préexistant) était déjà en échec (l'APK preview
+n'avait jamais été uploadé sur preview1/preview2) → buildé via
+`VARIANT=preview bash mobile/build.sh` et uploadé sur
+`evenbetter-xcloud-v1.13.1-preview2`. Garde-fou final vert : 4/4 liens
+byte-identiques + APK 200.
+
+**À retenir pour la suite** : (1) après chaque publication preview, uploader
+les 2 assets sur le canal (`gh release upload evenbetter-xcloud-preview-channel ... --clobber`)
+; (2) un utilisateur installé avec l'ANCIEN pin (tag purgé) ne peut pas être
+réparé automatiquement — réinstaller manuellement depuis le lien preview2
+(son pin devient le canal) ; (3) le canal n'est jamais purgé par le prune.
+
 ## Fix preview v1.13.1-preview2 — overlay en jeu (T11) + volume live (T12) + bug de tri prune (20 août)
 
 **Signal utilisateur** : « tout est ok sur la normal. sur la preview par contre la
