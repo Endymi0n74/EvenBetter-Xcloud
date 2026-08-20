@@ -691,6 +691,36 @@ tiennent** (le listener capture n'ajoute rien au hot path).
 | updateCanvas (chemin 60 Hz) | 218,9 ns | 13,3 ns | ×16 [≥ 12] ✅ + flag dirty |
 | updateFrame | 154,0 ns | 142,3 ns | stable [0,5–2] ✅ |
 
+### Fix oscillation D-pad des steppers/selects (20 août, bundle 1.13.3+) — validé Freebox
+
+Trois problèmes de télécommande sur les box (Freebox Pop), corrigés dans le
+**NavigationDialogManager** :
+
+1. **Course listener vs page** — le listener keydown capture du dialog était
+   enregistré à la **création paresseuse** du manager (premier `show()`), donc
+   APRÈS le handler clavier React de play.xbox.com (capture +
+   `stopImmediatePropagation`) → la première flèche fuyait vers la page et les
+   presses semblaient mortes. Fix : `NavigationDialogManager.getInstance()`
+   **eager au document-start** (à côté de `window.BX_EXPOSED = BxExposed`)
+   → le listener gagne l'ordre d'enregistrement, `isShowing()` le rend inerte
+   hors dialog.
+2. **←/→ sur un bouton `<`/`>` de select ou stepper** — au lieu de déplacer le
+   focus (voire de sauter aux tabs via le walk horizontal), la flèche
+   **cycle l'option** (clic simulé sur le bouton : `BxSelectElement.onPrevNext` /
+   `BxNumberStepper.onClick`). Validé : `←` sur la résolution de
+   `1080p-hq` → `1080p`, focus resté dans la row.
+3. **Garde du walk horizontal** — `findNextTarget(..., _startRow)` : les
+   directions 2/4 ne remontent plus au-delà de la row `.bx-settings-row`
+   d'origine (plus de saut vers les tabs / le footer).
+
+Validation : gates verts (t10, tv-defaults + APK embarqués, feature gates,
+Étape 0 A+B+D), nav ↓/↑ **row par row** sur la box (KeyboardEvent réels dans
+le DOM — les `input keyevent` adb ne sont pas délivrés au WebView TV, et la
+NotificationShade de la box restait coincée : validation finale à la
+télécommande physique). ⚠ Les touches CDP `page.keyboard` ne parviennent PAS
+au WebView TV (artefact de harnais, vu au 20 août) — toujours dispatcher des
+`KeyboardEvent` dans la page pour tester la nav.
+
 | Harnais | perf10 | build | Verdict CI |
 |---|---|---|---|
 | Parse/compile | 0,125 ms | 0,135 ms | négligeable (sub-ms bruité, +8,4 %) |

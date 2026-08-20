@@ -321,14 +321,24 @@ mobile/out-stable → gate tv-defaults sort ROUGE (3 ❌ : sha ≠ sur les 2
 assets + controllerFriendly n=0) pendant que les vrais APK 1.13.3 passent →
 APK retiré, gate vert. Le chemin d'échec de la section 3 est prouvé sans
 self-test.
-3. **Oscillation D-pad des steppers — cause racine documentée, PAS de
-patch** : les boutons `<`/`>` d'un select sont des FRÈRES DOM des rows
-(layout plat : [label row][<][>]) — le walk `nextElementSibling` +
-`findFocusableElement` descendant retombe sur le stepper de la row suivante
-dans l'ordre DOM, qui peut être VISUELLEMENT au-dessus → aller-retour
-perçu. Comportement de l'algorithme upstream (présent aussi sur desktop
-original) ; patcher = divergence upstream + risque de casser la nav D-pad
-validée → quirk documenté, accepté.
+3. **Oscillation D-pad des steppers — CORRIGÉE le 20 août ~20:00 (bundle
+1.13.3+, voir bench/README « Fix oscillation D-pad »)** : le diagnostic de
+14:45 (frères DOM des rows, quirk upstream accepté) était incomplet — le vrai
+mécanisme est triple : (a) le listener keydown capture du dialog était
+enregistré à la CRÉATION PAUSEREUSE du manager → APRÈS le handler React de
+play.xbox.com (capture + stopImmediatePropagation) → premières flèches
+mortes ; fix = `NavigationDialogManager.getInstance()` eager au
+document-start (à côté de `window.BX_EXPOSED = BxExposed`) ; (b) `←`/`→` sur
+un bouton `<`/`>` de select/stepper déplaçait le focus (voire sautait aux
+tabs) au lieu de cycler l'option → fix = clic simulé (cycle) ; (c) garde du
+walk horizontal (`_startRow`) : les directions 2/4 ne remontent plus hors de
+a row. Validation : gates verts (t10, tv-defaults + APK, feature gates,
+Étape 0), nav ↓/↑ row par row + cycle `←` validés sur la Freebox en DOM
+(1080p-hq → 1080p). ⚠ Le `page.keyboard` de Playwright n'est PAS délivré au
+WebView TV (artefact de harnais) : toujours dispatcher des KeyboardEvent dans
+la page pour tester la nav ; la NotificationShade de la box peut rester
+coincée (mCurrentFocus) et bloquer `input keyevent` adb → valider la nav
+finale à la télécommande physique.
 4. **Re-baseline v1.13.3 post-fix D-pad** : `run-all.sh --skip-page-eval`
 — parse 0,111 ms (+3,2 % sub-ms), controller IDLE 37,4 ns (×7,5), poll
 relâchement 152 ns (×7,8), updateCanvas 13,3 ns (×16), updateFrame 142 ns
