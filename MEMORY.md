@@ -51,6 +51,32 @@ réel. Les deux APK ont maintenant la feature « 📥 Session » à jour.
   background, pas une métrique). Le lag manette reste à mesurer en présence
   (contrôleur physique + app au premier plan).
 
+**Publication 1.13.2 + 1.13.2-preview1 (~11:35-11:45, mémo)** : le
+release-guard a détecté les deux releases périmées (feature « 📥 Session »
+ajoutée APRÈS v1.13.1 — stable ET canal preview servaient un bundle sans la
+feature, auto-update muet). Cycle complet : `bump-version.sh 1.13.2
+--preview=1.13.2-preview1 --build-apk` (gate ROUGE initial : vieil APK
+1.13.1 dans mobile/out/ → nettoyé + rebuild) → commit 8cc4787 → releases
+créées (preview --prerelease, stable Latest) → canal ré-uploadé --clobber →
+tags locaux alignés (gh release create ne pousse PAS le tag local — piège,
+tag distant OK mais `git tag` local absent → guard ROUGE « tag introuvable »
+jusqu'au `git tag HEAD && git push`) → auto-prune a purgé v1.13.1 +
+v1.13.1-preview2 (état final : v1.13.2 Latest + v1.13.2-preview1 + canal) →
+**guard 4/4 VERT + mécanisme TM validé**.
+
+**Fix build.sh — out dir par variant (commit c50265a)** : `rm -rf $OUT`
+sur un dossier partagé faisait disparaître l'APK stable après le rebuild
+preview (piège vécu DEUX fois le 20 août, « failed to stat »). OUT =
+out-stable/out-preview ; gate readme-version scanne les deux dossiers,
+mobile-probe + bump mis à jour, .gitignore couvert.
+
+⚠ **Pour le retour utilisateur** : le téléphone aura l'APK 1.13.2 à
+réinstaller (feature Session + port fallback) ; la Freebox les deux APK
+1.13.2 (déjà installés, rebuild à jour) ; le flux « Importer la session »
+fonctionne maintenant en vrai téléphone → Freebox (mécanisme cross-APK
+prouvé dans cette session). Les tokens MSAL de la Freebox sont en fin de vie
+(re-transférer depuis le téléphone — règle token-ttl).
+
 ## Freebox Pop — login bloqué par l'anti-bot Microsoft + contournement session (20 août ~09:30)
 
 **Problème** : sur la Freebox Pop (Android 10, armeabi-v7a 32 bits, WebView 152),
