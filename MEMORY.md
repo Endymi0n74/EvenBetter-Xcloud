@@ -68,6 +68,29 @@ ne lance rien non plus. Sur la Freebox : lancer les jeux par URL directe.
 POST /v2/titles 200, StreamSessionConfiguration chargé) ; un 503/404 isolé vu
 sur la page produit était transitoire.
 
+## Durée de vie de la session transférée — MESURE RÉELLE (20 août ~10:50)
+
+**Mesure faite avec `bench/mobile/token-ttl.js`** sur le localStorage de la
+Freebox (session copiée du téléphone) :
+
+- **idToken / accessToken** : ~1 h de vie, auto-rafraîchis par MSAL tant que
+  le refresh token est valide.
+- **RefreshToken MSA** : `expiresOn` = 20/08 08:32 UTC pour une émission le
+  19/08 13:21 UTC → **durée de vie réelle ≈ 19-24 h, PAS 90 j AAD**. C'est la
+  politique de session du flux Xbox (login.live.com → MSA).
+- **Conséquence pour le transfert de ce matin** : le RT copié expirait à
+  08:32 UTC (il en restait 30 min au moment du transfert) → la session
+  Freebox tient encore grâce à l'accessToken copié (exp 13:26 UTC ≈ 15:26
+  locale) puis **tombera au premier refresh** (RT mort + login bloqué par
+  l'anti-bot → « Se connecter » affiché → re-transférer).
+- Vérifié en réel à 08:50 UTC : reload home → profil + gamertag toujours là
+  (accessToken encore valide).
+
+**Règle pratique (documentée bench/README.md) : re-transférer depuis le
+téléphone si le transfert date de >12 h, ou si `token-ttl.js` annonce un RT
+à <6 h restantes.** Le téléphone doit avoir sa propre session fraîche (ouvrir
+play.xbox.com dessus le jour même).
+
 ## Auto-update preview : canal flottant `evenbetter-xcloud-preview-channel` (20 août ~09:00)
 
 **Demande** : « Vérifie en réel que Greasemonkey/Tampermonkey propose la mise

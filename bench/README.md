@@ -1441,3 +1441,28 @@ retour `/fr-FR/play` + overlay, logcat `resetLoadState`).
 perf10 | v… | Δ |` existe deux fois dans ce fichier, table Chargement incluse.
 Seule la table est régénérée : le bullet « Protocole figé » de la section
 « Lecture des résultats » reste curé car il documente protocole et sessions.)
+
+### Session mobile transférée — `bench/mobile/` (Freebox Pop, 20 août)
+
+Deux scripts pour la Freebox Pop (login natif bloqué par l'anti-bot
+Microsoft, voir MEMORY.md) :
+
+- **`session-transfer.js`** — copie le localStorage MSAL (clés `msal.*`)
+  d'un appareil connecté vers un autre, même origine play.xbox.com :
+  `node bench/mobile/session-transfer.js --from <serial> --to <serial>`
+  (adb forward CDP + copie + verdict gamertag/Profil).
+- **`token-ttl.js`** — mesure la durée de vie restante des tokens :
+  `node bench/mobile/token-ttl.js <port-cdp>` (décode les JWT id/access et
+  affiche l'expiration réelle du refresh token).
+
+**Durée de vie mesurée en réel (20 août)** : le refresh token MSA du flux
+Xbox a une fenêtre de **~19-24 h** (pas 90 j AAD) — émis 19/08 13:21 UTC,
+`expiresOn` 20/08 08:32 UTC. Les id/access tokens font ~1 h et sont
+rafraîchis automatiquement tant que le RT est valide. **Règle : re-transférer
+depuis le téléphone si le transfert date de >12 h, ou si `token-ttl.js`
+annonce un RT à <6 h restantes.**
+
+**Piège documenté** : le transfert de ce matin a copié un RT déjà expiré
+(30 min restantes) — la session Freebox a tenu grâce à l'accessToken copié
+(exp 13:26 UTC) puis sera morte au premier refresh. Toujours vérifier avec
+`token-ttl.js` après un transfert.
