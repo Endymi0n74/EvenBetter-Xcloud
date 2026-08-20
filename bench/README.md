@@ -240,7 +240,17 @@ statiquement, sans build APK :
 - **Les deux points d'injection** : évaluation au chargement
   (`JS_TV_DEFAULTS + "}}catch..."`) et application TV uniquement
   (`isTv ? JS_TV_DEFAULTS : ""`).
-- **--self-test** : copie sans controllerFriendly → GATE ROUGE attendu.
+- **Les APK embarqués** (si présents dans `mobile/out-stable` /
+  `mobile/out-preview`, `evenbetter-xcloud-*.apk`) : les assets
+  `assets/better-xcloud.user.js` (+ es2017) extraits via `unzip -p` doivent
+  être **byte-identiques aux bundles courants du repo** (sha256, CRLF
+  normalisé) et contenir `controllerFriendly`. Un rebuild oublié (APK périmé
+  dans out/) → GATE ROUGE ; en CI sans build mobile → warning + skip (comme
+  readme-version). Piège : build.sh copie l'asset sous le MÊME nom pour les
+  deux variants → le contenu attendu diffère (preview vs stable).
+- **--self-test** : copie sans controllerFriendly → GATE ROUGE attendu
+  (MainActivity ET APK — pour l'APK, les bundles attendus sont corrompus
+  sur copie, le zip réel est extrait).
 
 Gate CI : `node bench/tv-defaults.test.js [--self-test]` (step preview de
 bench.yml).
