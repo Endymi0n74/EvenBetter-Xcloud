@@ -1,14 +1,14 @@
 # APK Android — EvenBetterXcloud
 
 Wrapper WebView minimal qui charge **https://www.xbox.com/play** et injecte le
-build **stable** (`better-xcloud.user.js`, v1.13.1) dès le début de la page.
+build **stable** (`better-xcloud.user.js`, v1.13.2) dès le début de la page.
 
 > Le wrapper upstream (`redphx/better-xcloud-android`) est **closed-source**
 > jusqu'à sa v1.0 — ceci est notre propre wrapper, buildable depuis ce dossier.
 
 ## APK
 
-`evenbetter-xcloud-1.13.1.apk` (~1,1 Mo) — package `com.bxperf.app`, signé avec
+`evenbetter-xcloud-1.13.2.apk` (~1,1 Mo) — package `com.bxperf.app`, signé avec
 le keystore local (`bxperf.keystore`, réutilisé depuis `D:\Codex\EvenBetterXcloud\bx-apk` par
 `build.sh` — la signature est stable d'un build à l'autre, les mises à jour
 passent par-dessus l'APK installé).
@@ -44,7 +44,7 @@ Prérequis : JDK 21 (JAVA_HOME) + Android SDK
 ```bash
 export JAVA_HOME="C:\Program Files\Zulu\zulu-21"
 bash build.sh
-# → out/evenbetter-xcloud-1.13.1.apk
+# → out/evenbetter-xcloud-1.13.2.apk
 ```
 
 `build.sh` prépare tout seul l'asset : il copie le **build stable courant** de
@@ -66,11 +66,11 @@ signature, packages différents) :
 | Asset embarqué | `better-xcloud.user.js` (stable) | `better-xcloud-preview.user.js` (preview) |
 | Package | `com.bxperf.app` | `com.bxperf.preview` |
 | Label | « EvenBetterXcloud » | « EvenBetterXcloud Preview » |
-| APK | `evenbetter-xcloud-1.13.1.apk` | `evenbetter-xcloud-1.13.1-preview2.apk` |
+| APK | `evenbetter-xcloud-1.13.2.apk` | `evenbetter-xcloud-1.13.2-preview1.apk` |
 
 ```bash
 bash build.sh                    # stable
-VARIANT=preview bash build.sh    # preview → out/evenbetter-xcloud-1.13.1-preview2.apk
+VARIANT=preview bash build.sh    # preview → out/evenbetter-xcloud-1.13.2-preview1.apk
 ```
 
 Mécanique du variant : le START_URL est injecté via une classe `BuildConfig`
