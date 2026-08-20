@@ -266,6 +266,25 @@ exit 0 — c'est du bruit, pas un échec (le check soft est APRÈS l'affichage).
 **Verdict** : CI vert sur 4885962 — le gate tv-defaults (normal +
 --self-test) tourne en réel sur GitHub, tous les autres gates passent.
 
+## PR de contrôle gate tv-defaults (#18) — validée fermée (20 août ~14:15)
+
+**Demande** : « Ouvre une PR de contrôle avec un réglage TV volontairement
+retiré de MainActivity (copie) pour vérifier que le gate tv-defaults échoue
+réellement sur GitHub, comme pour feature-datasaver ».
+
+**Déroulé** : branche `ci/control-tv-defaults` depuis main, retrait de
+`s[\"ui.controllerFriendly\"]=true;` de `JS_TV_DEFAULTS` (vérifié en local :
+gate ROUGE exit 1), commit edc1772, PR #18. **Résultat GitHub** : job
+`hotloops-ratios` **fail** (runs push 32365751974 + pull_request
+32365754862) au step « Build preview » avec la ligne exacte : `❌
+controllerFriendly (nav télécommande) :: n=0` / `1 échec(s) Défauts TV
+APK` — le garde bloque bien une perte de réglage TV. PR fermée + branche
+supprimée (rien à merge). ⚠ Piège run : le job `startup-cold` (runner
+Windows self-hosted `[self-hosted, windows, gpu]`) reste QUEUED quand le
+runner est offline — le run global ne passe pas à completed et les logs CLI
+sont indisponibles ; la preuve se lit au niveau JOB (steps → Build preview
+→ failure) ou sur le run push (qui n'a pas ce job).
+
 ## Freebox Pop — login bloqué par l'anti-bot Microsoft + contournement session (20 août ~09:30)
 
 **Problème** : sur la Freebox Pop (Android 10, armeabi-v7a 32 bits, WebView 152),
