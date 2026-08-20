@@ -109,6 +109,48 @@ résolution ne le réduisent plus (déjà au plancher). Recommandation pratique 
 WiFi 5 GHz / signal fort sur la box (box en WiFi uniquement) ; relancer le
 transfert de session quand les tokens tombent.
 
+## Auto-update 1.13.1 → 1.13.2 validé EN RÉEL dans Tampermonkey (20 août ~12:45)
+
+**Demande** : « vérifie en réel que TM/GM propose la mise à jour 1.13.2
+depuis une installation 1.13.1, via le meta pinné ».
+
+**Protocole réel exécuté** : profil Edge neuf `D:\edge-profiles\tm-update`
+(port 9230) + **Tampermonkey BETA v5.5.6237** (ID `fcmfnpggmnlmfebfghbfnillijihnkoh`
+— le store Edge sert la BÊTA « fcmf », PAS la stable `dhdgffkkebhmkfjojejmpbldmpobfkfo`)
++ serveur local 8933 pour installer le bundle 1.13.1 publié extrait du tag git
+(`git show evenbetter-xcloud-v1.13.1:better-xcloud.es2017.user.js`, pin
+`releases/latest/download/better-xcloud.meta.js` vérifié).
+
+**Preuve en 4 liens** :
+1. Le meta stocké par TM à l'install : `@version 1.13.1`, `updateURL` =
+   `releases/latest/download/better-xcloud.meta.js`, `check_for_updates:true`
+   (chrome.storage.local `!extdb.@meta#<uid>`).
+2. Le meta servi au pin : HTTP 200, `@version 1.13.2` (fetch réel).
+3. Déclenchement : bouton par-script « Vérifier les mises à jour » (colonne
+   Actions) PUIS action de masse « Lancer une MàJ » → TM fetch la meta.
+4. Résultat : le meta stocké passe à **1.13.2** (lastModified ~10:42Z),
+   nouveau record `!misc.scripts.update`, et le dashboard affiche
+   « EvenBetterXcloud **1.13.2** · 414 KB ».
+
+**Verdict** : le cycle est VALIDÉ de bout en bout dans un vrai navigateur —
+une installation 1.13.1 est bien mise à jour vers 1.13.2 via le meta pinné
+(releases/latest pour le stable, canal flottant pour le preview).
+
+**Pièges mémorisés (TM BETA MV3)** :
+- Le store Edge installe la BÊTA (`fcmf...`), pas la stable — le dashboard
+  stable `dhdgffkkebhmkfjojejmpbldmpobfkfo` est introuvable (ERR_BLOCKED).
+- Les données TM vivent dans `chrome.storage.local` (records `!extdb.*`,
+  `!misc.*`), PAS localStorage/IndexedDB de la page options.
+- Le check d'update du MV3 tourne dans le service worker `background.js` ;
+  le bouton par-script « Vérifier les mises à jour » et l'action de masse
+  « Lancer une MàJ » (select d'actions → Démarrer) sont les déclencheurs
+  fiables ; l'intervalle est `scriptUpdateCheckPeriod` (ms) dans
+  `!extdb.#config` (modifiable via l'UI Réglages).
+- `kill` ciblé d'une instance Edge : `Get-CimInstance Win32_Process -Filter
+  "Name='msedge.exe'" | Where-Object { $_.CommandLine -like '*<profil>*' }
+  | Stop-Process` via un fichier .ps1 (le quoting bash/PowerShell inline
+  casse sur `$_`).
+
 ## Freebox Pop — login bloqué par l'anti-bot Microsoft + contournement session (20 août ~09:30)
 
 **Problème** : sur la Freebox Pop (Android 10, armeabi-v7a 32 bits, WebView 152),
