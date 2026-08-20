@@ -4,6 +4,40 @@ Mémoire de travail des sessions. Détails dans `bench/preview/port/session.md`
 (étude protocole), `bench/preview/port/e2e-cdp.md` (protocole E2E + journal),
 `bench/preview/port/anchors.md`, `bench/preview/port/classify.md`.
 
+## Freebox Pop — login bloqué par l'anti-bot Microsoft + contournement session (20 août ~09:30)
+
+**Problème** : sur la Freebox Pop (Android 10, armeabi-v7a 32 bits, WebView 152),
+l'APK stable ne trouve pas le compte Xbox : alerte « Un problème s'est produit
+lors de la recherche de votre compte ».
+
+**Cause racine (prouvée par séquence de tests)** : l'anti-bot Microsoft
+(header `PPServer` sur la réponse) renvoie un **404 délibéré** sur
+`POST login.live.com/GetCredentialType.srf` depuis la WebView de la Freebox.
+Le même POST exact (headers+body+cookies) passe en **200 depuis le PC** et
+depuis le téléphone (Android 16, WebView 152.0.7977.54). Ce n'est ni l'UA
+ni le suffixe `EvenBetterXcloud/1.13.1` (neutralisé sans effet), ni le réseau
+(ping/DNS/heure OK), ni les cookies. C'est le **fingerprint TLS/HTTP2 de la
+pile BoringSSL d'Android 10** que Microsoft blackliste pour le flux de login
+(des `ERR_HTTP2_PROTOCOL_ERROR` sur fpt.live.com/ipv6.live.com corroborent
+une pile HTTP/2 dégradée). Le téléphone passe car sa pile est récente.
+
+**Parade Custom Tabs morte** : la Freebox est en 32 bits → Chrome moderne
+n'existe plus pour armeabi-v7a.
+
+**Contournement validé en réel (20 août ~09:40)** : la session vit dans le
+**localStorage** de play.xbox.com (clés `msal.*`, tokens MSAL), pas dans les
+cookies. Transfert du localStorage complet du téléphone (connecté) vers la
+Freebox sur le **même origine play.xbox.com** → la page se connecte (gamertag
+« Stabiloboss82 », cookies `XBXXtk`/`xbl_pa` créés) et **le stream démarre**
+(Halo : Campaign Evolved, vidéo 1280×720 en lecture réelle).
+
+**Script rejouable** : `bench/mobile/session-transfer.js --from <serial> --to <serial>`
+(adb forward CDP + copie localStorage + verdict gamertag/Profil). Prérequis :
+les deux appareils en adb autorisé, WebView débogable, page play.xbox.com
+ouverte. Limite : les tokens expirent (refresh ~semaines) — à ré-exécuter quand
+la session tombe. Le login natif reste impossible sur cet appareil (fingerprint
+non modifiable depuis l'APK).
+
 ## Auto-update preview : canal flottant `evenbetter-xcloud-preview-channel` (20 août ~09:00)
 
 **Demande** : « Vérifie en réel que Greasemonkey/Tampermonkey propose la mise
