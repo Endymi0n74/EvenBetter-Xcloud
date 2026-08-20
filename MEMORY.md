@@ -38,6 +38,36 @@ ouverte. Limite : les tokens expirent (refresh ~semaines) — à ré-exécuter q
 la session tombe. Le login natif reste impossible sur cet appareil (fingerprint
 non modifiable depuis l'APK).
 
+## Validation APK preview sur la Freebox Pop (20 août ~10:00) — overlay OK en stream
+
+**Validation complète en réel** (APK preview `com.bxperf.preview` 1.13.1-preview2
+buildé + installé côte à côte avec le stable) :
+
+1. **Session transférée tient dans l'APK preview** : page play.xbox.com connectée
+   (gamertag « Stabiloboss82 », « endymi0n74 », cookies XBXXtk/xbl_pa créés).
+   Le localStorage MSAL n'est PAS partagé entre packages (com.bxperf.app vs
+   com.bxperf.preview) → re-transférer après install du 2e APK (session-transfer).
+2. **Bundle preview actif** : clés `BetterXcloud.*` écrites, CSS/injection `bx-*`
+   présente dans le DOM.
+3. **Stream lancé et overlay visible en jeu** : game bar EvenBetterXcloud
+   (`bx-game-bar` + `bx-game-bar-container bx-show`, 11 boutons `bx-button
+   bx-ghost` dont 4 `bx-activated`) + `bx-stats-bar` + `bx-video-css`.
+   Vidéo 1280×720 en lecture réelle (readyState 4, non-paused).
+
+**Piège trouvé en route — page produit /products/... cassée sur cette WebView** :
+l'erreur **React #418 (hydration mismatch)** apparaît sur play.xbox.com ET sur
+la WebView stable SANS bundle actif → bug du SITE sur WebView lente (Android
+10), pas notre code. Conséquence : le bouton « Préparez-vous à streamer » ne
+déclenche RIEN (handlers React jamais attachés). **Workaround** : lancer le
+stream par URL directe `https://play.xbox.com/stream/<titleId>/<slug>` — le
+provisioning part immédiatement (« Je mets les choses en avant... »). Le clic
+« Ultimate Abonné » depuis le dialogue d'édition (section scrollable, y=1342)
+ne lance rien non plus. Sur la Freebox : lancer les jeux par URL directe.
+
+**Note lancement** : le réseau/serveur étaient sains (POST /v2/login/user 200,
+POST /v2/titles 200, StreamSessionConfiguration chargé) ; un 503/404 isolé vu
+sur la page produit était transitoire.
+
 ## Auto-update preview : canal flottant `evenbetter-xcloud-preview-channel` (20 août ~09:00)
 
 **Demande** : « Vérifie en réel que Greasemonkey/Tampermonkey propose la mise
