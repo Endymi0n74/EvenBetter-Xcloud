@@ -208,6 +208,32 @@ portera gate relaxé + tvDefaults + fix D-pad.
   | Stop-Process` via un fichier .ps1 (le quoting bash/PowerShell inline
   casse sur `$_`).
 
+## Publication v1.13.3 + v1.13.3-preview1 (20 août ~13:30)
+
+**Demande** : « Fais le bump 1.13.3 (gate stable relaxé + navigation TV) et
+publie les releases stable + preview avec les APK ».
+
+**Cycle exécuté** : `bump-version.sh 1.13.3 --preview=1.13.3-preview1
+--build-apk` → gate ROUGE initial (vieil APK 1.13.2 dans out-stable/out-
+preview — le rebuild APK vient APRÈS le gate) → rebuild des deux APK manuel
+→ gate VERT + feature gates (t10, datasaver, keepalive) → commit d2b2163
+(READMEs, bundles, metas, manifest) → push → releases : preview1
+(prerelease, tag evenbetter-xcloud-v1.13.3-preview1) puis stable (Latest,
+tag evenbetter-xcloud-v1.13.3) → canal flottant evenbetter-xcloud-preview-
+channel re-uploadé (--clobber, 2 assets preview) → tags locaux alignés (déjà
+à jour : gh create pousse le tag distant, `git tag HEAD` + push = up-to-date)
+→ **guard 4/4 VERT** (stable→d2b2163, user.js stable = ES2017 byte-
+identique, preview canal byte-identique au build local, APK stable = bannière
+byte-identique au versionné, APK preview 200). Auto-prune a purgé v1.13.2 +
+v1.13.2-preview1 (état final : v1.13.3 Latest + v1.13.3-preview1 + canal).
+
+**Contenu de la release** : gate stable `/play` sans locale (c3cfdec), défauts
+TV versionnés marqueur 2 (controllerFriendly + layout tv, MainActivity),
+fix D-pad preview (capture keydown, 2c7bbe7). Notes FR/EN avec la signature
+vibe-coding/Codebuff. ⚠ Piège re-mémorisé : le gate readme-version ROUGE au
+bump quand le rebuild APK n'a pas tourné — le script s'arrête avant
+l'étape APK, il faut rebuild manuel puis re-gate.
+
 ## Freebox Pop — login bloqué par l'anti-bot Microsoft + contournement session (20 août ~09:30)
 
 **Problème** : sur la Freebox Pop (Android 10, armeabi-v7a 32 bits, WebView 152),
