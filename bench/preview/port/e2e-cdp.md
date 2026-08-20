@@ -969,6 +969,40 @@ non connecté à un compte Xbox) — à re-tester par l'utilisateur sur téléph
 avec preview2 ; si l'écran noir persiste, `adb logcat -s EvenBetterXcloud`
 pour diagnoser.
 
+## Freebox Pop — navigation D-pad du dialog preview (20 août ~13:20) ✅
+
+**Contexte** : sur la WebView Android de la Freebox (app preview au premier
+plan), l'overlay s'affiche mais la navigation télécommande était bloquée —
+un seul déplacement possible (vers la bannière « Installer l'application »)
+pui plus rien.
+
+**Cause racine (instrumentation CDP sur la box)** :
+- Le handler clavier de play.xbox.com (React) est enregistré en **capture
+  sur window avec stopImmediatePropagation** → il s'exécute avant le
+  listener keydown du NavigationDialogManager, qui est en **bubble** sur
+  `.bx-navigation-dialog`.
+- La page vole le focus vers sa game card ; `getFocusedElement()` renvoie
+  null ; `focusIfNeeded()` re-focus le header = la bannière d'installation
+  → cul-de-sac observé (ni ↓ ni ↑ n'en sortaient).
+- Preuve : trace de phase (window-capture + doc-capture seuls, le bubble
+  ne reçoit rien) + trace de focus (game card « Absolum » volée à chaque
+  flèche avant le fix).
+
+**Fix (bundle stable, propagé au preview)** : listener keydown **capture sur
+window** dans le constructeur du NavigationDialogManager (bundle =
+document-start → enregistré avant React), actif seulement si `isShowing()`,
+rejouant la logique handleEvent (handleKeyPress → focusDirection →
+Enter/Space/Escape) avec `stopImmediatePropagation()` quand handled.
+
+**Validation réelle (APK preview rebuildé, installé sur la box)** :
+séquence complète Économe → Emplacement du serveur → steppers →
+« 📡 Tester la latence » → remontée ↑, plus aucune fuite vers la page.
+Quirk amont résiduel documenté : 2 selects adjacents oscillent (stepper « > »
+↔ input du select suivant) — comportement de l'algorithme upstream, pas une
+régression. Bundles + APK (stable et preview) rebuildés, gates verts
+(readme-version, t10, datasaver). Pas de bump (1.13.3 à la prochaine
+release).
+
 ## Rejouabilité
 
 Le protocole est manuel (2 runs × ~2 min) tant que la session est

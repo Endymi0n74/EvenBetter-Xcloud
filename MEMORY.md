@@ -168,6 +168,31 @@ offline) — installation + validation réelle en attente du retour de la box
 (réactiver le débogage adb dessus). ⚠ PAS de bump : VERSION reste 1.13.2
 (gate readme-version vert) — prochaine release (1.13.3) portera ce fix.
 
+**Suite ~13:20 — la vraie cause du D-pad + fix validé en réel sur la box** :
+une fois la box revenue, l'APK v2 (tvDefaults marker 2) installé et le focus
+forcé dans le dialog, la nav restait bloquée après 1 déplacement. Cause
+racine trouvée par instrumentation CDP : **le handler clavier de la page
+play.xbox.com vole les flèches en phase CAPTURE sur window** (avec
+stopImmediatePropagation, enregistré par React après notre bundle) — le
+listener keydown du NavigationDialogManager est en BUBBLE sur
+`.bx-navigation-dialog` → il ne s'exécute jamais ; pire, la page focus sa
+game card, `getFocusedElement()` renvoie null, et `focusIfNeeded()`
+re-focus le header (la bannière « Installer l'application » = le cul-de-sac
+observé). **Fix** : un listener keydown CAPTURE sur window ajouté au
+constructeur du NavigationDialogManager (bundle = document-start → enregistré
+AVANT le handler React), qui ne s'active que si `isShowing()`, rejoue la
+logique de handleEvent (handleKeyPress → focusDirection → Enter/Space/Escape)
+et appelle `stopImmediatePropagation()` quand handled. **Validé en réel sur
+la Freebox** (APK preview rebuildé) : Économe → Emplacement du serveur →
+steppers → « 📡 Tester la latence » → remontée ↑, plus aucune fuite vers la
+page (le 1er run montrait la game card « Absolum » avant le fix). ⚠ Quirk
+amont résiduel : 2 selects adjacents oscillent (le « > » d'un stepper et
+l'input du select suivant) — comportement de l'algorithme upstream
+(focusDirection identique), pas une régression. Les 4 bundles + 2 APK
+rebuildés, gates verts (readme-version 1.13.2, t10, datasaver). Commit :
+fix-dpad-capture. Pas de bump — la release 1.13.3 (stable+preview)
+portera gate relaxé + tvDefaults + fix D-pad.
+
 **Pièges mémorisés (TM BETA MV3)** :
 - Le store Edge installe la BÊTA (`fcmf...`), pas la stable — le dashboard
   stable `dhdgffkkebhmkfjojejmpbldmpobfkfo` est introuvable (ERR_BLOCKED).

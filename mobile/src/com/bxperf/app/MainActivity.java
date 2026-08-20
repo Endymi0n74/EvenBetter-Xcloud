@@ -129,13 +129,15 @@ public class MainActivity extends Activity {
     // télécommande dans l'overlay — le défaut du bundle est deviceType!==
     // "unknown", or la WebView de la box est « unknown » → overlay affiché
     // mais non navigable) + ui.layout=tv (layout Smart TV).
-    // Idempotent via le marqueur _bxTvDefaults dans le même localStorage.
+    // Idempotence VERSIONNÉE : le marqueur _bxTvDefaults passe à 2 quand on
+    // enrichit les défauts — une box qui avait déjà le marqueur 1 (anciens
+    // défauts sans controllerFriendly) re-posait rien, piège vécu le 20 août.
     private static final String JS_TV_DEFAULTS =
         "(function(){try{var s=JSON.parse(localStorage.getItem(\"BetterXcloud\")||\"{}\");"
-        + "if(s[\"_bxTvDefaults\"]!==1){s[\"stream.video.maxBitrate\"]=5120000;"
+        + "if(s[\"_bxTvDefaults\"]!==2){s[\"stream.video.maxBitrate\"]=5120000;"
         + "s[\"stream.video.resolution\"]=\"720p\";s[\"ui.reduceAnimations\"]=true;"
         + "s[\"ui.controllerFriendly\"]=true;s[\"ui.layout\"]=\"tv\";"
-        + "s[\"loadingScreen.rocket\"]=\"hide\";s[\"_bxTvDefaults\"]=1;"
+        + "s[\"loadingScreen.rocket\"]=\"hide\";s[\"_bxTvDefaults\"]=2;"
         + "localStorage.setItem(\"BetterXcloud\",JSON.stringify(s));"
         + "console.log(\"EvenBetterXcloud TV: defauts box appliques\");}}" + "catch(e){}})();";
 
