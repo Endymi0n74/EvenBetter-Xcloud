@@ -234,6 +234,24 @@ vibe-coding/Codebuff. ⚠ Piège re-mémorisé : le gate readme-version ROUGE au
 bump quand le rebuild APK n'a pas tourné — le script s'arrête avant
 l'étape APK, il faut rebuild manuel puis re-gate.
 
+## Gate « Défauts TV de l'APK » — tv-defaults.test.js (20 août ~13:45)
+
+**Demande** : « Ajoute un gate CI qui vérifie que les défauts TV de l'APK
+(controllerFriendly, layout tv) restent présents dans MainActivity ».
+
+**Fait** : `bench/tv-defaults.test.js` branché au step preview de bench.yml
+(+ --self-test au CI, comme les autres gates). Vérifie statiquement (pas de
+build APK) : tous les réglages de `JS_TV_DEFAULTS` (marqueur idempotence
+2, maxBitrate 5 Mbps, 720p, reduceAnimations, controllerFriendly, layout
+tv, rocket hide) + les 2 points d'injection (évaluation au chargement
+`JS_TV_DEFAULTS + "}}catch..."` et application TV uniquement `isTv ?
+JS_TV_DEFAULTS : ""`). ⚠ **Piège d'échappement vécu** : les littéraux Java
+du fichier contiennent `\"` (backslash + quote) ; dans un littéral JS
+simple, `\"` consomme le backslash → l'aiguille ne matchait pas. Solution :
+helper `JQ(s) = s.replace(/"/g, '\\"')` qui reproduit l'échappement Java —
+plus aucune ambiguïté. Self-test validé : copie sans controllerFriendly →
+GATE ROUGE. Commit `15a9c61` (gate + bench.yml + bench/README.md section).
+
 ## Freebox Pop — login bloqué par l'anti-bot Microsoft + contournement session (20 août ~09:30)
 
 **Problème** : sur la Freebox Pop (Android 10, armeabi-v7a 32 bits, WebView 152),
