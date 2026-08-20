@@ -32,6 +32,25 @@ validé : les deux serveurs vivent ensemble (stable 8765 + preview 8766),
 les deux répondent `{ok:true}` — fallback 8765→8766 (+10 max) prouvé en
 réel. Les deux APK ont maintenant la feature « 📥 Session » à jour.
 
+**Actions ~11:25-11:40 (mémo)** :
+- **UI du groupe « 📥 Session » vérifiée en réel sur la Freebox** : settings
+  globaux → groupe « 📥 Session » présent (boutons Importer/Envoyer + note
+  Freebox). Preuve : `bench/mobile/session-import-ui-freebox.png` (screencap
+  TV 1920×1080).
+- **Expiration de session confirmée (prédiction token-ttl)**: la WebView
+  preview de la Freebox affiche « Votre session a expiré » — le RT transféré
+  ce matin était déjà expiré (expiresOn 08:32Z) → au premier refresh MSAL a
+  purgé le cache. La WebView stable (import ~11:20) tient encore (cookies
+  présents, pas d'écran d'expiration) mais sur les MÊMES tokens → elle peut
+  mourir au prochain refresh. Le seul vrai correctif = re-transférer depuis
+  le téléphone (session fraîche) quand il sera re-branché.
+- **Stream baseline Freebox** : lancement par URL directe OK sur la WebView
+  stable (1280×720, lecture réelle). Mesure FPS impossible en autonomie :
+  l'app preview est au premier plan → la WebView stable est en arrière-plan
+  (rAF=0, getVideoPlaybackQuality 100% « dropped » = chemin overlay du
+  background, pas une métrique). Le lag manette reste à mesurer en présence
+  (contrôleur physique + app au premier plan).
+
 ## Freebox Pop — login bloqué par l'anti-bot Microsoft + contournement session (20 août ~09:30)
 
 **Problème** : sur la Freebox Pop (Android 10, armeabi-v7a 32 bits, WebView 152),
