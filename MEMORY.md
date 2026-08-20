@@ -136,6 +136,38 @@ depuis une installation 1.13.1, via le meta pinné ».
 une installation 1.13.1 est bien mise à jour vers 1.13.2 via le meta pinné
 (releases/latest pour le stable, canal flottant pour le preview).
 
+## Freebox : overlay stable absent + preview non navigable (20 août ~13:00)
+
+**Demande** : « la version normale sur la freebox n'affiche pas l'overlay et
+la version preview affiche l'overlay mais je n'arrive pas à naviguer dedans ».
+
+**Diagnostic (prouvé en réel)** :
+- **Stable sans overlay** : l'APK stable navigue vers `www.xbox.com/play`
+  SANS locale → le gate du bundle `if (!pathname.match(/^\/[a-z]{2}-[a-z]{2}\/play/)) throw "Not xCloud page"` refuse → `__EBX_INJECTED: null`, 0 nœud bx-*.
+- **Preview non navigable** : l'overlay s'affiche mais la navigation télécommande
+  ne marche pas. Cause : `ui.controllerFriendly` par défaut =
+  `DeviceInfo.deviceType !== "unknown"` → la WebView de la box est « unknown »
+  → défaut à false → selects/boutons non pilotables au D-pad. Et
+  `JS_TV_DEFAULTS` de l'APK (Économe + 720p + reduceAnimations) n'activait PAS
+  controllerFriendly.
+
+**Fixes appliqués (build local, non publié)** :
+1. **Gate stable relaxé** : `match(/^\/(?:[a-z]{2}-[a-z]{2}\/)?play/)` — accepte
+   `/play` sans locale (et `/XX-XX/play` inchangé, le reste throw toujours).
+   Ancre T6 de build-preview.js + invariant mis à jour (le preview garde son
+   bypass `!BX_PREVIEW &&`). Testé en vm : 8 cas (accepte /play, /fr-fr/play,
+   /play/launch/… ; rejette /, /stream/…, /products/…, /fr-fr/home).
+2. **JS_TV_DEFAULTS** : + `ui.controllerFriendly=true` + `ui.layout="tv"`
+   (layout Smart TV) — appliqués une fois via `_bxTvDefaults` au premier
+   lancement sur la box.
+
+**État** : bundles + es2017 + preview rebuildés (gates verts : readme-version,
+feature-session, feature-data, t10), APK stable + preview rebuildés. ⚠ La
+Freebox a décroché pendant le diagnostic (nav `/fr-fr/play` → reboot/adb WiFi
+offline) — installation + validation réelle en attente du retour de la box
+(réactiver le débogage adb dessus). ⚠ PAS de bump : VERSION reste 1.13.2
+(gate readme-version vert) — prochaine release (1.13.3) portera ce fix.
+
 **Pièges mémorisés (TM BETA MV3)** :
 - Le store Edge installe la BÊTA (`fcmf...`), pas la stable — le dashboard
   stable `dhdgffkkebhmkfjojejmpbldmpobfkfo` est introuvable (ERR_BLOCKED).

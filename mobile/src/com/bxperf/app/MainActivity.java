@@ -125,11 +125,16 @@ public class MainActivity extends Activity {
     // Défauts « box » (Android TV / Freebox Pop) : la box a un WebView faible →
     // on pose une fois les réglages légers du script (Économe : cap 5 Mbps +
     // 720p + animations réduites + pas de fusée) pour que le stream rame pas.
+    // Depuis le 20 août : + ui.controllerFriendly=true (navigation manette /
+    // télécommande dans l'overlay — le défaut du bundle est deviceType!==
+    // "unknown", or la WebView de la box est « unknown » → overlay affiché
+    // mais non navigable) + ui.layout=tv (layout Smart TV).
     // Idempotent via le marqueur _bxTvDefaults dans le même localStorage.
     private static final String JS_TV_DEFAULTS =
         "(function(){try{var s=JSON.parse(localStorage.getItem(\"BetterXcloud\")||\"{}\");"
         + "if(s[\"_bxTvDefaults\"]!==1){s[\"stream.video.maxBitrate\"]=5120000;"
         + "s[\"stream.video.resolution\"]=\"720p\";s[\"ui.reduceAnimations\"]=true;"
+        + "s[\"ui.controllerFriendly\"]=true;s[\"ui.layout\"]=\"tv\";"
         + "s[\"loadingScreen.rocket\"]=\"hide\";s[\"_bxTvDefaults\"]=1;"
         + "localStorage.setItem(\"BetterXcloud\",JSON.stringify(s));"
         + "console.log(\"EvenBetterXcloud TV: defauts box appliques\");}}" + "catch(e){}})();";

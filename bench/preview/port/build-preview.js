@@ -355,9 +355,11 @@ ${entryAnchor}`;
      (le userscript est @run-at document-start) — AVANT entry.client, donc le
      SDK preview capture NOTRE hook (classe ub, i=fetch par défaut) et P2/P3
      deviennent viables côté userscript (voir fetch-early.js). */
-  const guardAnchor = "if (!window.location.pathname.match(/^\\/[a-zA-Z]{2}-[a-zA-Z]{2}\\/play/)) throw Error(\"[Better xCloud] Not xCloud page\");";
+  // Depuis le 20 août, le gate stable accepte aussi "/play" sans locale
+  // (Freebox : www.xbox.com/play → bundle stable no-op sans l'overlay).
+  const guardAnchor = "if (!window.location.pathname.match(/^\\/(?:[a-zA-Z]{2}-[a-zA-Z]{2}\\/)?play/)) throw Error(\"[Better xCloud] Not xCloud page\");";
   must(s, guardAnchor, "T6 garde Not xCloud page");
-  s = s.replace(guardAnchor, "if (!BX_PREVIEW && !window.location.pathname.match(/^\\/[a-zA-Z]{2}-[a-zA-Z]{2}\\/play/)) throw Error(\"[Better xCloud] Not xCloud page\");");
+  s = s.replace(guardAnchor, "if (!BX_PREVIEW && !window.location.pathname.match(/^\\/(?:[a-zA-Z]{2}-[a-zA-Z]{2}\\/)?play/)) throw Error(\"[Better xCloud] Not xCloud page\");");
 
   /* ---------- T8 : P3 neutralisé (override osName=tizen retiré le 17 août) ----------
      A/B mesuré en réel (e2e-cdp.md « A/B bitrate ») : osName=tizen est un
@@ -512,7 +514,7 @@ for (const probe of [
   'var BX_PREVIEW = window.location.hostname === "play.xbox.com"',
   "static init() {if (BX_PREVIEW) return;Patcher.patchNativeBind();}",
   "static checkChunks(item) {if (BX_PREVIEW) return;",
-  "if (!BX_PREVIEW && !window.location.pathname.match(/^\\/[a-zA-Z]{2}-[a-zA-Z]{2}\\/play/)) throw Error(\"[Better xCloud] Not xCloud page\");",
+  "if (!BX_PREVIEW && !window.location.pathname.match(/^\\/(?:[a-zA-Z]{2}-[a-zA-Z]{2}\\/)?play/)) throw Error(\"[Better xCloud] Not xCloud page\");",
   "var PreviewSettingsEntry = {",
   "bx-mobile-fab",
   "if (BX_PREVIEW) {",
