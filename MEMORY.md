@@ -91,6 +91,46 @@ téléphone si le transfert date de >12 h, ou si `token-ttl.js` annonce un RT
 à <6 h restantes.** Le téléphone doit avoir sa propre session fraîche (ouvrir
 play.xbox.com dessus le jour même).
 
+## Feature « 📥 Session » dans l'APK — import sans ligne de commande (20 août ~11:00)
+
+**Demande** : « Ajoute un mode “Importer la session” dans l'APK qui automatise
+le transfert MSAL depuis un autre appareil sans ligne de commande. »
+
+**Conception** (sans caméra — la Freebox Pop n'en a pas) : transfert
+pair-à-pair WiFi via un mini serveur HTTP LAN dans l'APK (receveur) + envoi
+par le bundle (donneur). Le POST passe par **Java** (bridge
+`window.BXSessionImport.send()`, HttpURLConnection) car le fetch de la page
+vers http://LAN est bloqué par le mixed content (MIXED_CONTENT_NEVER_ALLOW).
+
+**Livré** (validé en réel sur la Freebox ~11:05) :
+
+- `MainActivity.java` : bridge `BXSessionImport` (startServer / stopServer /
+send), serveur LAN port 8765 (ServerSocket brut, code 6 chiffres, CORS),
+écriture localStorage par evaluateJavascript (navigation différée via
+PendingImport si l'origin diffère). Classes nommées (piège d8), pas de lambdas.
+- `bench/feature-session-import.js` : groupe « 📥 Session » dans les settings
+globaux, visible même DÉCONNECTÉ (filtre rendu déconnecté étendu), 2 boutons
+(Importer / Envoyer), URL donneur mémorisée.
+- `bench/feature-session-import.test.js` : gate CI (présence stable+preview,
+ancres, rejeu + self-test) branché au step preview de bench.yml.
+- `AndroidManifest.template.xml` : `usesCleartextTraffic="true"` (Android 9+
+bloque le HTTP en clair sinon).
+- Rebuild APK preview installé sur la Freebox ; bundle stable + preview à jour.
+
+**Validé en réel** : startServer → `http://192.168.1.24:8765/import/<code>` ;
+POST (curl puis bridge send() Java) → `{ok:true}` → clé écrite dans le
+localStorage de la WebView → reload → profil + gamertag. Feature exposée
+(`window.BX_SESSION_IMPORT` = object) + bridge (`window.BXSessionImport`).
+
+**Pièges** : cleartext Android 9+ (manifest) ; commentaire XML spécial dans le
+manifest → aapt2 « invalid token » (garder les commentaires minimalistes) ;
+feature-datasaver.test.js robustifié (filtre partagé vérifié par préfixe +
+strip par regex) ; état transitoire post-install (1re page sans bundle → reload).
+
+**Reste** : rejouer le vrai flux téléphone (donneur, APK à jour) → Freebox
+(receveur) quand le téléphone sera re-branché — le mécanisme est validé des
+deux côtés (send() Java + serveur + écriture).
+
 ## Auto-update preview : canal flottant `evenbetter-xcloud-preview-channel` (20 août ~09:00)
 
 **Demande** : « Vérifie en réel que Greasemonkey/Tampermonkey propose la mise

@@ -1466,3 +1466,47 @@ annonce un RT à <6 h restantes.**
 (30 min restantes) — la session Freebox a tenu grâce à l'accessToken copié
 (exp 13:26 UTC) puis sera morte au premier refresh. Toujours vérifier avec
 `token-ttl.js` après un transfert.
+
+### Mode « Importer la session » dans l'APK (20 août ~11:00) — sans ligne de commande
+
+La feature **« 📥 Session »** (groupe des settings globaux, visible même
+DÉCONNECTÉ — c'est son but) remplace la ligne de commande pour transférer la
+session entre appareils du même WiFi :
+
+- **« 📥 Importer la session »** (receveur, ex. Freebox) : appelle le bridge
+  Android `window.BXSessionImport.startServer()` → mini serveur HTTP LAN
+  (port 8765, code à 6 chiffres, CORS) → affiche l'URL à saisir sur le donneur.
+- **« 📤 Envoyer la session »** (donneur, ex. téléphone) : lit le localStorage
+  (clés msal.*) et l'envoie via `window.BXSessionImport.send()` — le POST
+  passe par **Java** (HttpURLConnection), pas fetch : le fetch de la page vers
+  http://LAN est bloqué par le mixed content (MIXED_CONTENT_NEVER_ALLOW).
+  L'URL du donneur est mémorisée (localStorage BX_SESSION_IMPORT_URL).
+- Le receveur écrit le localStorage quand la page est sur l'origin du donneur
+  (sinon navigation différée via `PendingImport` + onPageFinished) puis reload.
+
+**Pièges rencontrés** (20 août, validés en réel sur la Freebox) :
+
+- **Cleartext HTTP** : Android 9+ bloque le HTTP en clair →
+  `usesCleartextTraffic="true"` dans le manifest (le site xbox.com reste
+  https ; le cleartext ne concerne que le POST LAN).
+- **Commentaire XML cassant aapt2** : un commentaire dans le template de
+  manifest avec caractères spéciaux faisait échouer le link (invalid token) —
+  garder les commentaires du manifest minimalistes.
+- **Filtre « rendu déconnecté » partagé** : datasaver (data) avait étendu le
+  filtre ; session l'étend encore (data+session). feature-datasaver.test.js
+  vérifie maintenant le PRÉFIXE (sound+data) et strippe par regex — robuste
+  aux extensions postérieures.
+- **État transitoire post-install** : juste après `adb install -r` + relance,
+  la 1re page peut avoir le marqueur `__EBX_INJECTED` sans le bundle exécuté
+  (cache) — un reload règle l'injection complète.
+
+Gates : `bench/feature-session-import.test.js` (présence stable+preview,
+ancres, rejeu + self-test) branché au step preview de bench.yml. La feature
+est injectée dans le stable (`node bench/feature-session-import.js
+better-xcloud.user.js`) et héritée par le preview (build-preview.js).
+
+**Validé en réel (Freebox, 20 août ~11:05)** : startServer →
+`http://192.168.1.24:8765/import/<code>` ; POST (curl puis bridge `send()`
+Java) → `{ok:true}` → clé écrite dans le localStorage de la WebView → reload
+→ profil + gamertag affichés. Le vrai flux téléphone → Freebox reste à
+rejouer une fois le téléphone re-branché (mécanisme identique).

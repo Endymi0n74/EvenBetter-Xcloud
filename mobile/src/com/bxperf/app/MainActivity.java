@@ -14,6 +14,7 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.CookieManager;
+import android.webkit.JavascriptInterface;
 import android.webkit.SslErrorHandler;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
@@ -30,8 +31,15 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.net.URL;
+import java.util.Enumeration;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
@@ -136,6 +144,17 @@ public class MainActivity extends Activity {
     private boolean errorPageShowing = false;
     private AutoRetry pendingAutoRetry = null;
 
+    // ---- Session import (20 août) : « Importer la session » sans ligne de
+    // commande. Bridge exposé à la page (BXSessionImport) : startServer()
+    // démarre un mini serveur HTTP LAN (receveur), send() POSTe le
+    // localStorage vers un autre appareil (donneur — évite le mixed content
+    // bloqué par MIXED_CONTENT_NEVER_ALLOW côté page). L'écriture dans la
+    // WebView se fait par evaluateJavascript quand la page est sur l'origin
+    // du donneur (pendingImport sinon : navigation puis écriture).
+    private static final int SESSION_IMPORT_PORT = 8765;
+    private volatile SessionImportServer importServer;
+    private volatile PendingImport pendingImport;
+
     @SuppressLint("SetJavaScriptEnabled")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -189,6 +208,10 @@ public class MainActivity extends Activity {
 
         webView.setWebViewClient(new BxWebViewClient(this));
         webView.setWebChromeClient(new BxWebChromeClient(this));
+
+        // Bridge « Importer la session » : le bundle (window.BXSessionImport)
+        // démarre le serveur LAN (receveur) ou POSTe le localStorage (donneur).
+        webView.addJavascriptInterface(new BxSessionImportBridge(this), "BXSessionImport");
 
         // Gaming: keep the screen on
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -304,6 +327,15 @@ public class MainActivity extends Activity {
     void onPageFinished(String url) {
         if (url != null && isXboxDomain(url) && !errorPageShowing) {
             resetLoadState();
+            // Import de session différé : la page est enfin sur l'origin du
+            // donneur → écrire le localStorage puis recharger (la session
+            // devient visible).
+            if (pendingImport != null && url.startsWith(pendingImport.origin)) {
+                PendingImport p = pendingImport;
+                pendingImport = null;
+                writeLocalStorage(p.body);
+                webView.reload();
+            }
         }
     }
 
@@ -426,10 +458,184 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        stopImportServer();
         if (webView != null) {
             webView.destroy();
         }
         super.onDestroy();
+    }
+
+    // ---------- Session import (bridge + serveur LAN) ----------
+
+    /**
+     * Démarre (ou renvoie) le serveur LAN d'import. Appelé par la page via
+     * window.BXSessionImport.startServer(). Retourne un JSON
+     * {ok, url, code, ip, port} — le code + l'URL à saisir sur le donneur.
+     */
+    String startImportServer() {
+        if (importServer != null && importServer.isAlive()) {
+            return importServer.describe();
+        }
+        try {
+            String code = String.format("%06d", (int) (Math.random() * 1000000));
+            String ip = findLocalIp();
+            importServer = new SessionImportServer(this, code, ip, SESSION_IMPORT_PORT);
+            Thread t = new Thread(importServer, "bx-session-import");
+            t.setDaemon(true);
+            t.start();
+            for (int i = 0; i < 100 && !importServer.isBound(); i++) {
+                try {
+                    Thread.sleep(50);
+                } catch (InterruptedException ignored) {
+                    break;
+                }
+            }
+            if (!importServer.isBound()) {
+                return "{\"ok\":false,\"error\":\"serveur non demarre\"}";
+            }
+            Log.d("EvenBetterXcloud", "SessionImport: serveur lancé " + importServer.describe());
+            return importServer.describe();
+        } catch (Throwable t) {
+            Log.w("EvenBetterXcloud", "startImportServer: " + t);
+            return "{\"ok\":false,\"error\":" + jsonQuote(String.valueOf(t.getMessage())) + "}";
+        }
+    }
+
+    void stopImportServer() {
+        if (importServer != null) {
+            importServer.close();
+            importServer = null;
+        }
+    }
+
+    /**
+     * Donneur : POSTe un payload JSON {origin, storage} vers l'URL du
+     * receveur (l'autre appareil). Fait en JAVA (HttpURLConnection) car le
+     * fetch() de la page vers http://LAN est bloqué par
+     * MIXED_CONTENT_NEVER_ALLOW (mixed content https → http).
+     */
+    String sendImport(String url, String payload) {
+        HttpURLConnection conn = null;
+        try {
+            conn = (HttpURLConnection) new URL(url).openConnection();
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(8000);
+            conn.setRequestProperty("Content-Type", "application/json");
+            byte[] body = payload.getBytes(StandardCharsets.UTF_8);
+            conn.setFixedLengthStreamingMode(body.length);
+            OutputStream os = conn.getOutputStream();
+            os.write(body);
+            os.flush();
+            int status = conn.getResponseCode();
+            InputStream in = status >= 400 ? conn.getErrorStream() : conn.getInputStream();
+            String resp = in != null ? new String(readAll(in), StandardCharsets.UTF_8) : "";
+            boolean ok = status >= 200 && status < 300;
+            Log.d("EvenBetterXcloud", "SessionImport send: status=" + status + " ok=" + ok);
+            return "{\"ok\":" + ok + ",\"status\":" + status + ",\"response\":" + jsonQuote(resp) + "}";
+        } catch (Throwable t) {
+            Log.w("EvenBetterXcloud", "sendImport: " + t);
+            return "{\"ok\":false,\"error\":" + jsonQuote(String.valueOf(t.getMessage())) + "}";
+        } finally {
+            if (conn != null) {
+                conn.disconnect();
+            }
+        }
+    }
+
+    /**
+     * Receveur : un POST /import/<code> est arrivé avec le payload. Si la
+     * page est déjà sur l'origin du donneur → écrire + recharger. Sinon
+     * naviguer d'abord (l'écriture se fera dans onPageFinished).
+     */
+    void receiveImport(String body) {
+        Log.d("EvenBetterXcloud", "SessionImport: payload reçu " + (body == null ? 0 : body.length()) + " o");
+        if (body == null || body.isEmpty()) {
+            return;
+        }
+        String origin = extractOrigin(body);
+        if (origin == null || origin.isEmpty()) {
+            Log.w("EvenBetterXcloud", "SessionImport: origin absente du payload");
+            return;
+        }
+        String current = webView != null ? webView.getUrl() : null;
+        if (current != null && current.startsWith(origin)) {
+            writeLocalStorage(body);
+            webView.reload();
+        } else {
+            pendingImport = new PendingImport(origin, body);
+            Log.d("EvenBetterXcloud", "SessionImport: navigation vers " + origin);
+            webView.loadUrl(origin);
+        }
+    }
+
+    /** Écrit le payload {origin, storage} dans le localStorage de la page. */
+    void writeLocalStorage(String body) {
+        if (webView == null) {
+            return;
+        }
+        String js = "(function(){try{var data=" + body
+            + ";if(!data||!data.storage)return;for(var k in data.storage){try{localStorage.setItem(k,data.storage[k]);}catch(e){}}"
+            + "console.log('EvenBetterXcloud: session importee ('+Object.keys(data.storage).length+' cles)');}"
+            + "catch(e){console.error('EvenBetterXcloud import',e);}})();";
+        webView.evaluateJavascript(js, null);
+    }
+
+    /** IP IPv4 non-loopback de l'appareil (réseau local, ex. 192.168.x.x). */
+    private static String findLocalIp() {
+        try {
+            Enumeration<NetworkInterface> nets = NetworkInterface.getNetworkInterfaces();
+            while (nets != null && nets.hasMoreElements()) {
+                NetworkInterface ni = nets.nextElement();
+                if (ni == null || !ni.isUp() || ni.isLoopback()) {
+                    continue;
+                }
+                Enumeration<InetAddress> addrs = ni.getInetAddresses();
+                while (addrs != null && addrs.hasMoreElements()) {
+                    InetAddress a = addrs.nextElement();
+                    if (a != null && !a.isLoopbackAddress() && a instanceof Inet4Address) {
+                        return a.getHostAddress();
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return "127.0.0.1";
+    }
+
+    private static String jsonQuote(String s) {
+        if (s == null) {
+            return "null";
+        }
+        StringBuilder sb = new StringBuilder(s.length() + 8);
+        sb.append('"');
+        for (int i = 0; i < s.length(); i++) {
+            char ch = s.charAt(i);
+            if (ch == '"' || ch == '\\') {
+                sb.append('\\').append(ch);
+            } else if (ch == '\n') {
+                sb.append("\\n");
+            } else if (ch == '\r') {
+                sb.append("\\r");
+            } else if (ch == '\t') {
+                sb.append("\\t");
+            } else if (ch < 0x20) {
+                sb.append(String.format("\\u%04x", (int) ch));
+            } else {
+                sb.append(ch);
+            }
+        }
+        return sb.append('"').toString();
+    }
+
+    private static String extractOrigin(String body) {
+        try {
+            Matcher m = Pattern.compile("\"origin\"\\s*:\\s*\"([^\"]+)\"").matcher(body);
+            return m.find() ? m.group(1) : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**
@@ -450,6 +656,226 @@ public class MainActivity extends Activity {
                 + " isFinishing=" + a.isFinishing());
             if (!a.isFinishing() && a.webView != null && a.errorPageShowing) {
                 a.webView.loadUrl(START_URL);
+            }
+        }
+    }
+
+    /**
+     * Bridge exposé à la page (window.BXSessionImport). Trois méthodes
+     * minimales — la surface JS est la plus réduite possible.
+     * Named static inner class (see class javadoc for why not anonymous).
+     */
+    private static class BxSessionImportBridge {
+        private final MainActivity activity;
+
+        BxSessionImportBridge(MainActivity activity) {
+            this.activity = activity;
+        }
+
+        @JavascriptInterface
+        public String startServer() {
+            return activity.startImportServer();
+        }
+
+        @JavascriptInterface
+        public void stopServer() {
+            activity.stopImportServer();
+        }
+
+        @JavascriptInterface
+        public String send(String url, String payload) {
+            return activity.sendImport(url, payload);
+        }
+    }
+
+    /** Import différé : attendre que la page soit sur l'origin du donneur. */
+    private static class PendingImport {
+        final String origin;
+        final String body;
+
+        PendingImport(String origin, String body) {
+            this.origin = origin;
+            this.body = body;
+        }
+    }
+
+    /**
+     * Mini serveur HTTP LAN (receveur). Accepte POST /import/<code> avec un
+     * payload JSON {origin, storage}, répond avec CORS (pour un éventuel
+     * fetch direct) et soumet le payload à l'activité (thread UI).
+     */
+    private static class SessionImportServer implements Runnable {
+        private final MainActivity activity;
+        private final String code;
+        private final String ip;
+        private final int port;
+        private volatile ServerSocket serverSocket;
+        private volatile boolean bound = false;
+
+        SessionImportServer(MainActivity activity, String code, String ip, int port) {
+            this.activity = activity;
+            this.code = code;
+            this.ip = ip;
+            this.port = port;
+        }
+
+        boolean isBound() {
+            return bound;
+        }
+
+        boolean isAlive() {
+            ServerSocket s = serverSocket;
+            return s != null && !s.isClosed();
+        }
+
+        String describe() {
+            String url = "http://" + ip + ":" + port + "/import/" + code;
+            return "{\"ok\":true,\"url\":" + jsonQuote(url) + ",\"code\":" + jsonQuote(code)
+                + ",\"ip\":" + jsonQuote(ip) + ",\"port\":" + port + "}";
+        }
+
+        void close() {
+            try {
+                ServerSocket s = serverSocket;
+                if (s != null) {
+                    s.close();
+                }
+            } catch (IOException ignored) {
+            }
+        }
+
+        @Override
+        public void run() {
+            try {
+                // null = toutes les interfaces (0.0.0.0) — joignable depuis le LAN
+                serverSocket = new ServerSocket(port, 8, null);
+                bound = true;
+                Log.d("EvenBetterXcloud", "SessionImport: écoute sur :" + port);
+                while (isAlive()) {
+                    final Socket socket = serverSocket.accept();
+                    Thread t = new Thread(new ImportRequestHandler(activity, socket, code), "bx-import-req");
+                    t.setDaemon(true);
+                    t.start();
+                }
+            } catch (IOException e) {
+                Log.w("EvenBetterXcloud", "SessionImport: serveur arrêté: " + e);
+            }
+        }
+    }
+
+    /** Applique un payload d'import reçu sur le thread UI (éclatement
+     *  thread : le serveur HTTP tourne sur un thread d'arrière-plan). */
+    private static class ImportApply implements Runnable {
+        private final MainActivity activity;
+        private final String payload;
+
+        ImportApply(MainActivity activity, String payload) {
+            this.activity = activity;
+            this.payload = payload;
+        }
+
+        @Override
+        public void run() {
+            activity.receiveImport(payload);
+        }
+    }
+
+    /** Traite UNE requête HTTP (POST /import/<code>). */
+    private static class ImportRequestHandler implements Runnable {
+        private final MainActivity activity;
+        private final Socket socket;
+        private final String code;
+
+        ImportRequestHandler(MainActivity activity, Socket socket, String code) {
+            this.activity = activity;
+            this.socket = socket;
+            this.code = code;
+        }
+
+        @Override
+        public void run() {
+            BufferedReader in = null;
+            OutputStream out = null;
+            try {
+                socket.setSoTimeout(15000);
+                in = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+                String requestLine = in.readLine();
+                if (requestLine == null) {
+                    return;
+                }
+                String[] parts = requestLine.split(" ");
+                String method = parts.length > 0 ? parts[0] : "";
+                String path = parts.length > 1 ? parts[1] : "/";
+                int contentLength = -1;
+                String line;
+                while ((line = in.readLine()) != null && !line.isEmpty()) {
+                    if (line.regionMatches(true, 0, "content-length:", 0, 15)) {
+                        try {
+                            contentLength = Integer.parseInt(line.substring(15).trim());
+                        } catch (NumberFormatException ignored) {
+                        }
+                    }
+                }
+
+                int status = 200;
+                String reason = "OK";
+                String responseBody = "";
+                if ("OPTIONS".equalsIgnoreCase(method)) {
+                    // préflight CORS (fetch direct éventuel) — réponse vide
+                } else if ("POST".equalsIgnoreCase(method) && path.startsWith("/import/")) {
+                    String pathCode = path.substring("/import/".length());
+                    if (!code.equals(pathCode)) {
+                        status = 403;
+                        reason = "Forbidden";
+                        responseBody = "{\"ok\":false,\"error\":\"code invalide\"}";
+                    } else {
+                        int len = contentLength > 0 ? contentLength : 65536;
+                        char[] buf = new char[len];
+                        int n = in.read(buf, 0, len);
+                        String body = n > 0 ? new String(buf, 0, n) : "";
+                        final String payload = body;
+                        // Écriture dans la WebView : thread UI obligatoire.
+                        // Classe nommée (pas d'anonyme : piège d8 documenté).
+                        activity.runOnUiThread(new ImportApply(activity, payload));
+                        responseBody = "{\"ok\":true}";
+                    }
+                } else {
+                    status = 404;
+                    reason = "Not Found";
+                    responseBody = "{\"ok\":false,\"error\":\"not found\"}";
+                }
+
+                byte[] bytes = responseBody.getBytes(StandardCharsets.UTF_8);
+                out = socket.getOutputStream();
+                String head = "HTTP/1.1 " + status + " " + reason + "\r\n"
+                    + "Content-Type: application/json\r\n"
+                    + "Content-Length: " + bytes.length + "\r\n"
+                    + "Access-Control-Allow-Origin: *\r\n"
+                    + "Access-Control-Allow-Methods: POST, OPTIONS\r\n"
+                    + "Access-Control-Allow-Headers: Content-Type\r\n"
+                    + "Connection: close\r\n\r\n";
+                out.write(head.getBytes(StandardCharsets.UTF_8));
+                out.write(bytes);
+                out.flush();
+            } catch (IOException e) {
+                Log.w("EvenBetterXcloud", "SessionImport req: " + e);
+            } finally {
+                try {
+                    if (in != null) {
+                        in.close();
+                    }
+                } catch (IOException ignored) {
+                }
+                try {
+                    if (out != null) {
+                        out.close();
+                    }
+                } catch (IOException ignored) {
+                }
+                try {
+                    socket.close();
+                } catch (IOException ignored) {
+                }
             }
         }
     }

@@ -53,8 +53,11 @@ const ANCHOR_FILTER = (FEATURE_SRC.match(/const ANCHOR_FILTER = '([^']*)';/) || 
 const IMPL = (FEATURE_SRC.match(/const IMPL = `([^]*?)`;/) || [])[1];
 // Formes POST-injection (construites par feature-datasaver.js) : le groupe
 // « data » inséré devant l'ancre server, et le filtre rendu déconnecté étendu.
+// NB : le filtre est PARTAGÉ — une feature postérieure (ex. session) peut
+// l'étendre (… "data" && section.group !== "session") → on vérifie le
+// PRÉFIXE (sound+data) et on strippe par regex (robuste aux extensions).
 const DATA_GROUP = '{group: "data",label: "📊 Données",items: ["stream.video.maxBitrate","stream.video.resolution",($parent) => {window.BX_DATA_SAVER.render($parent);}]},';
-const INJ_FILTER = 'section.group !== "sound" && section.group !== "data") continue;';
+const INJ_FILTER_PREFIX = 'section.group !== "sound" && section.group !== "data"';
 
 if (!ANCHOR_BX || !ANCHOR_GROUP || !ANCHOR_FILTER || !IMPL) {
   console.error("❌ GATE : ancres non extractibles depuis feature-datasaver.js (const renommée ?)");
@@ -79,7 +82,7 @@ function runChecks(stableSrc, previewSrc) {
   console.log("== 2. Ancres d'injection (bundle stable injecté) ==");
   check("ancre BX_EXPOSED ×1", count(stableSrc, ANCHOR_BX) === 1, "n=" + count(stableSrc, ANCHOR_BX));
   check("ancre groupe server ×1", count(stableSrc, ANCHOR_GROUP) === 1, "n=" + count(stableSrc, ANCHOR_GROUP));
-  check("filtre rendu déconnecté (forme injectée) ×1", count(stableSrc, INJ_FILTER) === 1, "n=" + count(stableSrc, INJ_FILTER));
+  check("filtre rendu déconnecté (préfixe sound+data) ×1", count(stableSrc, INJ_FILTER_PREFIX) === 1, "n=" + count(stableSrc, INJ_FILTER_PREFIX));
   check("filtre brut ×0 (remplacé par l'injection)", count(stableSrc, ANCHOR_FILTER) === 0, "n=" + count(stableSrc, ANCHOR_FILTER));
   check("groupe Données inséré ×1", count(stableSrc, DATA_GROUP) === 1, "n=" + count(stableSrc, DATA_GROUP));
   check("implémentation BX_DATA_SAVER ×1", count(stableSrc, IMPL) === 1, "n=" + count(stableSrc, IMPL));
@@ -100,7 +103,10 @@ function runChecks(stableSrc, previewSrc) {
     stripped = stripped.slice(0, bxIdx) + ANCHOR_BX + stripped.slice(dataIdx + IMPL.length);
   }
   if (count(stripped, DATA_GROUP + ANCHOR_GROUP) === 1) stripped = stripped.replace(DATA_GROUP + ANCHOR_GROUP, ANCHOR_GROUP);
-  if (count(stripped, INJ_FILTER) === 1) stripped = stripped.replace(INJ_FILTER, ANCHOR_FILTER);
+  // Filtre partagé : une feature postérieure (session…) a pu l'étendre — on
+  // remplace la forme étendue par le brut via regex (préfixe … ")" continue;").
+  const filterRe = /section\.group !== "sound" && section\.group !== "data"[^)]*\) continue;/;
+  if (filterRe.test(stripped)) stripped = stripped.replace(filterRe, ANCHOR_FILTER);
   fs.writeFileSync(strippedPath, stripped);
 
   const stripOk =

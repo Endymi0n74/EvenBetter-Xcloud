@@ -17,7 +17,7 @@
         android:icon="@drawable/ic_launcher"
         android:banner="@drawable/tv_banner"
         android:hardwareAccelerated="true"
-        android:usesCleartextTraffic="false"
+        android:usesCleartextTraffic="true"
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:enableOnBackInvokedCallback="false">
 
