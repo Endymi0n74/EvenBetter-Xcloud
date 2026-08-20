@@ -304,6 +304,42 @@ Self-test étendu : bundles attendus corrompus sur COPIE (le zip réel est
 extrait — l'échec vient de la comparaison) → ROUGE attendu. CI vert sur
 deb8623 avec le warn « AUCUN APK local » attendu dans le log.
 
+## Session autonome 20 août ~14:45-15:30 (utilisateur absent, « pense à éteindre la tv »)
+
+**Mandat** : tests + évolutions jugés nécessaires, mémo à chaque action,
+GitHub autorisé, rien hors du dossier de travail, éteindre la Freebox.
+
+**Actions (mémo)** :
+1. **Run PR orphelin annulé** : le run pull_request du commit de contrôle
+eDc1772 (branche supprimée) restait queued sur startup-cold (runner Windows
+offline) — `gh run cancel` (preuve dans la liste des runs : les 3 derniers
+pushes verts 47c021c/deb8623/3d9b03a).
+2. **Preuve ROUGE « APK périmé » en réel** : simulation d'un APK 1.13.2 avec
+un bundle corrompu (controllerFriendly retiré) fabriqué via `jar cf`
+(tmp/.tmp-stale, zip assets/better-xcloud.user.js + es2017) ajouté à
+mobile/out-stable → gate tv-defaults sort ROUGE (3 ❌ : sha ≠ sur les 2
+assets + controllerFriendly n=0) pendant que les vrais APK 1.13.3 passent →
+APK retiré, gate vert. Le chemin d'échec de la section 3 est prouvé sans
+self-test.
+3. **Oscillation D-pad des steppers — cause racine documentée, PAS de
+patch** : les boutons `<`/`>` d'un select sont des FRÈRES DOM des rows
+(layout plat : [label row][<][>]) — le walk `nextElementSibling` +
+`findFocusableElement` descendant retombe sur le stepper de la row suivante
+dans l'ordre DOM, qui peut être VISUELLEMENT au-dessus → aller-retour
+perçu. Comportement de l'algorithme upstream (présent aussi sur desktop
+original) ; patcher = divergence upstream + risque de casser la nav D-pad
+validée → quirk documenté, accepté.
+4. **Re-baseline v1.13.3 post-fix D-pad** : `run-all.sh --skip-page-eval`
+— parse 0,111 ms (+3,2 % sub-ms), controller IDLE 37,4 ns (×7,5), poll
+relâchement 152 ns (×7,8), updateCanvas 13,3 ns (×16), updateFrame 142 ns
+stable → **PASS, bornes CI tiennent** (journalisé dans bench/README.md
+« Re-baseline du 20 août ~15:00 »).
+5. **Garde-fou release 4/4 VERT** (stable → d2b2163, user.js ES2017
+byte-identique, preview canal byte-identique, APK bannière = versionné,
+APK preview 200).
+6. **Freebox** : dialog settings laissé ouvert pendant le diagnostic fermé
+via CDP ; TV éteinte en fin de session (KEYCODE_SLEEP).
+
 ## Freebox Pop — login bloqué par l'anti-bot Microsoft + contournement session (20 août ~09:30)
 
 **Problème** : sur la Freebox Pop (Android 10, armeabi-v7a 32 bits, WebView 152),

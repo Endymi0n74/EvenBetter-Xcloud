@@ -675,6 +675,22 @@ aucune régression. Publication v1.12.0 + preview1 validée juste avant
 relancé après la validation mobile doc-start (APK preview) et la passe de
 cohérence docs. Verdict : **PASS 6/6** — aucune régression, bornes CI tiennent.
 
+### Re-baseline du 20 août ~15:00 (v1.13.3, post-fix D-pad capture) — mêmes bornes ✅
+
+`run-all.sh --skip-page-eval` (parse + hot loops), build stable **v1.13.3** vs
+perf10 (055d3a0), après le fix Freebox : gate `/play` relaxé + navigation
+D-pad du dialog (listener keydown capture au constructeur du
+NavigationDialogManager). Verdict : **PASS — aucune régression, bornes CI
+tiennent** (le listener capture n'ajoute rien au hot path).
+
+| Harnais | perf10 | build | Verdict CI |
+|---|---|---|---|
+| Parse/compile | 0,107 ms | 0,111 ms | négligeable (sub-ms bruité, +3,2 %) |
+| Hot loop controller IDLE | 279,2 ns | 37,4 ns | ×7,5 [≥ 4] ✅ |
+| poll_gamepad relâchement Home | 1 190,5 ns | 152,4 ns | ×7,8 [≥ 4] ✅ |
+| updateCanvas (chemin 60 Hz) | 218,9 ns | 13,3 ns | ×16 [≥ 12] ✅ + flag dirty |
+| updateFrame | 154,0 ns | 142,3 ns | stable [0,5–2] ✅ |
+
 | Harnais | perf10 | build | Verdict CI |
 |---|---|---|---|
 | Parse/compile | 0,125 ms | 0,135 ms | négligeable (sub-ms bruité, +8,4 %) |
