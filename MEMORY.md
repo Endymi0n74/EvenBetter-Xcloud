@@ -77,6 +77,38 @@ fonctionne maintenant en vrai téléphone → Freebox (mécanisme cross-APK
 prouvé dans cette session). Les tokens MSAL de la Freebox sont en fin de vie
 (re-transférer depuis le téléphone — règle token-ttl).
 
+## Lag manette Freebox — profil de latence mesuré (20 août ~12:00)
+
+**Demande** : « mesure le lag manette sur la Freebox avec le stream en
+cours et applique le réglage qui réduit le plus la latence perçue ».
+
+**Mesures (stream Halo CE direct, app stable au premier plan, session
+vivante)** :
+- **Polling manette du client : sain** — médiane 5,8 ms, p95 14,8 ms
+  (instrumentation non-invasive de `navigator.getGamepads`, convention
+  win-capture, restaurée après). Aucune famine main thread.
+- **Régime établi (~2-3 min après lancement)** : ~59 fps décodés / 60 source,
+  ~4-10 fps dropés (8-17 %), **~57 fps présentés à l'écran (rAF)** — le
+  pipeline vidéo tient ~95 % de la cadence source.
+- **Phase de démarrage = le vrai problème perçu** : provisioning lent sur
+  cette box (~27 s jusqu'à l'élément vidéo, puis démarrage très progressif —
+  ~22-30 fps / 50 % dropés mesurés dans la 1re minute, 51 fps à t≈230 s).
+  C'est la fenêtre « ça laggue » que l'utilisateur ressent au lancement.
+- **Aucun contrôleur connecté pendant la mesure** (getGamepads vide) → la
+  latence entrée→écran réelle (RTT réseau + buffer client) n'est pas
+  mesurable sans manette physique.
+
+**Verdict + réglage appliqué** : les réglages étaient DÉJÀ optimaux sur la
+box — preset Économe (cap maxBitrate 5 Mbps + 720p) + `_bxTvDefaults` déjà
+en place. Le levier restant : `ui.splashVideo.skip=true` (appliqué,
+persisté — coupe le splash au lancement suivant). Le codecProfile low/high
+ne change rien au décodage (A/B du 18 août : 0,43 ms/f des deux côtés).
+Résidu incompressible : provisioning (~2 min) + RTT réseau + 8-17 % de
+frames dropées par le compositeur WebView de cette box — ni le cap ni la
+résolution ne le réduisent plus (déjà au plancher). Recommandation pratique :
+WiFi 5 GHz / signal fort sur la box (box en WiFi uniquement) ; relancer le
+transfert de session quand les tokens tombent.
+
 ## Freebox Pop — login bloqué par l'anti-bot Microsoft + contournement session (20 août ~09:30)
 
 **Problème** : sur la Freebox Pop (Android 10, armeabi-v7a 32 bits, WebView 152),
