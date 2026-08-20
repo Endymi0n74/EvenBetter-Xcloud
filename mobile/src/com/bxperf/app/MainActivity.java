@@ -136,7 +136,7 @@ public class MainActivity extends Activity {
         "(function(){try{var s=JSON.parse(localStorage.getItem(\"BetterXcloud\")||\"{}\");"
         + "if(s[\"_bxTvDefaults\"]!==2){s[\"stream.video.maxBitrate\"]=5120000;"
         + "s[\"stream.video.resolution\"]=\"720p\";s[\"ui.reduceAnimations\"]=true;"
-        + "s[\"ui.controllerFriendly\"]=true;s[\"ui.layout\"]=\"tv\";"
+        + "s[\"ui.layout\"]=\"tv\";"
         + "s[\"loadingScreen.rocket\"]=\"hide\";s[\"_bxTvDefaults\"]=2;"
         + "localStorage.setItem(\"BetterXcloud\",JSON.stringify(s));"
         + "console.log(\"EvenBetterXcloud TV: defauts box appliques\");}}" + "catch(e){}})();";
