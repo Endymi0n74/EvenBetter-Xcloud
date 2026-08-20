@@ -70,7 +70,7 @@ function probeBuild(src) {
       const prev = lines.slice(Math.max(0, call - 1), call)[0] || "";
       return prev.trim().endsWith("}");
     })(),
-    "T6 garde neutralisé (BX_PREVIEW avant pathname)": src.includes('if (!BX_PREVIEW && !window.location.pathname.match(/^\\/[a-zA-Z]{2}-[a-zA-Z]{2}\\/play/)) throw Error("[Better xCloud] Not xCloud page");'),
+    "T6 garde neutralisé (BX_PREVIEW avant pathname)": src.includes('if (!BX_PREVIEW && !window.location.pathname.match(/^\\/(?:[a-zA-Z]{2}-[a-zA-Z]{2}\\/)?play/)) throw Error("[Better xCloud] Not xCloud page");'),
     "hook fetch posé (BX_FETCH = window.fetch =)": src.includes("window.BX_FETCH = window.fetch ="),
     "hook posé avant main() (interceptHttpRequests défini avant main)": (() => {
       const iHook = src.indexOf("function interceptHttpRequests()");
@@ -78,7 +78,7 @@ function probeBuild(src) {
       return iHook >= 0 && iMain >= 0 && iHook < iMain;
     })(),
     "T6 avant main() (garde ne tue pas le hook)": (() => {
-      const iGuard = src.indexOf("if (!BX_PREVIEW && !window.location.pathname.match(/^\\/[a-zA-Z]{2}-[a-zA-Z]{2}\\/play/))");
+      const iGuard = src.indexOf("if (!BX_PREVIEW && !window.location.pathname.match(/^\\/(?:[a-zA-Z]{2}-[a-zA-Z]{2}\\/)?play/))");
       const iMain = src.indexOf("main();");
       return iGuard >= 0 && iMain >= 0 && iGuard < iMain;
     })(),
