@@ -225,6 +225,26 @@ annonce `1.13.1-preview1` et non `1.13.1`. Validé en réel le 20 août :
 com.bxperf.preview) — piège `out/` qui se purge entre deux builds : sécuriser
 le 1er APK hors de `out/` avant le 2e build.
 
+## Gate « Défauts TV de l'APK » — tv-defaults.test.js (20 août)
+
+La navigation télécommande de l'overlay sur les box (Freebox Pop, TV) repose
+sur les défauts TV posés par l'APK via `JS_TV_DEFAULTS` de
+`mobile/src/com/bxperf/app/MainActivity.java` (`ui.controllerFriendly=true`
++ `ui.layout="tv"` — la WebView de la box est « unknown », donc sans ce
+réglage la navigation D-pad est coupée, piège du 20 août). Le gate vérifie
+statiquement, sans build APK :
+- **Tous les réglages** de la constante : marqueur d'idempotence lu/écrit à
+  2, maxBitrate 5 Mbps, 720p, reduceAnimations, controllerFriendly, layout
+  tv, rocket hide — formes Java échappées comparées via un helper `JQ`
+  (l'échappement `\"` d'un littéral JS consommerait le backslash).
+- **Les deux points d'injection** : évaluation au chargement
+  (`JS_TV_DEFAULTS + "}}catch..."`) et application TV uniquement
+  (`isTv ? JS_TV_DEFAULTS : ""`).
+- **--self-test** : copie sans controllerFriendly → GATE ROUGE attendu.
+
+Gate CI : `node bench/tv-defaults.test.js [--self-test]` (step preview de
+bench.yml).
+
 ## Rebrand EvenBetterXcloud + feature Sound (v1.9.0, 18 août)
 
 Le fork est **renommé EvenBetterXcloud** (repo `Endymi0n74/EvenBetter-Xcloud`)

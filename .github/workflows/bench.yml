@@ -130,6 +130,17 @@ jobs:
           # rebuild oublie l'injection ou si une ancre dérive. Lancement
           # local : node bench/feature-session-import.test.js [--self-test]
           node bench/feature-session-import.test.js
+          # tv-defaults : gate des défauts TV de l'APK (v1.13.3) — vérifie
+          # que JS_TV_DEFAULTS de MainActivity.java contient TOUS les réglages
+          # TV (maxBitrate 5 Mbps, 720p, reduceAnimations, controllerFriendly,
+          # layout tv, rocket hide) avec le marqueur d'idempotence à 2, et que
+          # les deux points d'injection tiennent (évaluation au chargement +
+          # application TV uniquement). Une réécriture du Java qui oublie un
+          # réglage ou rétrograde le marqueur casserait la navigation
+          # télécommande sur les box silencieusement → GATE ROUGE. Self-test du
+          # chemin d'échec : node bench/tv-defaults.test.js --self-test
+          node bench/tv-defaults.test.js
+          node bench/tv-defaults.test.js --self-test
           # p2-schema : alerte si une clé P2 dérive du schéma Zod réel (un
           # bundle StreamSessionConfiguration-*.js capturé doit être présent,
           # sinon le test passe en mode « schéma non vérifiable » — warn +
