@@ -285,6 +285,25 @@ runner est offline — le run global ne passe pas à completed et les logs CLI
 sont indisponibles ; la preuve se lit au niveau JOB (steps → Build preview
 → failure) ou sur le run push (qui n'a pas ce job).
 
+## Gate tv-defaults étendu aux APK embarqués (20 août ~14:30)
+
+**Demande** : « Étends le gate tv-defaults pour vérifier aussi que les APK
+rebuildés (out-stable/out-preview) contiennent bien controllerFriendly dans
+le bundle embarqué ».
+
+**Fait** (commit deb8623) : section 3 du gate — chaque `evenbetter-xcloud-*.apk`
+de `mobile/out-stable` + `out-preview` est ouvert en zip (`unzip -p`, dispo
+ubuntu + Git Bash) ; les assets `assets/better-xcloud.user.js` (+ es2017)
+doivent être **byte-identiques aux bundles courants du repo** (sha256, CRLF
+normalisé) ET contenir le marqueur `controllerFriendly`. ⚠ Piège : build.sh
+copie l'asset sous le MÊME nom pour les deux variants → le contenu attendu
+diffère (preview vs stable) — vérifié en réel : sha des 4 assets = bundles
+du repo (fce58791 / cf22d9fc stable, 48d486d2 / 5ab08dc6 preview). En CI
+(sans build mobile) : APK absents → warn + skip (comme readme-version).
+Self-test étendu : bundles attendus corrompus sur COPIE (le zip réel est
+extrait — l'échec vient de la comparaison) → ROUGE attendu. CI vert sur
+deb8623 avec le warn « AUCUN APK local » attendu dans le log.
+
 ## Freebox Pop — login bloqué par l'anti-bot Microsoft + contournement session (20 août ~09:30)
 
 **Problème** : sur la Freebox Pop (Android 10, armeabi-v7a 32 bits, WebView 152),
