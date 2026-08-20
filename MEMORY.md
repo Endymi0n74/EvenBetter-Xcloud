@@ -252,6 +252,20 @@ helper `JQ(s) = s.replace(/"/g, '\\"')` qui reproduit l'échappement Java —
 plus aucune ambiguïté. Self-test validé : copie sans controllerFriendly →
 GATE ROUGE. Commit `15a9c61` (gate + bench.yml + bench/README.md section).
 
+## CI : gate tv-defaults vert + réparation du rouge pré-existant (20 août ~14:00)
+
+Après le push du gate, le CI était ROUGE — mais pas à cause du gate : le
+run 11:29 (74b0fef, AVANT le gate) échouait déjà pareil. Cause : **GATE A
+(fetch-early) rouge depuis c3cfdec** — le gate /play relaxé a changé la
+forme du garde (regex `(?:[a-zA-Z]{2}-[a-zA-Z]{2}/)?play`), les deux probes
+statiques « T6 garde neutralisé » et « T6 avant main() » attendaient
+l'ancienne regex stricte → mise à jour des needles (commit 4885962).
+**Piège du gate D (play-chain)** : sur le CI sans bundles capturés, le
+script affiche « DRIFT (11 ancres) ❌ — bundle absent » PUIS sort en soft
+exit 0 — c'est du bruit, pas un échec (le check soft est APRÈS l'affichage).
+**Verdict** : CI vert sur 4885962 — le gate tv-defaults (normal +
+--self-test) tourne en réel sur GitHub, tous les autres gates passent.
+
 ## Freebox Pop — login bloqué par l'anti-bot Microsoft + contournement session (20 août ~09:30)
 
 **Problème** : sur la Freebox Pop (Android 10, armeabi-v7a 32 bits, WebView 152),
