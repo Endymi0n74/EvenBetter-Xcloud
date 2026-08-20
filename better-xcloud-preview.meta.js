@@ -8,6 +8,6 @@
 // @match        https://play.xbox.com/*
 // @run-at       document-start
 // @grant        none
-// @updateURL    https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.13.1-preview2/better-xcloud-preview.meta.js
-// @downloadURL  https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.13.1-preview2/better-xcloud-preview.user.js
+// @updateURL    https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-preview-channel/better-xcloud-preview.meta.js
+// @downloadURL  https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-preview-channel/better-xcloud-preview.user.js
 // ==/UserScript==

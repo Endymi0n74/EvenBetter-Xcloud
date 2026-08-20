@@ -6,7 +6,12 @@
 #          récent par VERSION — jamais publishedAt : une release recréée depuis
 #          git reprend une date récente et tromperait le tri), plus le tag pinné
 #          par le @updateURL du build local s'il n'est pas déjà le dernier
-#          (source de vérité — ne jamais purger l'ancre d'auto-update).
+#          (source de vérité — ne jamais purger l'ancre d'auto-update), PLUS le
+#          CANAL PREVIEW `evenbetter-xcloud-preview-channel` : release flottante
+#          pinnée par le build preview (récupéré et ré-uploadé à chaque
+#          publication preview) — jamais purgée, sinon l'auto-update de tous
+#          les utilisateurs preview installés tombe en 404 (incident 19 août,
+#          preview1 → preview2).
 # Purge  : toutes les autres (release + tag, --cleanup-tag).
 # Après  : vérifie les 4 liens d'auto-update (user.js/meta.js × stable/preview).
 #
@@ -49,6 +54,13 @@ gate() { echo "[prune] GATE ROUGE : $*" >&2; exit 1; }
 
 log "repo : $REPO"
 
+# --- 0. Canal preview — whitelist absolue (jamais purgé) --------------------
+# le canal est la cible flottante du @updateURL/@downloadURL preview : si elle
+# disparaît, TOUS les utilisateurs preview installés perdent l'auto-update
+# (leur pin pointe le canal). Indépendant de la version courante.
+PREVIEW_CHANNEL="evenbetter-xcloud-preview-channel"
+log "canal preview (whitelist) : $PREVIEW_CHANNEL"
+
 # --- 1. Releases (jq intégré de gh — pas de dépendance jq) ------------------
 LATEST_TAG=$(gh release list --repo "$REPO" --limit 100 --json tagName,isLatest \
     --jq '.[] | select(.isLatest == true) | .tagName' 2>/dev/null) \
@@ -83,8 +95,8 @@ fi
 PREVIEW_CURRENT="$PINNED_TAG"
 [ -n "$PREVIEW_CURRENT" ] || PREVIEW_CURRENT=$(echo "$PREVIEWS" | awk '{print $1}')
 
-KEEP="$LATEST_TAG $PREVIEWS"
-log "garde : $LATEST_TAG (Latest) + $PREVIEWS (dernier preview)"
+KEEP="$LATEST_TAG $PREVIEWS $PREVIEW_CHANNEL"
+log "garde : $LATEST_TAG (Latest) + $PREVIEWS (dernier preview) + $PREVIEW_CHANNEL (canal flottant)"
 
 # --- 2. Purge ---------------------------------------------------------------
 DELETED=0

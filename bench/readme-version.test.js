@@ -71,13 +71,19 @@ const FILES = [
 ];
 const FRONT = new Set(["README.md", "README.en.md", "mobile/README.md"]);
 
-// Bundles : version attendue + pin d'auto-update (le preview est pinné sur
-// un tag dédié, le stable suit le canal latest — sans version dans l'URL).
+// Bundles : version attendue + pin d'auto-update. Le stable suit le canal
+// `releases/latest` (sans version dans l'URL). Le preview est pinné sur le
+// CANAL FLOTTANT `evenbetter-xcloud-preview-channel` — JAMAIS sur un tag
+// versionné : la rétention purge l'ancienne release (pin → 404 auto-update),
+// et même vivante sa meta resterait figée à l'ancienne @version (TM ne
+// proposerait jamais la suivante). Le canal est ré-uploadé à chaque
+// publication preview et n'est jamais purgé.
+const PREVIEW_CHANNEL = "evenbetter-xcloud-preview-channel";
 const BUNDLES = [
-  { file: "better-xcloud.user.js", ver: VERSION, pin: null },
-  { file: "better-xcloud.meta.js", ver: VERSION, pin: null },
-  { file: "better-xcloud-preview.user.js", ver: PREVIEW, pin: `evenbetter-xcloud-v${PREVIEW}` },
-  { file: "better-xcloud-preview.meta.js", ver: PREVIEW, pin: `evenbetter-xcloud-v${PREVIEW}` },
+  { file: "better-xcloud.user.js", ver: VERSION, pin: null, noTag: null },
+  { file: "better-xcloud.meta.js", ver: VERSION, pin: null, noTag: null },
+  { file: "better-xcloud-preview.user.js", ver: PREVIEW, pin: PREVIEW_CHANNEL, noTag: `evenbetter-xcloud-v${PREVIEW}` },
+  { file: "better-xcloud-preview.meta.js", ver: PREVIEW, pin: PREVIEW_CHANNEL, noTag: `evenbetter-xcloud-v${PREVIEW}` },
 ];
 
 function loadFiles(overrides) {
@@ -177,8 +183,12 @@ function runChecks(files) {
     check(`${b.file} : @version ${b.ver}`, m != null && m[1] === b.ver,
       "trouvé : " + (m ? m[1] : "absent") + " — bump de fichier sans rebuild ?");
     if (b.pin) {
-      check(`${b.file} : @updateURL pinné sur ${b.pin}`, c.includes(b.pin),
-        "l'ancien pin → 404 auto-update (piège bump sans rebuild)");
+      check(`${b.file} : @updateURL pinné sur le canal ${b.pin}`, c.includes(b.pin),
+        "l'ancien pin → 404 auto-update (canal attendu, piège bump sans rebuild)");
+    }
+    if (b.noTag) {
+      check(`${b.file} : @updateURL PAS pinné sur le tag versionné ${b.noTag}`, !c.includes(`releases/download/${b.noTag}/`),
+        "pin sur tag versionné → purgé par la rétention → 404 auto-update (incident preview1→preview2, 19 août)");
     }
   }
 
@@ -238,9 +248,17 @@ function selfTest() {
     overrides[f] = bad;
   }
   // bundles : @version périmé + pin preview cassé (piège « bump sans rebuild »)
+  // + TAG VERSIONNÉ pinné au lieu du canal (le bug réel de l'incident 19 août)
   for (const b of BUNDLES) {
     const src = fs.readFileSync(path.join(ROOT, b.file), "utf8");
-    let bad = src
+    let bad = src;
+    // AVANT le remplacement générique : le bug réel du 19 août pour preview —
+    // pin sur le TAG VERSIONNÉ au lieu du canal (purgé par la rétention →
+    // 404 auto-update). Doit faire échouer les deux checks canal.
+    if (b.file.startsWith("better-xcloud-preview") && b.noTag) {
+      bad = bad.split("releases/download/" + b.pin + "/").join("releases/download/" + b.noTag + "/");
+    }
+    bad = bad
       .replace(new RegExp("@version\\s+" + b.ver.replace(/\./g, "\\.")), "@version 9.9.9")
       .split(b.pin || "evenbetter-xcloud-v" + b.ver).join("evenbetter-xcloud-v9.9.9");
     if (bad === src) {

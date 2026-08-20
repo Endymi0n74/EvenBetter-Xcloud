@@ -112,12 +112,17 @@ EXP_META=$(sha_at "$TAG_SHA" better-xcloud.meta.js)
 check_bytes "user.js stable (latest)" "$DL/latest/download/better-xcloud.user.js" "$EXP_USER"
 check_bytes "meta.js stable (latest)"  "$DL/latest/download/better-xcloud.meta.js"  "$EXP_META"
 
-# --- 3. Preview : tag pinné par le build (source de vérité) ------------------
+# --- 3. Preview : canal pinné par le build (source de vérité) ---------------
+# Le @updateURL/@downloadURL du preview pointe le CANAL flottant
+# `evenbetter-xcloud-preview-channel` (depuis le fix auto-update du 19 août :
+# un pin sur un tag versionné est purgé par la rétention → 404 auto-update,
+# et même vivant, sa meta figée ne propose jamais la version suivante).
+# Le canal est une release à part, ré-uploadée à chaque publication preview :
+# la comparaison se fait contre le BUILD LOCAL (dernier build généré), pas
+# contre un commit tagué (le canal n'est pas un tag git).
 PINNED_TAG=$(grep -o 'releases/download/[^/]*' better-xcloud-preview.user.js | head -1 | cut -d/ -f3)
 [ -n "$PINNED_TAG" ] || gate "aucun tag pinné dans better-xcloud-preview.user.js (@updateURL absent ?)"
-PINNED_SHA=$(git rev-list -n 1 "$PINNED_TAG" 2>/dev/null) \
-    || gate "le tag pinné $PINNED_TAG est introuvable dans git"
-log "preview pinné : $PINNED_TAG → ${PINNED_SHA:0:12}"
+log "preview pinné : $PINNED_TAG (canal flottant — comparé au build local)"
 
 PREVIEW_META=$(curl --noproxy "*" -s -L --max-time 30 "$DL/download/$PINNED_TAG/better-xcloud-preview.meta.js") \
     || gate "échec de téléchargement du meta preview"
@@ -127,12 +132,16 @@ PREVIEW_NAME=$(echo "$PREVIEW_META" | grep -m1 '^// @name' | sed 's/^\/\/ @name 
 [ -n "$PREVIEW_VER" ] || gate "meta preview servi sans @version"
 [ "$PREVIEW_NAME" = "EvenBetterXcloud (Preview)" ] \
     || gate "meta preview servi @name « $PREVIEW_NAME » ≠ EvenBetterXcloud (Preview)"
-log "preview : @version $PREVIEW_VER ✓, @name $PREVIEW_NAME ✓"
+PREVIEW_EXPECT=$(tr -d '\r' < PREVIEW_VERSION)
+[ "$PREVIEW_VER" = "$PREVIEW_EXPECT" ] \
+    || gate "meta preview servi @version $PREVIEW_VER ≠ PREVIEW_VERSION local ($PREVIEW_EXPECT) — le canal n'a pas été ré-uploadé au dernier bump"
+log "preview : @version $PREVIEW_VER = PREVIEW_VERSION ✓, @name $PREVIEW_NAME ✓"
 
-EXP_P_USER=$(sha_at "$PINNED_SHA" better-xcloud-preview.user.js)
-[ -n "$EXP_P_USER" ] || gate "better-xcloud-preview.user.js absent du commit pinné"
-EXP_P_META=$(sha_at "$PINNED_SHA" better-xcloud-preview.meta.js)
-[ -n "$EXP_P_META" ] || gate "better-xcloud-preview.meta.js absent du commit pinné"
+EXP_P_USER=$(cat better-xcloud-preview.user.js | tr -d '\r' | sha256sum | awk '{print $1}')
+[ -n "$EXP_P_USER" ] || gate "better-xcloud-preview.user.js local illisible"
+EXP_P_META=$(cat better-xcloud-preview.meta.js | tr -d '\r' | sha256sum | awk '{print $1}')
+[ -n "$EXP_P_META" ] || gate "better-xcloud-preview.meta.js local illisible"
+log "references build local : user=$(echo $EXP_P_USER | cut -c1-12) meta=$(echo $EXP_P_META | cut -c1-12)"
 
 check_bytes "user.js preview (tag)" "$DL/download/$PINNED_TAG/better-xcloud-preview.user.js" "$EXP_P_USER"
 check_bytes "meta.js preview (tag)"  "$DL/download/$PINNED_TAG/better-xcloud-preview.meta.js"  "$EXP_P_META"
@@ -159,6 +168,9 @@ check_link() { # $1 = label, $2 = url
     [ "$code" = "200" ] || gate "$1 → HTTP $code"
     log "$1 : HTTP 200 ✓"
 }
-check_link "APK preview (tag)" "$DL/download/$PINNED_TAG/evenbetter-xcloud-$PREVIEW_VER.apk"
+# l'APK preview est uploadé sur la RELEASE VERSIONNÉE (le canal ne porte que
+# user.js + meta.js) — le nom dérive de PREVIEW_VERSION local (source de vérité)
+PREVIEW_EXPECT=$(tr -d '\r' < PREVIEW_VERSION)
+check_link "APK preview (release versionnée)" "$DL/download/evenbetter-xcloud-v$PREVIEW_EXPECT/evenbetter-xcloud-$PREVIEW_EXPECT.apk"
 
 log "OK : release stable + tag présents, 4/4 liens byte-identiques, versions/names cohérents, APK 200"

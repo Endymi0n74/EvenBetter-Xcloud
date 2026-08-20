@@ -134,7 +134,7 @@ contract in `bench/preview/port/README.md`):
 | Version | `1.13.1` | `1.13.1-preview2` (prerelease) |
 | `@name` | `EvenBetterXcloud` | `EvenBetterXcloud (Preview)` |
 | `@match` | `www.xbox.com/*/play*` | `play.xbox.com/*` only |
-| Auto-update | `releases/latest` (stable channel) | dedicated tag `evenbetter-xcloud-v1.13.1-preview2` (never the `latest`) |
+| Auto-update | `releases/latest` (stable channel) | floating channel `evenbetter-xcloud-preview-channel` (re-uploaded at every release — never pruned, unlike versioned tags) |
 
 Both builds **coexist without mixing**: distinct identity
 (name/version/updateURL) and disjoint matches (the preview never runs on

@@ -64,7 +64,17 @@ if (!PREVIEW_VERSION) {
   process.exit(1);
 }
 const PREVIEW_NAME = "EvenBetterXcloud (Preview)";
-const PREVIEW_TAG = "evenbetter-xcloud-v" + PREVIEW_VERSION; // releases/download/<tag>/...
+const PREVIEW_TAG = "evenbetter-xcloud-v" + PREVIEW_VERSION; // release versionnée (install manuel)
+// CANAL D'AUTO-UPDATE flottant : le pin @updateURL/@downloadURL pointe une
+// release dédiée, ré-uploadée à CHAQUE publication preview (jamais purgée
+// par la rétention — whitelist release-prune.sh). Pourquoi pas un tag
+// versionné ? (1) la rétention purge l'ancienne release → le pin 404 et
+// l'utilisateur installé ne reçoit plus JAMAIS de mise à jour (incident
+// preview1→preview2, 19 août) ; (2) même vivante, la meta servie reste figée
+// à l'ancienne @version → TM ne voit aucune version plus récente. GitHub ne
+// sert pas les prereleases par `releases/latest` (ce serait le stable), donc
+// un tag fixe dédié sert de canal : `releases/download/evenbetter-xcloud-preview-channel/...`.
+const PREVIEW_CHANNEL = "evenbetter-xcloud-preview-channel";
 
 function must(src, needle, label) {
   const i = src.indexOf(needle);
@@ -105,13 +115,16 @@ function build() {
   must(s, matchStable, "T1 @match stable");
   s = s.replace(matchStable, "// @match        https://play.xbox.com/*" + EOL);
 
-  // auto-update DÉDIÉ (tag preview — jamais le latest du stable)
+  // auto-update DÉDIÉ : CANAL FLOTTANT preview (jamais le latest du stable —
+  // il servirait le stable, et la release versionnée serait purgée par la
+  // rétention → pin 404). Le canal est pinné par le build et ré-uploadé à
+  // chaque publication ; sa meta sert donc TOUJOURS la dernière @version.
   const updateAnchor = "// @updateURL    https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-xcloud.meta.js" + EOL +
     "// @downloadURL  https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-xcloud.user.js" + EOL;
   must(s, updateAnchor, "T1 @updateURL");
   s = s.replace(updateAnchor,
-    "// @updateURL    https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/" + PREVIEW_TAG + "/better-xcloud-preview.meta.js" + EOL +
-    "// @downloadURL  https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/" + PREVIEW_TAG + "/better-xcloud-preview.user.js" + EOL);
+    "// @updateURL    https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/" + PREVIEW_CHANNEL + "/better-xcloud-preview.meta.js" + EOL +
+    "// @downloadURL  https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/" + PREVIEW_CHANNEL + "/better-xcloud-preview.user.js" + EOL);
 
   // l'en-tête OPTIMISATIONS signale la variante preview
   const headerAnchor = "/* OPTIMISATIONS v" + stableVersion + ":";
@@ -443,9 +456,11 @@ function checkTwoVersionInvariants(stableSrc, previewSrc) {
   if (previewSrc.includes("// @name         Better xCloud" + EOL)) fail("@name du preview = celui du stable (conflit Tampermonkey)");
   if (!previewSrc.includes("// @name         " + PREVIEW_NAME + EOL)) fail("@name preview manquant: " + PREVIEW_NAME);
   if (!previewSrc.includes("// @version      " + PREVIEW_VERSION + EOL)) fail("@version preview manquant");
-  // 2. auto-update dédié — jamais le latest du stable
+  // 2. auto-update dédié — jamais le latest du stable, jamais un tag versionné
+  // (purgé par la rétention → pin 404) : le CANAL flottant preview.
   if (previewSrc.includes("releases/latest/download/better-xcloud")) fail("@updateURL/@downloadURL pointent le latest du stable (clobbering)");
-  if (!previewSrc.includes(PREVIEW_TAG + "/better-xcloud-preview.meta.js")) fail("@updateURL preview manquant (tag " + PREVIEW_TAG + ")");
+  if (!previewSrc.includes(PREVIEW_CHANNEL + "/better-xcloud-preview.meta.js")) fail("@updateURL preview manquant (canal " + PREVIEW_CHANNEL + ")");
+  if (previewSrc.includes("releases/download/" + PREVIEW_TAG)) fail("@updateURL preview pinné sur un tag versionné (purgé par la rétention → 404 auto-update) — doit pointer le canal flottant");
   // 3. matches disjoints : preview = play.xbox.com seul, stable = www.xbox.com seul
   if (previewSrc.includes("https://www.xbox.com/*/play*")) fail("@match www.xbox.com présent dans le preview (double injection sur le stable)");
   if (previewSrc.includes("https://www.xbox.com/*/xbox-game-pass")) fail("@exclude www.xbox.com hérité dans le preview");
@@ -493,7 +508,7 @@ for (const probe of [
   "// @match        https://play.xbox.com/*",
   "// @version      " + PREVIEW_VERSION,
   "// @name         " + PREVIEW_NAME,
-  "// @updateURL    https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/" + PREVIEW_TAG,
+  "// @updateURL    https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/" + PREVIEW_CHANNEL,
   'var BX_PREVIEW = window.location.hostname === "play.xbox.com"',
   "static init() {if (BX_PREVIEW) return;Patcher.patchNativeBind();}",
   "static checkChunks(item) {if (BX_PREVIEW) return;",

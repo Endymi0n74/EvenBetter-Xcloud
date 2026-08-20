@@ -138,7 +138,7 @@ détaillé dans `bench/preview/port/README.md`) :
 | Version | `1.13.1` | `1.13.1-preview2` (prerelease) |
 | `@name` | `EvenBetterXcloud` | `EvenBetterXcloud (Preview)` |
 | `@match` | `www.xbox.com/*/play*` | `play.xbox.com/*` uniquement |
-| Auto-update | `releases/latest` (canal stable) | tag dédié `evenbetter-xcloud-v1.13.1-preview2` (jamais le `latest`) |
+| Auto-update | `releases/latest` (canal stable) | canal flottant `evenbetter-xcloud-preview-channel` (ré-uploadé à chaque publication — jamais purgé, contrairement aux tags versionnés) |
 
 Les deux builds **cohabitent sans se confondre** : identité distincte
 (name/version/updateURL) et matches disjoints (le preview ne s'exécute jamais
