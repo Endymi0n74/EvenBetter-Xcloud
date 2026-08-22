@@ -2279,3 +2279,40 @@ tag dédié v1.10.0-preview1.
     (source de vérité), mais le tri seul donnerait le mauvais preview si le
     pinné manquait. À améliorer si la nomenclature évolue (capture semver
     complet).
+
+## Fix upstream poll-gamepad — crash GameSir G7 SE (22 août 2026)
+
+**Demande** : commenter sur l'issue #991 de redphx/better-xcloud pour aider
+le reporter `odonnellgregory357` à diagnostiquer le crash de son GameSir G7 SE.
+
+**Diagnostic** : le PR #1005 d'Endymi0n74 (notre fork) gardait uniquement
+`buttons?.[16]` — ça protège contre `buttons` = undefined, mais le GameSir G7 SE
+a un tableau `buttons` avec **15 éléments** (non-standard) → `buttons[16]`
+retourne `undefined` → `btnHome.pressed` plante → TypeError qui tue la boucle
+de polling. Le fix #1005 ne couvrait que le cas 1/2.
+
+**Fix complet** (2 changements dans `poll-gamepad.ts`) :
+1. `currentGamepad.buttons[16]` → `currentGamepad.buttons?.[16]` (guard buttons)
+2. `if (btnHome)` → `if (btnHome?.pressed !== undefined)` (guard btnHome)
+   → le bloc controller-shortcuts devient un no-op pour les gamepads non-standard.
+
+**Actions exécutées** :
+- Fix appliqué au TS source (`patches/src/poll-gamepad.ts`) + JS minifié
+  (`patches/poll-gamepad.js`, non tracké par git — généré par buildPatches)
+- Commit `d09bdeb` sur branche `feat/latency-test` — pushé sur `mine` fork
+  Endymi0n74/better-xcloud
+- Commentaire posté sur #991 via `gh issue comment` avec explication + script
+  de diagnostic (navigator.getGamepads()[0] → mapping/numButtons/button16)
+- URL commentaire : https://github.com/redphx/better-xcloud/issues/991#issuecomment-5377988235
+
+**Règle mémoire rappelée** : après chaque action, mettre à jour MEMORY.md
+(erreur : pas fait immédiatement — corrigé ici).
+
+**Pas de release** : c'est un fix upstream (PR sur redphx/better-xcloud), pas
+une release de notre fork EvenBetterXcloud. Le bump de VERSION + release sera
+nécessaire quand le fix sera mergé dans upstream ET que nous ferons un
+bump de notre fork.
+
+**Pas de README** : le fix est dans le code upstream (better-xcloud-upstream),
+pas dans notre fork. Le README de notre fork ne référence pas les patches
+individuels du code upstream — il sera mis à jour au prochain bump de version.
