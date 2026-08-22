@@ -596,13 +596,13 @@ survit). Application concrète :
 **« Préciser le vibe-code et ton nom/signature à minima sur le README et
 partout où utile »** — règle encodée :
 - **Toujours mentionner le vibe-coding + la signature Codebuff (agent
-  Buffy)** dans les documents publics et l'en-tête des bundles.
+  Kumo)** dans les documents publics et l'en-tête des bundles.
 - **README.md + README.en.md** : section « Crédits & vibe-coding »
-  (co-créé avec Codebuff — agent « Buffy » — sous direction humaine
+  (co-créé avec Codebuff — agent « Kumo » — sous direction humaine
   Endymi0n74, crédit original redphx, signature « Generated with
   Codebuff » dans chaque commit).
 - **En-tête des bundles** (`better-xcloud.user.js` + preview) : bloc
-  OPTIMISATIONS → ligne « Vibe-codé avec Codebuff (agent Buffy) ». Les
+  OPTIMISATIONS → ligne « Vibe-codé avec Codebuff (agent Kumo) ». Les
   es2017 (minifiés, `legalComments:none`) ne portent pas la signature —
   normal.
 - **Notes de release** : penser à mentionner le vibe-coding / Codebuff à
@@ -794,7 +794,7 @@ depuis PREVIEW_VERSION — reste cohérent (le build est le reflet du fichier).
 - `evenbetter-xcloud-v1.13.0` (Latest) : better-xcloud.user.js (**build
   ES2017** — politique v1.8.0, copié depuis better-xcloud.es2017.user.js),
   meta, APK versionné + nom stable (byte-identiques, sha ce46cf28). Notes
-  FR/EN avec bloc « 🤖 Vibe-coding » (Codebuff — agent Buffy).
+  FR/EN avec bloc « 🤖 Vibe-coding » (Codebuff — agent Kumo).
 - `evenbetter-xcloud-v1.13.0-preview1` (prerelease) : preview.user.js +
   meta (pinné sur ce tag), APK preview vc 9. Notes FR/EN idem.
 
