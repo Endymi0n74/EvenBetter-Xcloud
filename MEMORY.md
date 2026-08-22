@@ -2316,3 +2316,28 @@ bump de notre fork.
 **Pas de README** : le fix est dans le code upstream (better-xcloud-upstream),
 pas dans notre fork. Le README de notre fork ne référence pas les patches
 individuels du code upstream — il sera mis à jour au prochain bump de version.
+
+## Release v1.13.4 — fix poll-gamepad crash GameSir G7 SE (22 août 2026)
+
+**Demande** : release du fork pour que `odonnellgregory357` (#991) puisse
+tester le fix manette + nettoyer les READMEs de tout l'historique.
+
+**Fix appliqué aux 4 bundles** (better-xcloud.user.js, es2017, preview,
+preview es2017) :
+1. `currentGamepad.buttons[16]` → `currentGamepad.buttons?.[16]`
+2. `if(btnHome)` → `if(btnHome?.pressed!==undefined)` (guard accès .pressed)
+3. `else if(self.bxHomeStates[...])` → `else if(btnHome!==undefined&&self.bxHomeStates[...])`
+   (empêche le crash dans le else quand btnHome est undefined)
+
+**Bump 1.13.3 → 1.13.4** dans tous les fichiers (bundles ×6, meta ×2,
+VERSION, PREVIEW_VERSION, READMEs ×4).
+
+**README nettoyé** : suppressions Nouveauté v1.x (5 entrées), Historique
+du dépôt (40+ lignes git log), Portage (instructions round-trip). Reste :
+Installation, Auto-update, Mobile, Deux versions, Optimisations, Crédits,
+Licence.
+
+**Release** : `evenbetter-xcloud-v1113.4` (Latest) — 6 assets (user.js,
+meta.js, es2017 ×2, preview user/meta, preview es2017). Commit `338ccc4`.
+
+**Règle mémoire** : faite immédiatement (corrigé le manquement initial).
