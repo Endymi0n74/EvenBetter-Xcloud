@@ -1,4 +1,4 @@
-# EvenBetterXcloud — v1.13.3
+# EvenBetterXcloud — v1.13.4
 
 [![Release](https://img.shields.io/github/v/release/Endymi0n74/EvenBetter-Xcloud?style=for-the-badge&color=green)](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest)
 [![Install](https://img.shields.io/badge/Install-userscript-blue?style=for-the-badge)](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-xcloud.user.js)
@@ -8,25 +8,21 @@
 
 Performance-oriented fork of the [Better xCloud](https://github.com/redphx/better-xcloud)
 userscript (redphx), performance-oriented **+ user features**. Latest release:
-[evenbetter-xcloud-v1.13.3](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/tag/evenbetter-xcloud-v1.13.3).
+[evenbetter-xcloud-v1.13.4](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/tag/evenbetter-xcloud-v1.13.4).
 
-**New in v1.13.1 — robustness (`BX_PURGE_DIAG` routine)**: diagnostic
 listeners attached to `window` during test sessions (marked `win-capture`)
 are tracked at startup and purged in a single call — a forgotten listener can
 no longer pollute the console or interfere with the page. Maintenance:
 validation probes updated (cleanup convention documented).
 
-**New in v1.13.0 — 🔊 Sound (one-click volume presets)**: in Settings → *Sound*
 group, four presets (🔇 Mute / 🔉 Low / 🔊 Normal / 📢 Boost) set
 `audio.volume` (+ booster if needed) and apply it **live on the current
 session** through the native slider channel — no need for the volume
 dropdown.
 
-**New in v1.12.0 — ⚡ Apply best region**: after the latency test, a button
 sets `server.region` directly to the lowest-ping region measured (⭐
 recommendation) — no more copy-pasting the best region into the dropdown.
 
-**New in v1.11.0 — 📊 Data (one-click bitrate/resolution presets)**: in
 Settings → *Data* group, three presets based on our **real measurements** (the
 `maxBitrate` cap is the only setting that saves bandwidth WITHOUT losing
 definition): 🚀 Max (unlimited, default), ⚖️ Balanced (10 Mbps cap · 1440p
@@ -34,7 +30,6 @@ kept, ~6.6 Mbps actual) and 🌱 Eco (5 Mbps cap + 720p, ~4.7 Mbps). The group
 is visible even while logged out so you can pick a preset before starting a
 session.
 
-**New in v1.10.0 — 📡 Server latency test**: in Settings → *Server* group, a
 "Test server latency" button measures the RTT to each of the 19 xCloud regions
 (via the region's gssv host, `NATIVE_FETCH` for a clean measurement) and marks
 the best one "⭐ recommended region" — pick the right `server.region` with
@@ -131,7 +126,7 @@ contract in `bench/preview/port/README.md`):
 |---|---|---|
 | Role | The classic optimized fork — xbox.com/play (Webpack SPA, WebGL2 renderer) | The variant for the new web client (React Router 7 + rolldown, Babylon.js renderer) |
 | File | `better-xcloud.user.js` | `better-xcloud-preview.user.js` (+ `.meta.js`) |
-| Version | `1.13.3` | `1.13.3-preview1` (prerelease) |
+| Version | `1.13.4` | `1.13.4-preview1` (prerelease) |
 | `@name` | `EvenBetterXcloud` | `EvenBetterXcloud (Preview)` |
 | `@match` | `www.xbox.com/*/play*` | `play.xbox.com/*` only |
 | Auto-update | `releases/latest` (stable channel) | floating channel `evenbetter-xcloud-preview-channel` (re-uploaded at every release — never pruned, unlike versioned tags) |
@@ -154,7 +149,7 @@ https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-
 Preview Features enabled):
 
 ```
-https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.13.3-preview1/better-xcloud-preview.user.js
+https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.13.4-preview1/better-xcloud-preview.user.js
 ```
 
 The preview is **playable and validated live**: settings button in the top
@@ -280,92 +275,6 @@ CI pipeline were produced, tested and validated live by the Codebuff agent.
   optimizations.
 - **AI assistant**: Codebuff — the "Generated with Codebuff" signature also
   appears in every commit and in the script header.
-
-## Repository history
-
-```
-a299c38 build: prepare v1.7.0 with lazy + memoized codecProfile (getCapabilities out of startup)
-089375e bench: extend updateCanvas scenario to the dirty-flag steady state and add a GL-count check
-b4821d8 build: prepare v1.6.0 with dirty-flag skip in WebGL2 updateCanvas
-17dfaad bench: add --resume mode to run-gpu-ci.sh to skip completed seeds
-e89cf2f bench: add one-command GPU protocol runner and confirm v1.5.0 GPU parity
-dd2a604 docs: v1.5.0 benchmark tables, patch 19 matrix and GPU version note
-24011f3 bench: add updateCanvas hot-loop scenario and CI threshold
-20773ae build: prepare v1.5.0 with WebGL2 uniform value cache in updateCanvas
-f43a372 ci: enrich the bench workflow with markdown summaries, artifacts and a GPU job
-3963c44 docs: regenerate benchmark tables and document bench tooling and CI
-90fb7ac bench: port GPU harness into bench/gpu so the Repro section is self-contained
-e1d6dbc bench: add --update-readme mode and CI hot-loop ratio checks
-579442f docs: freeze the GPU benchmark protocol and add one-shot freeze.sh re-measure
-0db349e bench: stabilize parse harness and freeze the reproducible measurement protocol
-178d886 bench: stabilize CPU hot-loop harness with warmup, seeded crossover and median
-c413f17 docs: stabilize GPU benchmark harness and update measured figures
-fc13e66 docs: re-measure GPU benchmarks on official v1.4.0 build
-faafb72 docs: document v1.4.0 RGB8 fix, 18-patch matrix and benchmark harnesses
-f6d0911 build: prepare v1.4.0 with texStorage2D RGB8 fix
-82b35ec docs: add real-GPU benchmarks and reproduction section
-82d0778 docs: add benchmarks chapter comparing perf10 vs v1.3.0
-ca0f7dd docs: document WebGL2NoColorConversion flag and extend patch matrix to 17
-561595d feat: add experimental WebGL2NoColorConversion flag (video upload)
-62abcd9 build: prepare v1.3.0 with hot-loop optimizations
-366fb41 docs: document meta.js auto-update flow and refresh history for v1.2.0
-95e41a9 build: bump userscript to 1.2.0
-912e3d4 docs: update patch 01 description to reflect meta.js updateURL header
-a411727 build: point @updateURL to a lighter meta.js for update checks
-c7ac6fd docs: add upgrade note for v1.0.0 installs and refresh version references
-d34b4a5 build: prepare v1.1.0 with fork update/download URLs
-c7c95a2 docs: add release and install badges to README header
-7ac17bc docs: clarify patch location in patches/README
-72e655c build: bump userscript version to 1.0.0
-21d6652 docs: rename release references to better-xcloud-perf-v1.0.0
-7fe1bce docs: add direct install link to release asset
-560be6c chore: extend .gitignore with IDE and dependency exclusions
-80e086d docs: expand Portage section to make repo self-contained
-1525d4e chore: add .gitignore for temp files and test directories
-338f509 chore: add global perf10→perf11 patch
-3d8b78e docs: add per-optimization patches with compatibility matrix
-c099b29 docs: add README with perf11 optimizations and install guide
-289f38b perf: apply v6.7.12-perf11 optimizations
-055d3a0 chore: import v6.7.12-perf10 userscript as baseline
-```
-
-## Porting
-
-This repo is self-contained: it holds the baseline, the build and all the
-patches needed to rebuild or port the optimizations.
-
-### Rebuilding the build (byte-for-byte verified round-trip)
-
-```bash
-# Baseline perf10 (commit 055d3a0) + global patch → build v1.6.0 identical
-# to the repo's better-xcloud.user.js.
-git show 055d3a0:better-xcloud.user.js > better-xcloud.user.js
-# Important on Windows: core.autocrlf=false, otherwise the patch context doesn't match
-git -c core.autocrlf=false apply better-xcloud-perf11.patch
-node --check better-xcloud.user.js
-```
-
-### Porting everything at once
-
-- `better-xcloud-perf11.patch`: global perf10 → perf11 patch, verified in
-  byte-for-byte round-trip on the baseline. Apply with
-  `git -c core.autocrlf=false apply better-xcloud-perf11.patch`.
-
-### Selective porting
-
-- `patches/`: 22 individual patches (one per optimization), each applicable
-  alone on the perf10 baseline. Read `patches/README.md` for the detailed
-  list, the pairwise compatibility matrix and the non-stackable zones (the
-  minified build has giant lines: several optimizations of the same zone
-  modify the same physical line and their patches don't stack).
-
-### Porting to the upstream source (typescript branch)
-
-The built patches do **not** apply on the `typescript` branch (the TS
-source differs from the build). Upstream porting is done file-by-file:
-`src/modules/player/webgl2/webgl2-player.ts`,
-`src/modules/patcher/patches/src/controller-customization.ts`,
-`src/modules/touch-controller.ts`, etc.
 
 ## License
 

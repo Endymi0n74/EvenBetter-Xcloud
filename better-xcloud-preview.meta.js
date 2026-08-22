@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EvenBetterXcloud (Preview)
 // @namespace    https://github.com/Endymi0n74/EvenBetter-Xcloud
-// @version      1.13.3-preview1
+// @version      1.13.4-preview1
 // @description  Improve Xbox Cloud Gaming (xCloud) experience
 // @author       Endymi0n74
 // @license      MIT

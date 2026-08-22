@@ -675,9 +675,9 @@ aucune régression. Publication v1.12.0 + preview1 validée juste avant
 relancé après la validation mobile doc-start (APK preview) et la passe de
 cohérence docs. Verdict : **PASS 6/6** — aucune régression, bornes CI tiennent.
 
-### Re-baseline du 20 août ~15:00 (v1.13.3, post-fix D-pad capture) — mêmes bornes ✅
+### Re-baseline du 20 août ~15:00 (v1.13.4, post-fix D-pad capture) — mêmes bornes ✅
 
-`run-all.sh --skip-page-eval` (parse + hot loops), build stable **v1.13.3** vs
+`run-all.sh --skip-page-eval` (parse + hot loops), build stable **v1.13.4** vs
 perf10 (055d3a0), après le fix Freebox : gate `/play` relaxé + navigation
 D-pad du dialog (listener keydown capture au constructeur du
 NavigationDialogManager). Verdict : **PASS — aucune régression, bornes CI
@@ -691,7 +691,7 @@ tiennent** (le listener capture n'ajoute rien au hot path).
 | updateCanvas (chemin 60 Hz) | 218,9 ns | 13,3 ns | ×16 [≥ 12] ✅ + flag dirty |
 | updateFrame | 154,0 ns | 142,3 ns | stable [0,5–2] ✅ |
 
-### Fix oscillation D-pad des steppers/selects (20 août, bundle 1.13.3+) — validé Freebox
+### Fix oscillation D-pad des steppers/selects (20 août, bundle 1.13.4+) — validé Freebox
 
 Trois problèmes de télécommande sur les box (Freebox Pop), corrigés dans le
 **NavigationDialogManager** :
