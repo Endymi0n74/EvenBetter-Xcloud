@@ -2337,7 +2337,7 @@ du dépôt (40+ lignes git log), Portage (instructions round-trip). Reste :
 Installation, Auto-update, Mobile, Deux versions, Optimisations, Crédits,
 Licence.
 
-**Release** : `evenbetter-xcloud-v1113.4` (Latest) — 6 assets (user.js,
+**Release** : `evenbetter-xcloud-v1.13.4` (Latest) — 6 assets (user.js,
 meta.js, es2017 ×2, preview user/meta, preview es2017). Commit `338ccc4`.
 
 **Règle mémoire** : faite immédiatement (corrigé le manquement initial).
