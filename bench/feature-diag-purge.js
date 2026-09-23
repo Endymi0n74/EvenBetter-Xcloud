@@ -42,42 +42,7 @@ if (!file) {
 }
 
 // ---- Implémentation injectée (portée du bundle : window accessible) ----
-const IMPL = `
-(function () {
-  if (window.BX_PURGE_DIAG) return; // déjà installé (double injection)
-  var DIAG = [];
-  var MARKER = /win-capture/;
-  var origAdd = window.addEventListener.bind(window);
-  var origRemove = window.removeEventListener.bind(window);
-  window.addEventListener = function (type, fn, opts) {
-    try {
-      if (typeof fn === "function" && MARKER.test(Function.prototype.toString.call(fn))) {
-        DIAG.push({ type: type, fn: fn, opts: opts });
-      }
-    } catch (e) {}
-    return origAdd(type, fn, opts);
-  };
-  window.removeEventListener = function (type, fn, opts) {
-    for (var i = 0; i < DIAG.length; i++) {
-      if (DIAG[i].fn === fn) { DIAG.splice(i, 1); break; }
-    }
-    return origRemove(type, fn, opts);
-  };
-  window.BX_PURGE_DIAG = function () {
-    var n = 0;
-    for (var i = 0; i < DIAG.length; i++) {
-      var d = DIAG[i];
-      try {
-        origRemove(d.type, d.fn, d.opts === true || (d.opts && d.opts.capture));
-        n++;
-      } catch (e) {}
-    }
-    DIAG.length = 0;
-    return n;
-  };
-  window.BX_PURGE_DIAG(); // au démarrage : purge les restes éventuels (page neuve = no-op)
-})();
-`;
+const { IMPL, ANCHOR_BX } = require("../src/features/diag-purge");
 
 let s = fs.readFileSync(file, "utf8");
 const original = s;
@@ -91,7 +56,7 @@ if (s.includes("window.BX_PURGE_DIAG")) {
 
 // Ancre d'injection (même point que les autres features — l'IMPL purge passe
 // AVANT les IMPL précédemment injectées, donc au plus tôt des features).
-const ANCHOR_BX = "window.BX_EXPOSED = BxExposed;";
+
 
 function count(hay, needle) { return hay.split(needle).length - 1; }
 

@@ -1,0 +1,16 @@
+name: Feature request
+description: Proposer une fonctionnalité
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes: { label: Besoin / problème, description: Quel usage n'est pas couvert ? }
+    validations: { required: true }
+  - type: textarea
+    id: proposal
+    attributes: { label: Proposition }
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Périmètre
+      options: [stable, preview, APK, bench/CI, docs, autre]

@@ -36,10 +36,10 @@ const { execFileSync, spawnSync } = require("child_process");
 const ROOT = path.join(__dirname, "..");
 const STABLE = path.join(ROOT, "better-xcloud.user.js");
 const PREVIEW = path.join(ROOT, "better-xcloud-preview.user.js");
-const FEATURE_JS = path.join(__dirname, "feature-datasaver.js");
+const FEATURE_JS = path.join(__dirname, "..", "src", "features", "datasaver.js");
 const BUILD_JS = path.join(ROOT, "bench", "preview", "port", "build-preview.js");
 
-// Ancres extraites de feature-datasaver.js (source de vérité de l'injection).
+// Ancres extraites de src/features/datasaver.js (source de vérité de l'injection).
 // Si une const est renommée/déplacée dans le script, l'extraction échoue →
 // GATE ROUGE immédiat (le test ne peut pas vérifier ce qu'il ne lit plus).
 // Normalisation CRLF→LF : sur un checkout Windows (autocrlf=true) les bundles
@@ -60,7 +60,7 @@ const DATA_GROUP = '{group: "data",label: "📊 Données",items: ["stream.video.
 const INJ_FILTER_PREFIX = 'section.group !== "sound" && section.group !== "data"';
 
 if (!ANCHOR_BX || !ANCHOR_GROUP || !ANCHOR_FILTER || !IMPL) {
-  console.error("❌ GATE : ancres non extractibles depuis feature-datasaver.js (const renommée ?)");
+  console.error("❌ GATE : ancres non extractibles depuis src/features/datasaver.js (const renommée ?)");
   process.exit(1);
 }
 

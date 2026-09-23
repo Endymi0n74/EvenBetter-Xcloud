@@ -54,6 +54,9 @@ bench/state-cpu-ci.*.json
 # Profil navigateur persistant de l'interception CDP preview (session authentifiée)
 bench/preview/.cdp-profile/
 
+# Mémoire de session locale (MEMORY.md reste versionné mais MEMORY.local.md ignoré)
+MEMORY.local.md
+
 # Artefacts locaux (système)
 .DS_Store
 Thumbs.db
@@ -61,3 +64,13 @@ Thumbs.db
 .edge-inject/
 .edge-inject-stable/
 stream-instrument-*.jsonl
+
+# Dist (si build vers dist/ à l'avenir)
+dist/
+
+# Biome cache
+.biome/
+
+# Playwright
+test-results/
+playwright-report/

@@ -1,5 +1,35 @@
-# Les scripts shell et les workflows doivent rester en LF même sous Windows
-# (core.autocrlf=true les réécrirait en CRLF au checkout).
+# Normalisation fins de ligne — LF partout pour les sources et les bundles.
+# Contexte (sept 2026) : les releases étaient publiées depuis un working tree
+# Windows (CRLF) alors que les blobs git sont en LF — les assets servis
+# différaient des bundles tagués et le release-guard était rouge. Avec eol=lf,
+# le checkout produit du LF même sous Windows : l'upload depuis le working
+# tree sert les mêmes bytes que `git show <tag>:<fichier>`.
 *.sh text eol=lf
 *.yml text eol=lf
 *.yaml text eol=lf
+*.user.js text eol=lf
+*.meta.js text eol=lf
+*.patch text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.java text eol=lf
+*.xml text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+
+# Artefacts buildés — ne pas compter dans les stats linguistiques
+better-xcloud.user.js linguist-generated=true
+better-xcloud.meta.js linguist-generated=true
+better-xcloud.es2017.user.js linguist-generated=true
+better-xcloud-preview.user.js linguist-generated=true
+better-xcloud-preview.meta.js linguist-generated=true
+better-xcloud-preview.es2017.user.js linguist-generated=true
+better-xcloud-perf11.patch linguist-generated=true
+
+# Binaires
+*.apk binary
+*.keystore binary
+*.png binary
+*.jpg binary
+*.webm binary

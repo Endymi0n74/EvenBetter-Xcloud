@@ -1,5 +1,7 @@
 # MEMORY — état courant du projet (20 août 2026)
 
+> **Note repo-hygiene** : ce fichier est le journal interne des sessions Codebuff. Il reste versionné pour l'historique mais les PRs ne doivent pas l'inclure en entier — extraits pertinents uniquement. Voir `CONTRIBUTING.md`.
+
 Mémoire de travail des sessions. Détails dans `bench/preview/port/session.md`
 (étude protocole), `bench/preview/port/e2e-cdp.md` (protocole E2E + journal),
 `bench/preview/port/anchors.md`, `bench/preview/port/classify.md`.

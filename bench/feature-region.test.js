@@ -35,10 +35,10 @@ const { execFileSync, spawnSync } = require("child_process");
 const ROOT = path.join(__dirname, "..");
 const STABLE = path.join(ROOT, "better-xcloud.user.js");
 const PREVIEW = path.join(ROOT, "better-xcloud-preview.user.js");
-const FEATURE_JS = path.join(__dirname, "feature-region.js");
+const FEATURE_JS = path.join(__dirname, "..", "src", "features", "region.js");
 const BUILD_JS = path.join(ROOT, "bench", "preview", "port", "build-preview.js");
 
-// Ancres extraites de feature-region.js (source de vérité de l'injection).
+// Ancres extraites de src/features/region.js (source de vérité de l'injection).
 // Si une const est renommée/déplacée dans le script, l'extraction échoue →
 // GATE ROUGE immédiat. Normalisation CRLF→LF (checkout Windows autocrlf :
 // les bundles sont en CRLF, feature-region.js en LF — même piège que le
@@ -55,7 +55,7 @@ const DONE_HOOK = "window.BX_LATENCY_TEST.lastResults = results;window.BX_REGION
 const ITEM_REGION = ",($parent) => {window.BX_LATENCY_TEST.render($parent);},($parent) => {window.BX_REGION_APPLY.render($parent);}]}";
 
 if (!ANCHOR_BX || !ANCHOR_ITEM || !ANCHOR_PUSH || !ANCHOR_DONE || !IMPL) {
-  console.error("❌ GATE : ancres non extractibles depuis feature-region.js (const renommée ?)");
+  console.error("❌ GATE : ancres non extractibles depuis src/features/region.js (const renommée ?)");
   process.exit(1);
 }
 

@@ -1,5 +1,36 @@
 {
+  "name": "evenbetter-xcloud",
+  "version": "1.13.4",
+  "description": "Fork performance de Better xCloud (userscript + APK Android)",
+  "license": "MIT",
+  "author": "Endymi0n74",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Endymi0n74/EvenBetter-Xcloud.git"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "npm@10.8.2",
+  "scripts": {
+    "bench": "bash bench/run-all.sh",
+    "bench:quick": "bash bench/run-all.sh --skip-page-eval --skip-cold-getcap",
+    "bench:cold": "bash bench/run-all.sh --cold-page-eval",
+    "test": "node --test bench/**/*.test.js",
+    "test:bench": "node bench/readme-version.test.js && node bench/readme-version.test.js --self-test && node bench/tv-defaults.test.js && node bench/feature-datasaver.test.js",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "bump": "bash bench/bump-version.sh",
+    "build:preview": "node bench/preview/port/build-preview.js",
+    "build:es2017": "node bench/es2017-build.mjs && node bench/es2017-build.mjs --src better-xcloud-preview.user.js --out better-xcloud-preview.es2017.user.js",
+    "check:es2017": "bash bench/es2017-check.sh",
+    "check:src": "node esbuild.config.mjs --check",
+    "verify": "node bench/readme-version.test.js && node bench/preview/port/build-preview.js"
+  },
   "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
     "esbuild": "^0.28.2",
     "playwright": "^1.62.1"
   }

@@ -36,16 +36,16 @@ const { execFileSync, spawnSync } = require("child_process");
 const ROOT = path.join(__dirname, "..");
 const STABLE = path.join(ROOT, "better-xcloud.user.js");
 const PREVIEW = path.join(ROOT, "better-xcloud-preview.user.js");
-const FEATURE_JS = path.join(__dirname, "feature-diag-purge.js");
+const FEATURE_JS = path.join(__dirname, "..", "src", "features", "diag-purge.js");
 const BUILD_JS = path.join(ROOT, "bench", "preview", "port", "build-preview.js");
 
-// Ancres extraites de feature-diag-purge.js (source de vérité de l'injection).
+// Ancres extraites de src/features/diag-purge.js (source de vérité de l'injection).
 const FEATURE_SRC = fs.readFileSync(FEATURE_JS, "utf8").replace(/\r\n/g, "\n");
 const ANCHOR_BX = (FEATURE_SRC.match(/const ANCHOR_BX = "([^"]*)";/) || [])[1];
 const IMPL = (FEATURE_SRC.match(/const IMPL = `([^]*?)`;/) || [])[1];
 
 if (!ANCHOR_BX || !IMPL) {
-  console.error("❌ GATE : ancres non extractibles depuis feature-diag-purge.js (const renommée ?)");
+  console.error("❌ GATE : ancres non extractibles depuis src/features/diag-purge.js (const renommée ?)");
   process.exit(1);
 }
 

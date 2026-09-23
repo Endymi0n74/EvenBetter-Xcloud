@@ -112,6 +112,11 @@ else
   echo "== rebuild preview (re-pin @updateURL) =="
   node bench/preview/port/build-preview.js
   echo
+  echo "== regen ES2017 preview (APRES le rebuild — le rebuild regenere le"
+  echo "   bundle preview depuis le stable, l'es2017 de la ligne 59 est donc"
+  echo "   perime a ce stade ; bug trouve sept 2026 : preview es2017 fossilise) =="
+  node bench/es2017-build.mjs --src better-xcloud-preview.user.js --out better-xcloud-preview.es2017.user.js
+  echo
   echo "== gate « README toujours à jour » =="
   node bench/readme-version.test.js
   echo
