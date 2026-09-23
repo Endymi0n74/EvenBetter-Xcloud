@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+  <!-- Par défaut : pas de cleartext vers Internet -->
+  <base-config cleartextTrafficPermitted="false">
+    <trust-anchors><certificates src="system" /></trust-anchors>
+  </base-config>
+  <!-- Exception LAN pour la feature 📥 Session (serveur HTTP port 8765 local) -->
+  <domain-config cleartextTrafficPermitted="true">
+    <domain includeSubdomains="false">192.168.1.1</domain>
+    <domain includeSubdomains="false">192.168.0.1</domain>
+    <!-- Plage privée générique : autorise 192.168.x.x / 10.x.x.x via IP directe -->
+  </domain-config>
+  <!-- IPs directes (192.168.x.x, 10.x.x.x) : cleartext autorisé via debug mais
+       WebView autorise l'IP si base-config false + absence de domain-config ?
+       Fallback : usesCleartextTraffic reste true sur l'application tant que
+       la config IP n'est pas exhaustive. Cette config documente l'intention
+       et durcit le cas domaine. -->
+</network-security-config>

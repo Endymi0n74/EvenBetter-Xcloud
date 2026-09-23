@@ -1,5 +1,9 @@
 name: bench
 
+concurrency:
+  group: bench-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
   pull_request:
@@ -15,6 +19,16 @@ on:
         default: false
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm ci --ignore-scripts || npm install
+      - run: npx --yes @biomejs/biome lint . || true
+
   hotloops-ratios:
     runs-on: ubuntu-latest
     permissions:

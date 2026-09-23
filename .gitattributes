@@ -1,5 +1,20 @@
-# Les scripts shell et les workflows doivent rester en LF même sous Windows
-# (core.autocrlf=true les réécrirait en CRLF au checkout).
+# Normalisation fins de ligne
 *.sh text eol=lf
 *.yml text eol=lf
 *.yaml text eol=lf
+
+# Artefacts buildés — ne pas compter dans les stats linguistiques
+better-xcloud.user.js linguist-generated=true
+better-xcloud.meta.js linguist-generated=true
+better-xcloud.es2017.user.js linguist-generated=true
+better-xcloud-preview.user.js linguist-generated=true
+better-xcloud-preview.meta.js linguist-generated=true
+better-xcloud-preview.es2017.user.js linguist-generated=true
+better-xcloud-perf11.patch linguist-generated=true
+
+# Binaires
+*.apk binary
+*.keystore binary
+*.png binary
+*.jpg binary
+*.webm binary

@@ -1,0 +1,33 @@
+name: Bug report
+description: Signaler un bug EvenBetterXcloud
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Merci de vérifier les issues existantes avant d'ouvrir un ticket.
+  - type: dropdown
+    id: variant
+    attributes:
+      label: Variant concerné
+      options: [stable (xbox.com/play), preview (play.xbox.com), APK Android, autre]
+    validations: { required: true }
+  - type: input
+    id: version
+    attributes: { label: Version installée, placeholder: ex. 1.13.4 }
+    validations: { required: true }
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Navigateur / WebView
+      options: [Chrome/Edge desktop, Firefox, Safari, WebView APK, autre]
+  - type: textarea
+    id: repro
+    attributes: { label: Reproduction, description: Étapes minimales pour reproduire }
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes: { label: Comportement attendu }
+  - type: textarea
+    id: logs
+    attributes: { label: Logs / captures, description: Console, screenshots si pertinent, renderWith: shell }
