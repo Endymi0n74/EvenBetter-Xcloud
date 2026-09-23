@@ -17,12 +17,11 @@ const CDP_PORT = Number((process.argv.find((a) => a.startsWith("--port=")) || "-
 const SECONDS = Number((process.argv.find((a) => a.startsWith("--seconds=")) || "--seconds=20").split("=")[1]);
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-let BASE = null;
 async function jsonList() {
   for (const host of ["[::1]", "127.0.0.1"]) {
     try {
       const r = await fetch(`http://${host}:${CDP_PORT}/json`, { signal: AbortSignal.timeout(3000) });
-      if (r.ok) { BASE = `http://${host}:${CDP_PORT}`; return r.json(); }
+      if (r.ok) { return r.json(); }
     } catch {}
   }
   throw new Error(`aucun CDP sur le port ${CDP_PORT}`);
@@ -96,7 +95,6 @@ async function evalIn(cdp, expression) {
   // 3. Échantillonner getStats sur SECONDS secondes
   const samples = [];
   const t0 = Date.now();
-  let last = null;
   while (Date.now() - t0 < SECONDS * 1000) {
     const s = await evalIn(cdp, `(async () => {
       const pc = window.BX_EXPOSED?.peerConnection || (window.STATES && window.STATES.currentStream && window.STATES.currentStream.peerConnection);

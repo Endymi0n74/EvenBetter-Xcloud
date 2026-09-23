@@ -14,14 +14,11 @@
  */
 const CDP_PORT = Number((process.argv.find((a) => a.startsWith("--port=")) || "--port=9225").split("=")[1]);
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-let BASE = null;
 async function jsonList() {
   for (const host of ["[::1]", "127.0.0.1"]) {
     try {
       const r = await fetch(`http://${host}:${CDP_PORT}/json`, { signal: AbortSignal.timeout(3000) });
-      if (r.ok) { BASE = `http://${host}:${CDP_PORT}`; return r.json(); }
+      if (r.ok) { return r.json(); }
     } catch {}
   }
   throw new Error(`aucun CDP sur le port ${CDP_PORT}`);

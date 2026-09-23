@@ -27,7 +27,6 @@
 "use strict";
 
 const fs = require("fs");
-const path = require("path");
 
 const file = process.argv[2];
 if (!file) {

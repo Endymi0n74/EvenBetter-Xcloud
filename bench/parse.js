@@ -22,7 +22,6 @@
 "use strict";
 
 const fs = require("fs");
-const { performance } = require("perf_hooks");
 
 const argv = process.argv.slice(2);
 const paths = argv.filter((a) => !a.startsWith("--"));

@@ -87,13 +87,13 @@ const MODE = process.argv.includes("--desktop") ? "desktop"
   console.log(`[${MODE}] ` + JSON.stringify(st, null, 2));
 
   if (MODE === "fab" && st.btn) {
-    const clicked = await ev(`(() => { const b = [...document.querySelectorAll('.bx-mobile-fab button')].find(x => /bx-header-settings/.test(String(x.className))); if (!b) return false; b.click(); return true; })()`);
+    await ev(`(() => { const b = [...document.querySelectorAll('.bx-mobile-fab button')].find(x => /bx-header-settings/.test(String(x.className))); if (!b) return false; b.click(); return true; })()`);
     await new Promise((res) => setTimeout(res, 1500));
     const dlg = await ev(`(() => !!document.querySelector('.bx-settings-dialog'))()`);
     console.log(`[clic FAB → dialog] ${dlg}`);
   }
   if (MODE === "desktop" && st.desktopBtn) {
-    const clicked = await ev(`(() => { const b = [...document.querySelectorAll('button')].find(x => /bx-header-settings/.test(String(x.className))); b.click(); return true; })()`);
+    await ev(`(() => { const b = [...document.querySelectorAll('button')].find(x => /bx-header-settings/.test(String(x.className))); b.click(); return true; })()`);
     await new Promise((res) => setTimeout(res, 1200));
     const dlg = await ev(`(() => !!document.querySelector('.bx-settings-dialog'))()`);
     console.log(`[clic desktop → dialog] ${dlg}`);

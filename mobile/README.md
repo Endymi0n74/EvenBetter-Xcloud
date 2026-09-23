@@ -249,10 +249,9 @@ vrai AOSP WebView — si un écran noir apparaît, diagnostiquer avec
 build dans ce dossier, mot de passe `bxperf-keystore`). **Le garder
 précieusement** : le re-signer change l'empreinte, l'APK ne se mettra plus à
 jour par-dessus l'ancien (désinstallation requise). `assets/`, `out/`,
-`gen/` et `bxperf.keystore` sont gitignorés — l'APK signé lui-même est le
-fichier suivi (`mobile/better-xcloud-perf-1.8.0.apk`, reliquat de l'ancien
-nommage — les builds récents, gitignorés dans `out/`, ne sont pas commités ;
-chaque release re-upload les APK signés comme assets GitHub).
+`gen/` et `bxperf.keystore` sont gitignorés — les APK signés ne sont pas
+committés (builds dans `out/`, chaque release re-upload les APK comme
+assets GitHub).
 
 ## Crédits & vibe-coding
 

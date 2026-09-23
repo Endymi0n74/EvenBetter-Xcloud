@@ -43,7 +43,6 @@ const txt = fs.readFileSync(summaryFile, "utf-8");
 // ---------- parsing du résumé ----------
 const fmtF = (n) => n.toFixed(1).replace(".", ",");
 const parsed = {}; // perf10/build -> { med, min, max }
-let verdict = null;
 for (const line of txt.split(/\r?\n/)) {
   let m = line.match(/^\| (perf10|build) \| ([\d.]+) \(([\d.]+)–([\d.]+)\) \|/);
   if (m) {
@@ -52,8 +51,6 @@ for (const line of txt.split(/\r?\n/)) {
   }
   m = line.match(/^\| (perf10|build) \| ([\d.,]+) \|/); // sans plage (dégradé)
   if (m) parsed[m[1]] = { med: +m[2].replace(",", "."), min: null, max: null };
-  m = line.match(/\*\*Résultat : ([^ ]+)/);
-  if (m) verdict = m[1];
 }
 if (!parsed.perf10 || !parsed.build) {
   console.error(`perf10/build introuvables dans ${summaryFile} (format du résumé check-ratios --startup-only ?)`);

@@ -49,7 +49,5 @@ check("sdk : référence capturée === BX_FETCH (le hook du build)", r.sdk.captu
 check("sdk : NATIVE_FETCH préservé (pas de boucle infinie)", r.sdk.nativePreserved);
 
 // ---------- 4. synthèse ----------
-const ok = !r.guard.previewStream.threw && !r.guard.previewProducts.threw && !r.guard.previewRoot.threw &&
-  r.guard.stablePlay.threw === false && r.guard.stableNoMatch.threw === true && r.build.ok && r.sdk.ok;
 console.log(failures === 0 ? "\nMesure document-start : OK ✅ — P2/P3 viables côté userscript (SDK capture notre hook)" : `\n${failures} échec(s) ❌`);
 process.exit(failures === 0 ? 0 : 1);
