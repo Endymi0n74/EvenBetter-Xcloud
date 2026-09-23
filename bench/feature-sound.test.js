@@ -34,10 +34,10 @@ const { execFileSync, spawnSync } = require("child_process");
 const ROOT = path.join(__dirname, "..");
 const STABLE = path.join(ROOT, "better-xcloud.user.js");
 const PREVIEW = path.join(ROOT, "better-xcloud-preview.user.js");
-const FEATURE_JS = path.join(__dirname, "feature-sound.js");
+const FEATURE_JS = path.join(__dirname, "..", "src", "features", "sound.js");
 const BUILD_JS = path.join(ROOT, "bench", "preview", "port", "build-preview.js");
 
-// Ancres extraites de feature-sound.js (source de vérité de l'injection).
+// Ancres extraites de src/features/sound.js (source de vérité de l'injection).
 // Si une const est renommée/déplacée dans le script, l'extraction échoue →
 // GATE ROUGE immédiat. Normalisation CRLF→LF (checkout Windows autocrlf).
 const FEATURE_SRC = fs.readFileSync(FEATURE_JS, "utf8").replace(/\r\n/g, "\n");
@@ -47,7 +47,7 @@ const ITEM_SOUND = (FEATURE_SRC.match(/const ITEM_SOUND = '([^']*)';/) || [])[1]
 const IMPL = (FEATURE_SRC.match(/const IMPL = `([^]*?)`;/) || [])[1];
 
 if (!ANCHOR_BX || !ANCHOR_TAIL || !ITEM_SOUND || !IMPL) {
-  console.error("❌ GATE : ancres non extractibles depuis feature-sound.js (const renommée ?)");
+  console.error("❌ GATE : ancres non extractibles depuis src/features/sound.js (const renommée ?)");
   process.exit(1);
 }
 

@@ -180,6 +180,7 @@ jobs:
           npm ci --ignore-scripts || npm install --ignore-scripts
           npm rebuild esbuild
           bash bench/es2017-check.sh
+          node esbuild.config.mjs --check
 
       - name: Vérifie les ratios des hot loops (seuils CI)
         run: |

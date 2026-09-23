@@ -32,10 +32,10 @@ const { execFileSync, spawnSync } = require("child_process");
 const ROOT = path.join(__dirname, "..");
 const STABLE = path.join(ROOT, "better-xcloud.user.js");
 const PREVIEW = path.join(ROOT, "better-xcloud-preview.user.js");
-const FEATURE_JS = path.join(__dirname, "feature-session-import.js");
+const FEATURE_JS = path.join(__dirname, "..", "src", "features", "session-import.js");
 const BUILD_JS = path.join(ROOT, "bench", "preview", "port", "build-preview.js");
 
-// Ancres extraites de feature-session-import.js (source de vérité). Normalisation
+// Ancres extraites de src/features/session-import.js (source de vérité). Normalisation
 // CRLF→LF (checkout Windows autocrlf) — même piège que les autres features.
 const FEATURE_SRC = fs.readFileSync(FEATURE_JS, "utf8").replace(/\r\n/g, "\n");
 const ANCHOR_BX = (FEATURE_SRC.match(/const ANCHOR_BX = "([^"]*)";/) || [])[1];
@@ -50,7 +50,7 @@ const SESSION_GROUP = '{group: "session",label: "📥 Session",items: [($parent)
 const INJ_FILTER = 'section.group !== "sound" && section.group !== "data" && section.group !== "session") continue;';
 
 if (!ANCHOR_BX || !ANCHOR_OTHER || !ANCHOR_FILTER || !IMPL) {
-  console.error("❌ GATE : ancres non extractibles depuis feature-session-import.js (const renommée ?)");
+  console.error("❌ GATE : ancres non extractibles depuis src/features/session-import.js (const renommée ?)");
   process.exit(1);
 }
 

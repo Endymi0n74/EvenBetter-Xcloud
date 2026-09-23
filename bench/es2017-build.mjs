@@ -19,6 +19,7 @@
  */
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { build } from "esbuild";
+import { es2017BuildOptions } from "../esbuild.config.mjs";
 
 const argv = process.argv.slice(2);
 const flagVal = (flag) => {
@@ -45,7 +46,7 @@ if (!m) {
 const header = m[0];
 const body = src.slice(m[0].length);
 
-// ---- transpiler le corps avec esbuild (target es2017)
+// ---- transpiler le corps avec esbuild (flags partagés : esbuild.config.mjs)
 const result = await build({
   stdin: {
     contents: body,
@@ -54,8 +55,7 @@ const result = await build({
   },
   write: false,
   minify,
-  target: "es2017",
-  legalComments: "none",
+  ...es2017BuildOptions,
 });
 
 let out = result.outputFiles[0].text;
