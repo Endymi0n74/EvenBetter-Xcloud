@@ -2,6 +2,17 @@
 
 Toutes les modifications notables de ce fork sont documentées ici. Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
+## [1.13.5] - 2026-09-23
+
+Version de maintenance : **aucun changement en-client** (mêmes features, mêmes perfs — seul le badge de version change).
+
+### Infra & process
+- Hygiène repo (PR #19) : package.json/scripts, Biome, CI concurrency+lint, sync upstream hebdo, CONTRIBUTING/CHANGELOG/SECURITY, topics, `network_security_config` APK
+- Réparation release v1.13.4 (était incomplète : ESNext servi au lieu d'ES2017, APK 404, preview1 manquante, canal stale)
+- Build : preview ES2017 régénéré après rebuild (était fossilisé), gate de reproductibilité ES2017 + check `src/`, `startup-cold` en dispatch manuel
+- Code : payloads features modularisés en `src/features/*` (bundles byte-identiques), `esbuild.config.mjs` partagé
+- Docs : `bench/README.md` allégé vers `docs/journal-*.md`, checklist release
+
 ## [1.13.4] - 2026-08-20 (+ réparation release 2026-09-23)
 
 ### Corrigé

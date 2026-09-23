@@ -49,6 +49,14 @@ echo "== bump EvenBetterXcloud -> $NEW (preview: $PREVIEW) =="
 echo "$NEW" > VERSION
 echo "$PREVIEW" > PREVIEW_VERSION
 
+# Dépendances node (es2017 via bun/node, gates) : un clone frais n'a pas de
+# node_modules → le build ES2017 planterait (vécu sept 2026 sur la 1.13.5).
+# PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD : pas de navigateurs pour un bump.
+if [ ! -d node_modules/esbuild ]; then
+  echo "== install dépendances (node_modules/esbuild absent) =="
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install
+fi
+
 node bench/rebrand-bundle.js better-xcloud.user.js --version="$NEW" --bump-only
 bun bench/es2017-build.mjs
 # Le preview a aussi sa transpilation ES2017 (vieux WebView Android TV /
