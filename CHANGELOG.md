@@ -2,10 +2,11 @@
 
 Toutes les modifications notables de ce fork sont documentées ici. Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
-## [1.13.4] - 2026-08-20
+## [1.13.4] - 2026-08-20 (+ réparation release 2026-09-23)
 
 ### Corrigé
 - `poll_gamepad` crash guard (fix upstream)
+- **Réparation release (23 sept)** : le `better-xcloud.user.js` servi contenait l'ESNext au lieu du build ES2017 (contrat release-guard), les APK étaient absents, la prerelease `v1.13.4-preview1` manquait et le canal preview servait encore la 1.13.3-preview1 → `release-guard.sh` à nouveau vert 4/4 + APK 200. Leçon encodée : `.gitattributes` force `eol=lf` sur les bundles, checklist release dans `CONTRIBUTING.md`.
 
 ### Docs
 - Correction nom agent Buffy → Kumo, typo version MEMORY.md

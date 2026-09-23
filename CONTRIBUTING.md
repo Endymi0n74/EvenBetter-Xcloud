@@ -39,6 +39,16 @@ npm run verify        # gates readme-version + preview
    bash bench/bump-version.sh 1.13.5 --preview=1.13.5-preview1 --build-apk
    ```
 
+## Checklist release (mainteneur — incident sept 2026 : ne plus publier incomplet)
+
+Après chaque bump, avant d'annoncer :
+1. Release stable : `better-xcloud.user.js` (= contenu ES2017), `.meta.js`, `.es2017.user.js` + APK versionné + APK nom stable `evenbetter-xcloud.apk`
+2. Prerelease preview : `better-xcloud-preview.user.js` + `.meta.js` + APK preview
+3. Canal flottant ré-uploadé `--clobber` (2 assets preview)
+4. `bash bench/release-guard.sh` → **vert** (4/4 byte-identiques + APK 200)
+5. `bash bench/release-prune.sh` (le workflow auto-prune tourne aussi à chaque publication)
+6. Contraintes build : cloner dans un chemin **sans espace** (`mobile/build.sh` ne supporte pas les espaces — glob `d8` non quoté) ; uploader depuis des fichiers **LF** (`.gitattributes` force `eol=lf`, ne pas uploader depuis un working tree CRLF)
+
 ## Conventions
 
 - Source de vérité version : `VERSION` + `PREVIEW_VERSION` (et `package.json#version` miroir)
