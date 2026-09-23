@@ -2,6 +2,22 @@
 
 > **Note repo-hygiene** : ce fichier est le journal interne des sessions Codebuff. Il reste versionné pour l'historique mais les PRs ne doivent pas l'inclure en entier — extraits pertinents uniquement. Voir `CONTRIBUTING.md`.
 
+## Session 23 sept 2026 — audit repo-hygiene + réparation release (PR #19, mergée)
+
+**Contexte** : audit externe du repo (fork solide, dette DX) → 4 vagues sur branche `chore/repo-hygiene` (PR #19, merge `3b7d128`), zéro régression exigée et prouvée.
+
+**Vague 1 — hygiène** : package.json (version miroir, scripts, engines, packageManager npm), suppression `bun.lock`, `.gitattributes` (linguist-generated + eol=lf), `biome.json` + `.editorconfig`, `bench.yml` (concurrency + job lint), `sync-upstream.yml` (cron hebdo redphx), CONTRIBUTING/CHANGELOG/SECURITY/templates, `docs/perf.md`, topics + description/homepage, `network_security_config.xml` APK.
+
+**Vague 2 — incident release v1.13.4** (guard rouge depuis le 01/09, 4 causes) : stable servait l'ESNext au lieu de l'ES2017, APK absents (404), prerelease preview1 manquante, canal stale 1.13.3-preview1. Réparé : user.js=ES2017 re-uploadé, APK rebuildés (même signature `63382a05`, via `/d/android-sdk` + keystore `bx-apk`, build depuis clone sans espace — `build.sh` casse sur les chemins avec espaces, glob d8 non quoté), preview1 recréée (tag sur `338ccc4`), canal re-uploadé. Guard VERT, prune OK.
+
+**Vague 3** : preview es2017 fossilisé (bump regen avant build-preview → fix ordre + `es2017-check.sh` + gate CI), `startup-cold` dispatch-only (fini le queued runner offline), `build.sh` SDK portable, checklist release dans CONTRIBUTING.
+
+**Vague 4a — src/** : payloads features en modules (`src/features/*`, 23/23 consts byte-identiques prouvées), `esbuild.config.mjs` (+ `--check`), tests relus depuis src/. **4b — docs** : `bench/README.md` 1365l → protocole+index + `docs/journal-{features,perf,gates}.md` (intégrité ligne-à-ligne vérifiée).
+
+**Validation release (sur main, sans bump — bundles identiques au tag, rien à shipper)** : features 5/5, build-preview, readme-version, tv-defaults, es2017-check, check:src, `release-guard.sh` VERT 4/4 + APK 200, `update-mechanism.test.js` VERT, prune dry-run : rien à purger. Pas de v1.13.5 : aucun changement bundle → un bump forcerait un re-download vide à tous les installés.
+
+**Reste** : monolithe bundle insécable (source amont), overlay preview dans build-preview.js, job CI build APK (besoin secret keystore), runner self-hosted souvent offline.
+
 Mémoire de travail des sessions. Détails dans `bench/preview/port/session.md`
 (étude protocole), `bench/preview/port/e2e-cdp.md` (protocole E2E + journal),
 `bench/preview/port/anchors.md`, `bench/preview/port/classify.md`.
