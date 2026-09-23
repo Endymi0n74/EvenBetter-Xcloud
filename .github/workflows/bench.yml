@@ -169,6 +169,18 @@ jobs:
           # En local : bash bench/preview/port/run-e2e0.sh [--dir=<capture>]
           bash bench/preview/port/run-e2e0.sh --skip-probe
 
+      - name: Gate — builds ES2017 reproductibles (stable + preview)
+        # bench/es2017-check.sh reconstruit les deux bundles ES2017 via
+        # bench/es2017-build.mjs et compare aux fichiers committés : détecte
+        # un bundle modifié sans rebuild ou une dérive d'esbuild (incident
+        # sept 2026 : preview es2017 fossilisé par l'ordre du bump).
+        # npm ci --ignore-scripts (pas de navigateurs Playwright) + rebuild
+        # ciblé d'esbuild (le seul binaire natif requis). En local : bash bench/es2017-check.sh
+        run: |
+          npm ci --ignore-scripts || npm install --ignore-scripts
+          npm rebuild esbuild
+          bash bench/es2017-check.sh
+
       - name: Vérifie les ratios des hot loops (seuils CI)
         run: |
           # le résumé markdown inclut la ligne de session (état haut/bas +
@@ -228,20 +240,23 @@ jobs:
             }
             console.log((existing ? 'commentaire mis à jour' : 'commentaire créé') + ' (' + mode + ')');
 
-  # Protocole froid (pull_request + workflow_dispatch) : éval page à froid
+  # Protocole froid (workflow_dispatch UNIQUEMENT) : éval page à froid
   # (navigateur neuf par run) sur le runner SELF-HOSTED Windows — les bornes
   # mesurées (build ~30 ms, perf10 550-660 ms) sont spécifiques à Edge/Windows
   # (pile RTC et one-shot), le job ubuntu n'a ni Playwright ni les mêmes
-  # chiffres. Alerte à chaque changement du script via les PR de branches
-  # internes (les PR de forks ne peuvent pas utiliser les runners self-hosted,
-  # le job reste alors en attente/skip). Runner partagé avec le job GPU.
+  # chiffres. Lancer manuellement quand le runner est en ligne.
+  # Historique (sept 2026) : déclenché sur les PR internes, le job restait
+  # QUEUED indéfiniment quand le runner était offline et bloquait le merge —
+  # la couverture startup des PR est assurée par startup-cold-fork
+  # (ubuntu-latest, toutes les PR). Runner partagé avec le job GPU.
   # Runner : self-hosted, windows, gpu.
   startup-cold:
-    # GitHub bloque les runners self-hosted (tout OS) pour les PR de forks des
-    # repos publics → job limité aux PR INTERNES + dispatches (les forks ne
-    # laissent plus de job en attente ; leur startup est couvert par
-    # startup-cold-fork sur ubuntu-latest).
-    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == 'workflow_dispatch'
+    # Dispatch manuel uniquement : un job self-hosted déclenché sur PR reste
+    # queued (pas failed) quand le runner est offline → check bloquant
+    # silencieux. Les PR de forks sont de toute façon inéligibles aux runners
+    # self-hosted (règle plateforme) ; leur startup est couvert par
+    # startup-cold-fork sur ubuntu-latest.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: [self-hosted, windows, gpu]
     permissions:
       contents: read
@@ -277,41 +292,6 @@ jobs:
           name: startup-summary-${{ github.sha }}
           path: ${{ runner.temp }}/startup-summary.md
           if-no-files-found: error
-
-      - name: Commente la PR — section startup (fusion dans le commentaire hot loops)
-        # Même script que le job hotloops-ratios (PR_COMMENT_MODE=startup) : la
-        # section startup rejoint le tableau hot loops dans UN SEUL commentaire.
-        # Les PR de forks ont un token read-only : commenter 403 → la garde
-        # head.repo == github.repository restreint le commentaire aux PR internes.
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && always()
-        uses: actions/github-script@v7
-        env:
-          PR_COMMENT_MODE: startup
-          PR_COMMENT_SECTION: ${{ runner.temp }}/startup-summary.md
-        with:
-          script: |
-            const fs = require('fs');
-            const { mergeComment } = require(process.env.GITHUB_WORKSPACE + '/bench/pr-comment-merge.js');
-            const mode = process.env.PR_COMMENT_MODE;
-            const sectionPath = process.env.PR_COMMENT_SECTION;
-            // Job échoué avant la production du résumé (ex. gate rouge au build) :
-            // le fichier n'existe pas → skip propre au lieu d'un crash ENOENT.
-            if (!fs.existsSync(sectionPath)) {
-              console.log('résumé absent (' + sectionPath + ') — échec avant sa production, commentaire skippé (' + mode + ')');
-              return;
-            }
-            const section = fs.readFileSync(sectionPath, 'utf8').trimEnd();
-            const MAIN = '<!-- bench-ratios -->';
-            const opts = { owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number };
-            const { data: comments } = await github.rest.issues.listComments({ ...opts, per_page: 100 });
-            const existing = comments.find((c) => c.body.includes(MAIN));
-            const newBody = mergeComment(existing ? existing.body : '', mode, section);
-            if (existing) {
-              await github.rest.issues.updateComment({ ...opts, comment_id: existing.id, body: newBody });
-            } else {
-              await github.rest.issues.createComment({ ...opts, body: newBody });
-            }
-            console.log((existing ? 'commentaire mis à jour' : 'commentaire créé') + ' (' + mode + ')');
 
       - name: Upload cold-eval.txt (en cas d'échec uniquement)
         if: failure()

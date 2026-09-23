@@ -21,8 +21,15 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { build } from "esbuild";
 
 const argv = process.argv.slice(2);
-const srcArg = argv[argv.indexOf("--src") + 1];
-const outArg = argv[argv.indexOf("--out") + 1];
+const flagVal = (flag) => {
+  const i = argv.indexOf(flag);
+  // indexOf = -1 (flag absent) + 1 = 0 → argv[0] : l'ancienne forme lisait
+  // le flag lui-même comme valeur quand --src/--out était absent
+  // (`--out X` sans `--src` prenait SRC="--out"). Garde-fou explicite.
+  return i >= 0 ? argv[i + 1] : undefined;
+};
+const srcArg = flagVal("--src");
+const outArg = flagVal("--out");
 const minify = argv.includes("--minify") || !argv.includes("--pretty");
 
 const SRC = srcArg || "better-xcloud.user.js";

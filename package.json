@@ -24,6 +24,8 @@
     "format": "biome format --write .",
     "bump": "bash bench/bump-version.sh",
     "build:preview": "node bench/preview/port/build-preview.js",
+    "build:es2017": "node bench/es2017-build.mjs && node bench/es2017-build.mjs --src better-xcloud-preview.user.js --out better-xcloud-preview.es2017.user.js",
+    "check:es2017": "bash bench/es2017-check.sh",
     "verify": "node bench/readme-version.test.js && node bench/preview/port/build-preview.js"
   },
   "devDependencies": {

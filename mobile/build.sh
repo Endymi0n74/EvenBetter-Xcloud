@@ -3,7 +3,10 @@
 # Requires: JDK (JAVA_HOME), Android SDK at /d/android-sdk, our stable build copied to assets/.
 set -euo pipefail
 
-SDK=/d/android-sdk
+# SDK portable : ANDROID_SDK_ROOT (convention CI/sdkmanager) > ANDROID_HOME >
+# chemin historique de la machine de dev. Permet un futur job CI (setup-android
+# + keystore éphémère de validation) sans toucher au défaut local.
+SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/d/android-sdk}}"
 BT="$SDK/build-tools/34.0.0"
 PLATFORM="$SDK/platforms/android-34/android.jar"
 JAVA="$JAVA_HOME/bin"
