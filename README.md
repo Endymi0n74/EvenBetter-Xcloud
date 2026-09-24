@@ -190,6 +190,93 @@ redphx ne contient que le client stable (www.xbox.com/play). Les patches du
 preview (T1-T10, P2/P3, P1) ciblent ce bundle : il n'y a aucun endroit dans le
 repo upstream où les porter.
 
+Et les deux mécanismes qui auraient pu être « transférables » **existent
+déjà upstream côté stable** : la réécriture de `/configuration`
+(`enableVibration` / mkb / mic, dans `xcloud-interceptor.ts`) et le
+keep-alive anti-inactivité (`WarningForBeingIdle` → `sendKeepAlive`,
+`remote-play-keep-alive.ts`). Le travail sur le preview est une
+**re-dérivation pour le nouveau client**, pas une évolution du script
+stable — rien de nouveau à proposer. Ce que le fork ajoute sur le preview,
+à la place :
+
+- **Entrée dans les réglages** : bouton dans la top bar sur desktop +
+  **bouton flottant sur mobile** (le nouveau shell n'a pas d'en-tête sous
+  768 px) + action Réglages dans la **game bar** en session (page de stream
+  immersive) ;
+- **Résistance au remplacement du document** : le shell remplace le document
+  quand un stream démarre — le port ré-arme les observateurs et ré-injecte
+  sur le document courant (sinon le bouton meurt en pleine session) ;
+- **Keep-alive anti-inactivité** (anti-kick AFK) via `wrapSession` ;
+- **Surcharges `/configuration`** (vibration / mkb / mic / touch) sur le
+  nouveau client ;
+- **UA auto-spoof** pour passer le gate exclusivement Chromium de
+  play.xbox.com (Firefox et les autres moteurs sont bloqués alors que le
+  stream WebRTC H.264 fonctionne).
+
+Les détails techniques vivent dans `bench/preview/port/` (ancres, protocole
+E2E, journal). Un commentaire informatif a été rédigé pour le mainteneur
+(`upstream-prs/comment-preview-port.md`) : le portage complet est disponible
+sur demande s'il prévoit un jour de supporter le nouveau client.
+
+## Optimisations perf11 + perf13
+
+| # | Optimisation | Effet |
+|---|---|---|
+| 1 | `StreamStats` : suppression du cache `_cachedOpacity`/`_cachedTextSize` | Corrige la régression où `stats.opacity.all` et `stats.textSize` ne s'appliquaient plus jusqu'au rechargement |
+| 2 | `StreamStats` : throttle `document.hidden` | Cadence de 1 s visible, 60 s en arrière-plan (`INTERVAL_BACKGROUND`) |
+| 3 | `StreamStats` : `setTimeout` auto-réarmant + garde `isUpdating` | Plus aucun `setInterval` qui se chevauchent ; le tick ne redémarre qu'une fois le précédent terminé |
+| 4 | `StreamStatsCollector.collect()` : passe unique sur le `RTCStatsReport` | Divise par deux le coût d'itération du tick (des centaines d'entrées par rapport) |
+| 5 | `ALL_PREFS` → `Set` | `isGlobalPref`/`isStreamPref` en O(1) |
+| 6 | `validateValue` : `filter` + `Set` | Corrige le bug de saut d'index de `splice` sur des valeurs invalides consécutives ; O(n) |
+| 7 | `getGameSettings` : suppression par lot | Un seul `saveSettings()` au lieu d'un par clé purgée |
+| 8 | `checkForUpdate` : garde de 2 h avant le fetch | Plus de requête vers l'API GitHub ni d'écriture dans localStorage à chaque chargement de page |
+| 9 | `BxSelectElement` : observateur délégué unique | Un seul `MutationObserver` (documentElement) remplace un observateur par `<select>` |
+| 10 | `Translations` : `debugger` supprimé | Plus de pause d'exécution dans les devtools si le fetch des traductions échoue |
+| 11 | Personnalisation manette : fix `delete mapping.Share` | Le binding Share n'est plus déformé après la première pression ; plus de spam d'événements de capture d'écran |
+| 12 | Personnalisation manette : skip IDLE | Zéro allocation et zéro itération des mappings quand aucun bouton n'est pressé et les sticks centrés |
+| 13 | `WebGL2Player` : `texStorage2D` + `texSubImage2D` | Allocation GPU stable (la texture n'est plus réallouée à chaque `texImage2D`) ; recréation au changement de résolution |
+| 14 | `WebGL2Player` : fix viewport | `drawingBufferHeight` au lieu de `drawingBufferWidth` |
+| 15 | `poll_gamepad_default` : `structuredClone` → référence directe | Le `structuredClone` de l'état Home au relâchement était inutile (objet jamais muté entre la lecture et `=null`) — zéro allocation, chemin mesuré 1236 ns → 280 ns (−77 %) |
+| 16 | `WebGL2Player` : suppression du `bindTexture` par frame | La texture reste liée entre les frames (texture unique, contexte dédié) — 60 appels GL/s en moins |
+| 17 | `WebGL2Player` : flag expérimental `WebGL2NoColorConversion` | `gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE)` avant les uploads vidéo — évite la conversion sRGB du navigateur (gain potentiel sur le chemin le plus coûteux) ; désactivé par défaut, opt-in via `BX_FLAGS` avec validation visuelle |
+| 18 | `WebGL2Player` : fix `texStorage2D` | `gl.RGB` (format non dimensionné → `INVALID_ENUM`, **écran noir** sur le renderer WebGL2) → `gl.RGB8` — corrige le bug introduit par l'opti 13 (aussi présent dans le TS upstream) |
+| 19 | `WebGL2Player.updateCanvas` : cache de valeurs d'uniform | 7 `gl.uniform*` ignorés par frame quand rien ne change (invalidation par comparaison de valeur) — chemin stable ~296 → ~22 ns/frame (**×13.7**) |
+| 20 | `WebGL2Player.updateCanvas` : skip par dirty-flag | Le recalcul des uniforms ne se relance que si `updateOptions`/`refreshPlayer` ont invalidé le flag (options/canvas inchangés = 1 lecture + branchement) — chemin stable ~22 → ~12.7 ns/frame (**×19.4** vs perf10) |
+| 21 | `stream.video.codecProfile` : évaluation **lazy + mémoïsée** | `RTCRtpReceiver.getCapabilities("video")` (667 ms à froid = 96 % de l'eval de démarrage dans un Edge vierge) n'est plus appelé au chargement — options/unsupported/suggest calculés à la première vraie lecture (ouverture des réglages / validation d'une valeur) puis mis en cache (constant par navigateur). Éval de page à froid 656.8 → 32.9 ms (**−95 %**), à chaud 26.5 → 24.2 ms (**−8.7 %**) |
+
+L'historique perf1–perf10 (patcher O(1) Set, debounce localStorage, cache
+`getBattery()`, emplacements d'uniformes précalculés, etc.) est conservé
+dans l'en-tête du script.
+
+## File d'optimisations terminée — réglages recommandés
+
+La file d'optimisations du stable est **fermée** : le thread principal JS a
+été profilé sur une session réelle (`live-profile`) à **99.98 % idle** — les
+boucles chaudes (updateCanvas ×19.4, manette IDLE ×9.5, démarrage à froid
+−95 %) sont au plancher, et la charge restante (décodage vidéo, rendu WebGL2,
+encodage serveur) vit dans les processus natifs/GPU, hors de portée d'un
+userscript. Tout gain mesurable restant vient des **préférences utilisateur** :
+
+| Réglage (réglages EvenBetterXcloud) | Effet mesuré | Recommandation |
+|---|---|---|
+| `stream.video.maxBitrate` = **10-15 Mbps** | 24.2 → 6.6 Mbps (10 cap), **1440p conservé**, 0 drop | ✅ Économiser la bande passante sans perdre la définition |
+| `stream.video.resolution` = **720p** | 1280×720 @ 6.4 Mbps (vs 1440p @ 24.2) | ✅ Très faible bande passante / données mobiles |
+| `stream.video.resolution` = 1080p / 1080p-hq | **Aucun effet sur PC** (toujours natif 1440p — no-op documenté) | ⚠️ Ne pas y toucher |
+| `server.region` + « 📡 Test de latence » (v1.10.0) | Région au ping le plus bas (ex. CSE 30 ms ⭐ vs UKS 43 ms depuis la France) | ✅ Toujours utile |
+| Groupe « 📊 Données » (v1.11.0) — presets en un clic | 🚀 Max / ⚖️ Équilibré (10 Mbps) / 🌱 Économe (5 Mbps + 720p), appliqués au début de la prochaine session | ✅ Le cap maxBitrate est le seul réglage qui économise la bande passante sans perdre la définition |
+| « ⚡ Appliquer la meilleure région » (v1.12.0) | Pose `server.region` sur la région au ping le plus bas (⭐ recommandation du test) | ✅ Le complément du test de latence — un clic après le test |
+| Groupe « 🔊 Son » (v1.13.0) — presets de volume | 🔇 Muet / 🔉 Doux / 🔊 Normal / 📢 Boost posent `audio.volume`, appliqués **en direct** sur la session en cours | ✅ Volume en un clic, sans menu déroulant |
+
+**Codec (verdict final, stable + preview)** : les deux clients négocient
+**H.264 Constrained High** (`4d001f`), le seul codec que le serveur conserve.
+AV1/VP9 sont proposés mais ignorés par le backend, et **H.265 (HEVC) n'existe
+même pas dans la pile WebRTC du navigateur** : aucun choix de codec n'est
+possible côté client (mesures réelles documentées dans `bench/README.md`).
+
+Tous les chiffres perf10 → build (parse, boucles chaudes, updateCanvas,
+démarrage à froid, GPU), tableaux et protocoles de mesure :
+[`bench/README.md`](bench/README.md).
+
 ## Crédits & vibe-coding
 
 Ce projet est un **vibe-coding** : fork et améliorations co-créés avec une
