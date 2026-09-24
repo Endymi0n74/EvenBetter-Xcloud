@@ -34,6 +34,21 @@
 
 **Preuves** : `node bench/settings-live-firefox.mjs` → **9/9** (A2 `range=true disabled=true texte=100%` — le range existe enfin désactivé ; A4 `disabled=false utilisable=true` live ; C1 `0 erreur` ; A≡B : boutons bloqués=false dans les deux mondes, B inchangé). Gates : esbuild --check (5+2 paires), fix-settings-freeze/bus, settings-bus, feature-sound, readme-version (+ self-tests), es2017-check (`617ae468…`/`7e980caf…`), **npm test 22/22** après rebuild des 2 APK (`VARIANT=stable|preview bash mobile/build.sh`, 19:36 — piège classique : bundles rebuildés sans rebuild APK → tv-defaults 4×sha rouge). Biome via `npx @biomejs/biome` casse sur la config du repo (nouvelle version vs biome.json) — non bloquant (CI `|| true`). Pas de bump : VERSION reste 1.13.7 (non publiée).
 
+## Session 24 sept 2026 (suite 3) — publication v1.13.7 + v1.13.7-preview1
+
+**Demande** : « publie la release et met à jour le readme du repo ».
+
+**READMEs** : le bloc « fonctionnalités » des deux README était **tronqué depuis 338ccc4** (le « clean READMEs » avait supprimé la 1re ligne complète de chaque paragraphe — 5 fragments orphelins commençant en milieu de phrase, introduits au fil des versions). Réécrit en liste à puces (🔧 purge listeners, 🔊 Son, ⚡ Région, 📊 Données, 📡 Latence) + nouvelle bullet **🧩 Settings robustes (v1.13.6 → 1.13.7)** ; ren FR « détaillées ci-dessous » → [`docs/perf.md`](docs/perf.md) (le FR n'a plus les sections perf) ; tailles « 470 Ko » → « ~420 Ko » (l'ES2017 réellement servi fait 418 722 o). Gate readme-version + self-test verts.
+
+**Publication** (checklist CONTRIBUTING) :
+1. Commit unique `63d4f53` (32 fichiers : fixes `src/fixes/*`, les 5 gates/bancs neufs non suivis, bundles + es2017 + APK, READMEs, journaux) → push main.
+2. Tags **légers** `evenbetter-xcloud-v1.13.7` + `-preview1` sur 63d4f53 → push.
+3. Assets staging en **LF** dans `.tmp/rel/` (checklist #6 : les previews sont CRLF) ; `better-xcloud.user.js` servi = **contenu ES2017** (contrat guard).
+4. Prerelease preview (3 assets) puis stable **Latest** (5 assets, notes FR + signature vibe-coding), puis canal `evenbetter-xcloud-preview-channel` ré-uploadé `--clobber` (2 assets).
+5. `release-guard.sh` **VERT 4/4** (tag → 63d4f53, 4 liens byte-identiques, APK bannière = versionné, APK preview 200) ; `release-prune.sh` idempotent (0 purgé) ; v1.13.6 purgée (release + tag) par le prune automatique.
+
+**PIÈGE DE COURSE (nouveau, grave — retenu)** : le tag stable avait été poussé AVANT la création de la release preview. La publication de la preview a déclenché `release-prune` (workflow `release: published`) pendant que mon `gh release create` stable tournait (draft 395934150) → le prune voit les drafts (token `contents:write`), le draft n'est pas dans KEEP → `gh release delete --cleanup-tag` → **le tag stable a été avalé** : création #1 en 404 (`cleaning up draft failed: HTTP 404`) puis #2 en échec `--verify-tag` (« tag doesn't exist »). Preuves : log run 36037879464 `suppression : evenbetter-xcloud-v1.13.7` + DeleteEvent 17:57:31Z. **Règle** : ne JAMAIS pousser un tag de release avant la publication de SA release — laisser `gh release create` créer le tag (comme les cycles antérieurs), ou au pire pousser le tag juste avant sa création sans autre publication en vol. Récup : repousser le tag + `gh release create` → prune #2 (36038283178) purgé v1.13.6 en conservant v1.13.7 (Latest) ✓.
+
 ## Session 23 sept 2026 — audit repo-hygiene + réparation release (PR #19, mergée)
 
 **Contexte** : audit externe du repo (fork solide, dette DX) → 4 vagues sur branche `chore/repo-hygiene` (PR #19, merge `3b7d128`), zéro régression exigée et prouvée.
