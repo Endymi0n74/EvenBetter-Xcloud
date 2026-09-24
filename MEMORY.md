@@ -60,6 +60,19 @@
 - Draft test `evenbetter-xcloud-v1.99.9-test` créé (aucun tag distant — un draft ne crée le ref qu'à la publication) : `gh release list --json tagName,isDraft` le **montre** (`isDraft=true`) ; l'ancien filtre `.[] | .tagName` le **cible** → reproduction du vecteur du 24 sept ; le script durci (dry-run) ne le cite **nulle part**.
 - Run réel final : 0 purgé, 4/4 liens 200. Draft de test supprimé, zéro résidu (ni release, ni tag).
 
+## Session 24 sept 2026 (suite 5) — auto-update TM réelle 1.13.6 → 1.13.7 : PASS
+
+**Demande** : « Valide l'auto-update réel 1.13.6 → 1.13.7 dans Tampermonkey via le meta pinné ».
+
+**Méthode (reproductible, fichiers transitoires `.tmp/tm/*.mjs` nettoyés)** :
+1. Profil dédié `D:\edge-profiles\tm-update` — TM BETA 5.5.6237 (`fcmfnp…`) toujours installé (session 20 août), script à jour jusqu'à **1.13.2**.
+2. Edge détaché + port CDP : `powershell Start-Process msedge -ArgumentList '--user-data-dir=…','--remote-debugging-port=9230',…`. ⚠️ **Piège quoting** : `cmd /c start "" "…msedge.exe" <args>` depuis Git Bash **perd les args** (échappement MSYS) → Edge ouvert sur le profil UTILISATEUR sans CDP ; correction : `taskkill /F /IM msedge.exe` (0 msedge avant → sûr) + relance via `Start-Process` (sans `-Verb RunAs`). Playwright `chromium.connectOverCDP('http://127.0.0.1:9230')` pour piloter.
+3. Bundle 1.13.6 réel extrait du **tag local** (`git show evenbetter-xcloud-v1.13.6:better-xcloud.es2017.user.js` — la release versionnée est purgée, URL 404) servi sur 127.0.0.1:8934 → ouverture de l'URL → **interception TM** (`script_installation.php` + page `ask.html`).
+4. ⚠️ Piège : le bouton d'installation est un `input[value="Mettre à jour"]` (textContent vide) → un garde sur `textContent` abort après le clic (l'install tournait quand même). État vérifié ensuite : meta = **1.13.6** + `@source` = script 1.13.6 (remplace la 1.13.2 du 20 août).
+5. Déclenchement réel côté TM (`options.html#nav=dashboard`) : cocher `.multiselectcb` + select « **Lancer une MàJ** » + bouton « **Démarrer** ».
+
+**Verdict PASS (~3 s)** : `!extdb.@meta#658c4d25…` : 1.13.6 → **1.13.7** ; `@source` = script complet `@version 1.13.7` téléchargé via `@updateURL` = `releases/latest/download/better-xcloud.meta.js` (pin réel GitHub — le serveur local ne servait QUE 1.13.6, la 1.13.7 ne peut venir que de GitHub). Chaîne prouvée de bout en bout : install bytes du tag → check TM → fetch meta pinné → téléchargement user.js → application — le chemin exact d'un utilisateur final. Note : `!misc.scripts.update` reste `{}` (record non systématique, contrairement à la note du 20 août). Edge de test fermé, `.tmp/tm` nettoyé, profil laissé en état 1.13.7.
+
 ## Session 23 sept 2026 — audit repo-hygiene + réparation release (PR #19, mergée)
 
 **Contexte** : audit externe du repo (fork solide, dette DX) → 4 vagues sur branche `chore/repo-hygiene` (PR #19, merge `3b7d128`), zéro régression exigée et prouvée.
