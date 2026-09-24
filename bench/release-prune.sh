@@ -12,7 +12,10 @@
 #          publication preview) — jamais purgée, sinon l'auto-update de tous
 #          les utilisateurs preview installés tombe en 404 (incident 19 août,
 #          preview1 → preview2).
-# Purge  : toutes les autres (release + tag, --cleanup-tag).
+# Purge  : toutes les autres RELEASES PUBLIÉES (release + tag, --cleanup-tag).
+#          JAMAIS un DRAFT — une release en cours de création (assets en cours
+#          d'upload) n'est pas de la rétention à purger, et son `--cleanup-tag`
+#          avalerait le tag à peine poussé par son créateur (piège 24 sept).
 # Après  : vérifie les 4 liens d'auto-update (user.js/meta.js × stable/preview).
 #
 # Usage  : ./bench/release-prune.sh [--dry-run] [--repo=owner/repo]
@@ -32,6 +35,16 @@
 #   - `gh release upload` mangle les fichiers cachés en "default.*" et ne
 #     supporte pas le renommage fichier#nom — nommer les fichiers locaux
 #     exactement comme les assets voulus
+#   - COURSE 24 sept 2026 (v1.13.7) : la publication d'une release déclenche ce
+#     prune pendant qu'UN AUTRE `gh release create` est en cours (draft +
+#     assets en cours d'upload). `gh release list` MONTRE les drafts au token
+#     d'écriture → le draft n'était pas dans KEEP → `gh release delete
+#     --cleanup-tag` a purgé le draft ET AVALÉ LE TAG à peine poussé (log
+#     « suppression : evenbetter-xcloud-v1.13.7 » + DeleteEvent 17:57:31Z ;
+#     création stable en 404 puis échec --verify-tag « tag doesn't exist »).
+#     Fix : isDraft == false sur les TROIS lectures (Latest / previews /
+#     purge) + re-vérification isDraft juste avant chaque suppression — une
+#     release en vol n'est jamais listée comme cible, ni son tag.
 # ============================================================================
 set -euo pipefail
 
@@ -62,8 +75,8 @@ PREVIEW_CHANNEL="evenbetter-xcloud-preview-channel"
 log "canal preview (whitelist) : $PREVIEW_CHANNEL"
 
 # --- 1. Releases (jq intégré de gh — pas de dépendance jq) ------------------
-LATEST_TAG=$(gh release list --repo "$REPO" --limit 100 --json tagName,isLatest \
-    --jq '.[] | select(.isLatest == true) | .tagName' 2>/dev/null) \
+LATEST_TAG=$(gh release list --repo "$REPO" --limit 100 --json tagName,isDraft,isLatest \
+    --jq '.[] | select(.isDraft != true and .isLatest == true) | .tagName' 2>/dev/null) \
     || gate "impossible de lister les releases de $REPO"
 [ -n "$LATEST_TAG" ] || gate "pas de release Latest sur $REPO"
 
@@ -71,8 +84,8 @@ LATEST_TAG=$(gh release list --repo "$REPO" --limit 100 --json tagName,isLatest 
 # la version de base PUIS le numéro de preview — preview9 < preview10, et
 # 1.13.1-preview2 > 1.8.0-preview4 : trier seulement previewN tromperait,
 # « 4 » > « 2 »). Jamais publishedAt.
-PREVIEWS=$(gh release list --repo "$REPO" --limit 100 --json tagName,isPrerelease \
-    --jq '[.[] | select(.isPrerelease == true) | {tag: .tagName, m: (.tagName | capture("(?<base>[0-9]+\\.[0-9]+\\.[0-9]+).*preview(?<n>[0-9]+)$")?)} | {tag: .tag, base: ((.m.base // "0.0.0") | split(".") | map(tonumber)), n: ((.m.n // "0") | tonumber)}] | sort_by([.base[0], .base[1], .base[2], .n]) | reverse | .[:1] | .[].tag' 2>/dev/null)
+PREVIEWS=$(gh release list --repo "$REPO" --limit 100 --json tagName,isPrerelease,isDraft \
+    --jq '[.[] | select(.isDraft != true and .isPrerelease == true) | {tag: .tagName, m: (.tagName | capture("(?<base>[0-9]+\\.[0-9]+\\.[0-9]+).*preview(?<n>[0-9]+)$")?)} | {tag: .tag, base: ((.m.base // "0.0.0") | split(".") | map(tonumber)), n: ((.m.n // "0") | tonumber)}] | sort_by([.base[0], .base[1], .base[2], .n]) | reverse | .[:1] | .[].tag' 2>/dev/null)
 [ -n "$PREVIEWS" ] || gate "aucune release prerelease sur $REPO"
 # gh sort les tags par newline — normaliser en espaces pour les tests de présence
 PREVIEWS=$(echo "$PREVIEWS" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
@@ -100,8 +113,20 @@ log "garde : $LATEST_TAG (Latest) + $PREVIEWS (dernier preview) + $PREVIEW_CHANN
 
 # --- 2. Purge ---------------------------------------------------------------
 DELETED=0
-for tag in $(gh release list --repo "$REPO" --limit 100 --json tagName --jq '.[].tagName' 2>/dev/null); do
+# isDraft == false au listage : un draft en vol (création concurrente — piège
+# 24 sept) n'entre jamais dans la boucle de purge.
+for tag in $(gh release list --repo "$REPO" --limit 100 --json tagName,isDraft \
+    --jq '.[] | select(.isDraft != true) | .tagName' 2>/dev/null); do
     if [[ " $KEEP " != *" $tag "* ]]; then
+        # Re-vérification juste avant suppression (défense en profondeur) :
+        # l'état peut avoir bougé depuis le listage — un draft n'est JAMAIS
+        # purgé, ni son tag via --cleanup-tag.
+        is_draft=$(gh release list --repo "$REPO" --limit 100 --json tagName,isDraft \
+            --jq ".[] | select(.tagName == \"$tag\") | .isDraft" 2>/dev/null || true)
+        if [ "$is_draft" = "true" ]; then
+            log "⏭  $tag : draft en vol — jamais purgé, tag conservé"
+            continue
+        fi
         if [ "$DRY_RUN" -eq 1 ]; then
             log "[dry-run] supprimerait : $tag"
         else

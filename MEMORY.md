@@ -49,6 +49,17 @@
 
 **PIÈGE DE COURSE (nouveau, grave — retenu)** : le tag stable avait été poussé AVANT la création de la release preview. La publication de la preview a déclenché `release-prune` (workflow `release: published`) pendant que mon `gh release create` stable tournait (draft 395934150) → le prune voit les drafts (token `contents:write`), le draft n'est pas dans KEEP → `gh release delete --cleanup-tag` → **le tag stable a été avalé** : création #1 en 404 (`cleaning up draft failed: HTTP 404`) puis #2 en échec `--verify-tag` (« tag doesn't exist »). Preuves : log run 36037879464 `suppression : evenbetter-xcloud-v1.13.7` + DeleteEvent 17:57:31Z. **Règle** : ne JAMAIS pousser un tag de release avant la publication de SA release — laisser `gh release create` créer le tag (comme les cycles antérieurs), ou au pire pousser le tag juste avant sa création sans autre publication en vol. Récup : repousser le tag + `gh release create` → prune #2 (36038283178) purgé v1.13.6 en conservant v1.13.7 (Latest) ✓.
 
+## Session 24 sept 2026 (suite 4) — durcissement release-prune (jamais un draft)
+
+**Demande** : « Durcis release-prune.sh pour qu'il ne purge jamais un draft en vol ni son tag ».
+
+**Fix** (`bench/release-prune.sh`) : `isDraft != true` sur les **3 lectures** de `gh release list` (Latest, dernier preview, boucle de purge) + **re-vérification `isDraft` juste avant** chaque `gh release delete` (défense en profondeur, chemin ⏭ loggé). Un draft en vol n'entre plus jamais dans la boucle → son tag n'est plus accessible au `--cleanup-tag`. Deuxième vecteur couvert par le filtre previews : un draft prerelease plus récent que le dernier preview publié le ferait sortir de KEEP (c'est le publié qui aurait été purgé à sa place).
+
+**Preuves (réel, repo de prod)** :
+- `bash -n` + dry-run état sain : 0 cible, exit 0.
+- Draft test `evenbetter-xcloud-v1.99.9-test` créé (aucun tag distant — un draft ne crée le ref qu'à la publication) : `gh release list --json tagName,isDraft` le **montre** (`isDraft=true`) ; l'ancien filtre `.[] | .tagName` le **cible** → reproduction du vecteur du 24 sept ; le script durci (dry-run) ne le cite **nulle part**.
+- Run réel final : 0 purgé, 4/4 liens 200. Draft de test supprimé, zéro résidu (ni release, ni tag).
+
 ## Session 23 sept 2026 — audit repo-hygiene + réparation release (PR #19, mergée)
 
 **Contexte** : audit externe du repo (fork solide, dette DX) → 4 vagues sur branche `chore/repo-hygiene` (PR #19, merge `3b7d128`), zéro régression exigée et prouvée.
