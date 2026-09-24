@@ -93,11 +93,25 @@ function runChecks(stableSrc, previewSrc) {
   check("moteur présent dans le bundle stable", count(stableSrc, ENGINE_MARKER) === 1, "n=" + count(stableSrc, ENGINE_MARKER));
   check("moteur présent dans le build preview", count(previewSrc, ENGINE_MARKER) === 1, "n=" + count(previewSrc, ENGINE_MARKER));
   check("moteur démarré au chargement", count(stableSrc, ENGINE_START) === 1, "n=" + count(stableSrc, ENGINE_START));
-  check("pont de bus : la pref globale est republiée sur le bus Stream",
-    count(stableSrc, "isStreamPref(payload.settingKey)) return;") === 1 &&
-      count(stableSrc, 'BxEventBus.Stream.emit("setting.changed", payload)') === 1,
-    "garde=" + count(stableSrc, "isStreamPref(payload.settingKey)) return;") +
+  // v1.13.7 : plus de pont Script→Stream dans le moteur. La livraison de la pref
+  // GLOBALE aux items audio.volume est portée par src/fixes/settings-bus.js
+  // (chaque item abonné au bon bus) et vérifiée par bench/fix-settings-bus.test.js
+  // + bench/settings-bus.test.js. Ici on verrouille uniquement ce que le moteur
+  // doit continuer à faire : écouter le booster sur les DEUX bus, sans republier
+  // d'événement sur le bus des autres.
+  check("moteur : booster écouté sur les DEUX bus (Script + Stream)",
+    count(stableSrc, 'BxEventBus.Script.on("setting.changed", onChange)') === 1 &&
+      count(stableSrc, 'BxEventBus.Stream.on("setting.changed", onChange)') === 1,
+    "script=" + count(stableSrc, 'BxEventBus.Script.on("setting.changed", onChange)') +
+    " stream=" + count(stableSrc, 'BxEventBus.Stream.on("setting.changed", onChange)'));
+  check("moteur : plus de pont Script→Stream (le fix settings-bus s'en charge)",
+    count(stableSrc, "// Pont : une pref GLOBALE") === 0 &&
+      count(stableSrc, 'BxEventBus.Stream.emit("setting.changed", payload)') === 0,
+    "commentaire=" + count(stableSrc, "// Pont : une pref GLOBALE") +
     " emit=" + count(stableSrc, 'BxEventBus.Stream.emit("setting.changed", payload)'));
+  check("preview : moteur sans pont Script→Stream",
+    count(previewSrc, 'BxEventBus.Stream.emit("setting.changed", payload)') === 0,
+    "emit=" + count(previewSrc, 'BxEventBus.Stream.emit("setting.changed", payload)'));
   check("relance du contexte suspendu (politique Firefox) présente",
     count(stableSrc, '.state === "suspended"') === 1 && count(stableSrc, "_resumeOnly") >= 2,
     "garde=" + count(stableSrc, '.state === "suspended"') + " resumeOnly=" + count(stableSrc, "_resumeOnly"));

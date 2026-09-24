@@ -2,6 +2,26 @@
 
 Toutes les modifications notables de ce fork sont documentées ici. Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
+## [1.13.7] - 2026-09-24
+
+Audit **systématique** des bus d'événements, au-delà du cas déjà connu : le bundle route `setting.changed` selon la CLASSE de la pref (`Settings.setSetting(key, value, "ui")` émet sur le bus **Stream** si `isStreamPref(key)`, sinon sur le bus **Script**). Un listener abonné au mauvais bus ne reçoit donc **jamais** rien — sans erreur, sans log, sans trace.
+
+### Corrigé
+- **Item `audio.volume` du groupe global « Son »** : sa seule pref filtrée, `audio.volume.booster.enabled`, est GLOBALE → il écoutait le bus Stream et ne recevait jamais la bascule (le `get params()` de la 1.13.6 corrigeait l'état initial, pas le dégrisage live). Il écoute désormais le bus **Script**.
+- **Item `audio.volume` du panneau stream** : il filtre `audio.volume` (STREAM) ET le booster (GLOBALE) → son handler est maintenant abonné aux **deux** bus (callback extrait dans une variable locale, jamais dupliqué).
+- **Fin du pont ad hoc du moteur son** : `BX_SOUND_ENGINE` ré-émettait Script → Stream pour masquer ces deux défauts — la livraison de code amont ne doit pas dépendre d'une feature. Le moteur continue d'écouter le booster sur les deux bus (défense en profondeur).
+- **Contrôle de volume inutilisable quand la construction le désactive** (détecté par le nouveau banc Firefox) : `BxNumberStepper.create` faisait un early-return quand `options.disabled` était vrai **avant** de construire le `input[type=range]` — avec le `params.disabled` de la 1.13.6 (booster éteint = défaut), le range n'existait donc pas : le handler de l'item stream crashait (`querySelector("input[type=range"` — sélecteur amont non fermé — sur `null` → `TypeError`) et le dégrisage live écrivait une propriété muette sur le div. Correctif (2 paires dans `src/fixes/settings-freeze.js`) : le range est **toujours** construit, désactivé après coup ; sélecteur fermé + repli `|| $elm` (même forme que l'item « Son »). À la construction seul le range est grisé (pas les boutons) — strictement l'état du monde B après toggle, les handlers amont ne touchant que `$range`.
+
+### Ajouté
+- `bench/settings-bus-audit.js` + gate `bench/settings-bus.test.js` : audit **statique** de tous les `.on("setting.changed", …)` des deux bundles (extraction de `ALL_PREFS.global|stream`, résolution du callback inline ou `var onChange = …`, clés filtrées `===`/`!==`/`includes`, joker `isStreamPref(settingKey)`), verdict par callback — un handler abonné aux deux bus ne compte qu'une fois. L'audit refuse de conclure si le contrat d'émission dérive (audit périmé = rouge, jamais silencieux) et le gate prouve sa **non-vacuité** (fix bus reversé → les 2 défauts reviennent).
+- `src/fixes/settings-bus.js` + `bench/fix-settings-bus.js` + `bench/fix-settings-bus.test.js` : second payload de remplacement, avec **garde d'ordre** (à appliquer après `settings-freeze`, GATE ROUGE sinon) ; l'injecteur du gel accepte en retour ces formes comme « déjà appliqué » (forme post-fix **dérivée** du payload suivant, jamais recopiée). Le rejeu depuis une base amont reproduit le bundle committé **octet pour octet**.
+- `bench/sound-engine-firefox.mjs` rejoue désormais le **routage réel** (`setSetting` : booster → bus Script) au lieu d'un pont — 8/8 verts sous Firefox 153 (RMS ×1,98 à 200 %).
+
+- `bench/settings-live-firefox.mjs` : banc **Firefox réel** (Playwright) du dialog settings ouvert par le vrai bouton d'en-tête — 9 checks répartis sur les deux scénarios booster (éteint / allumé à l'ouverture) : état range/boutons/texte, écriture de pref au clic réel, dégrisage/regrisage live, aller-retour, exceptions de page. 7/9 au premier run (2 défauts réels) → **9/9** après le correctif du stepper.
+
+### Infra
+- Gates `fix-settings-freeze`, `fix-settings-bus` et `settings-bus` câblées dans `bench.yml` : les fixes amont ne passaient par aucun pipeline, un rebuild pouvait en oublier un.
+
 ## [1.13.6] - 2026-09-24
 
 Version qui **corrige enfin deux bugs jamais publiés** (la 1.13.5 servie n'en portait aucun : ses correctifs étaient restés sur une branche locale non poussée, tandis que la 1.13.5 publiée était une passe de maintenance).

@@ -1,4 +1,4 @@
-# EvenBetterXcloud — v1.13.6
+# EvenBetterXcloud — v1.13.7
 
 [![Release](https://img.shields.io/github/v/release/Endymi0n74/EvenBetter-Xcloud?style=for-the-badge&color=green)](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest)
 [![Install](https://img.shields.io/badge/Install-userscript-blue?style=for-the-badge)](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-xcloud.user.js)
@@ -8,37 +8,44 @@
 
 Fork performance du userscript [Better xCloud](https://github.com/redphx/better-xcloud)
 (redphx), orienté **performance** + **fonctionnalités utilisateur**. Dernière
-release : [evenbetter-xcloud-v1.13.6](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/tag/evenbetter-xcloud-v1.13.6).
+release : [evenbetter-xcloud-v1.13.7](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/tag/evenbetter-xcloud-v1.13.7).
 
-de diagnostic attachés à `window` pendant les sessions de test (marqueur
-`win-capture`) sont tracés au démarrage et purgés en un appel — un listener
-oublié ne peut plus polluer la console ni gêner la page. Maintien : probes de
-validation mises à jour (convention de nettoyage documentée).
+Les fonctionnalités utilisateur du fork :
 
-settings → groupe *Son*, quatre presets (🔇 Muet / 🔉 Doux / 🔊 Normal /
-📢 Boost) posent `audio.volume` (+ le booster si besoin) et l'appliquent
-**en direct sur la session en cours** via le canal du slider natif — sans
-passer par le menu déroulant du volume.
-
-latence, un bouton pose directement `server.region` sur la région au ping le
-plus bas mesuré (recommandation ⭐) — fini le copier-coller de la meilleure
-région dans le menu déroulant.
-
-dans les settings → groupe *Données*, trois presets basés sur nos **mesures
-réelles** (le cap `maxBitrate` est le seul réglage qui économise SANS perdre la
-définition) : 🚀 Max (illimité, défaut), ⚖️ Équilibré (cap 10 Mbps · 1440p
-conservé, ~6,6 Mbps réels) et 🌱 Économe (cap 5 Mbps · 720p, ~4,7 Mbps). Le
-groupe est visible même déconnecté pour poser le preset avant de lancer une
-session.
-
-groupe *Server*, un bouton « Tester la latence des serveurs » mesure le RTT
-vers chacune des 19 régions xCloud (via l'hôte gssv de la région, `NATIVE_FETCH`
-pour une mesure pure) et marque la meilleure « ⭐ région recommandée » — pour
-choisir le bon `server.region` avec des chiffres réels au lieu de deviner.
+- **🔧 Purge des listeners de diagnostic** : les listeners de diagnostic
+  attachés à `window` pendant les sessions de test (marqueur `win-capture`)
+  sont tracés au démarrage et purgés en un appel — un listener oublié ne peut
+  plus polluer la console ni gêner la page. Maintien : probes de validation
+  mises à jour (convention de nettoyage documentée).
+- **🔊 Son** : dans les settings → groupe *Son*, quatre presets (🔇 Muet /
+  🔉 Doux / 🔊 Normal / 📢 Boost) posent `audio.volume` (+ le booster si
+  besoin) et l'appliquent **en direct sur la session en cours** via le canal
+  du slider natif — sans passer par le menu déroulant du volume.
+- **⚡ Appliquer la meilleure région** : après le test de latence, un bouton
+  pose directement `server.region` sur la région au ping le plus bas mesuré
+  (recommandation ⭐) — fini le copier-coller de la meilleure région dans le
+  menu déroulant.
+- **📊 Données** : dans les settings → groupe *Données*, trois presets basés
+  sur nos **mesures réelles** (le cap `maxBitrate` est le seul réglage qui
+  économise SANS perdre la définition) : 🚀 Max (illimité, défaut), ⚖️
+  Équilibré (cap 10 Mbps · 1440p conservé, ~6,6 Mbps réels) et 🌱 Économe
+  (cap 5 Mbps · 720p, ~4,7 Mbps). Le groupe est visible même déconnecté pour
+  poser le preset avant de lancer une session.
+- **📡 Test de latence serveur** : dans les settings → groupe *Server*, un
+  bouton « Tester la latence des serveurs » mesure le RTT vers chacune des 19
+  régions xCloud (via l'hôte gssv de la région, `NATIVE_FETCH` pour une
+  mesure pure) et marque la meilleure « ⭐ région recommandée » — pour
+  choisir le bon `server.region` avec des chiffres réels au lieu de deviner.
+- **🧩 Settings robustes (v1.13.6 → 1.13.7)** : le dialog réglages s'ouvre
+  sans geler sous Firefox (observateur `BxSelectElement` filtré), le slider
+  du booster se **dégrise en direct** (toutes les souscriptions
+  `setting.changed` auditées, le contrôle de volume toujours construit) —
+  vérifié par un banc Firefox réel (9/9).
 
 Ce dépôt contient le script **buildé** (`better-xcloud.user.js`) — c'est le
 fichier à installer tel quel dans un gestionnaire d'userscripts. Les
-optimisations sont listées dans l'en-tête du script et détaillées ci-dessous.
+optimisations sont listées dans l'en-tête du script et détaillées dans
+[`docs/perf.md`](docs/perf.md).
 
 ## Installation
 
@@ -84,12 +91,12 @@ Chaque release contient **deux fichiers** :
 | Fichier | Rôle |
 |---|---|
 | `better-xcloud.meta.js` | En-tête du script seul (~0,7 Ko) — l'URL pointée par `@updateURL` |
-| `better-xcloud.user.js` | Script complet (470 Ko) — l'URL de `@downloadURL` |
+| `better-xcloud.user.js` | Script complet (~420 Ko, build ES2017) — l'URL de `@downloadURL` |
 
 Au moment du check d'update, Tampermonkey télécharge **`better-xcloud.meta.js`**
 (léger), compare le `@version` servi avec celui installé, et ne télécharge le
-script complet que si une nouvelle version existe. Évite de télécharger 470 Ko
-à chaque vérification.
+script complet que si une nouvelle version existe. Évite de télécharger
+~420 Ko à chaque vérification.
 
 ```
 @updateURL    → …/releases/latest/download/better-xcloud.meta.js
@@ -130,7 +137,7 @@ détaillé dans `bench/preview/port/README.md`) :
 |---|---|---|
 | Rôle | Le fork optimisé classique — xbox.com/play (SPA Webpack, renderer WebGL2) | La variante du nouveau client web (React Router 7 + rolldown, renderer Babylon.js) |
 | Fichier | `better-xcloud.user.js` | `better-xcloud-preview.user.js` (+ `.meta.js`) |
-| Version | `1.13.6` | `1.13.6-preview1` (prerelease) |
+| Version | `1.13.7` | `1.13.7-preview1` (prerelease) |
 | `@name` | `EvenBetterXcloud` | `EvenBetterXcloud (Preview)` |
 | `@match` | `www.xbox.com/*/play*` | `play.xbox.com/*` uniquement |
 | Auto-update | `releases/latest` (canal stable) | canal flottant `evenbetter-xcloud-preview-channel` (ré-uploadé à chaque publication — jamais purgé, contrairement aux tags versionnés) |
@@ -153,7 +160,7 @@ https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-
 Preview Features activé) :
 
 ```
-https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.13.6-preview1/better-xcloud-preview.user.js
+https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.13.7-preview1/better-xcloud-preview.user.js
 ```
 
 Le preview est **jouable et validé en réel** : bouton settings dans le top bar

@@ -11,8 +11,10 @@
  * peux pas régler le volume » :
  *
  *   1. BUS — `audio.volume.booster.enabled` est une pref GLOBALE : setSetting
- *      émet sur le bus Script, or le panneau « Son » n'écoute que le bus
- *      Stream. Le pont du moteur doit faire traverser l'événement.
+ *      l'émet sur le bus **Script** (le bus Stream ne porte que les prefs de
+ *      ALL_PREFS.stream). Le harnais rejoue ce routage exact via setPref() : le
+ *      moteur doit réagir à l'événement reçu sur Script, sans aucun pont
+ *      (v1.13.7 : les items sont abonnés au bon bus par settings-bus.js).
  *   2. BRANCHEMENT LIVE — booster activé en cours de partie (aucun patch au
  *      chargement) : le moteur doit monter source → gain → destination, mettre
  *      le média en sourdine et publier audioGainNode (sinon le slider dégrisé
@@ -82,6 +84,14 @@ const result = await page.evaluate(async (engineSrc) => {
     if (origin === "ui") window.BxEventBus.Stream.emit("setting.changed", { settingKey: k });
     return v;
   };
+  window.setGlobalPref = (k, v, origin) => {
+    prefs.global[k] = v;
+    if (origin === "ui") window.BxEventBus.Script.emit("setting.changed", { settingKey: k });
+    return v;
+  };
+  // Routage EXACT de Settings.setSetting(key, value, "ui") : bus Stream pour une
+  // pref stream, bus Script sinon. C'est ce chemin-là qu'emprunte l'UI.
+  window.setPref = (k, v, origin) => (window.isStreamPref(k) ? window.setStreamPref(k, v, origin) : window.setGlobalPref(k, v, origin));
   // corps EXACT de SoundShortcut.setGainNodeVolume (upstream) : le slider passe
   // par lui, donc c'est ce chemin qu'il faut mesurer.
   window.SoundShortcut = {
@@ -121,17 +131,17 @@ const result = await page.evaluate(async (engineSrc) => {
     }, 200);
   });
 
-  // ---- 1. le pont de bus : une pref GLOBAL doit atteindre le panneau Stream ----
-  let bridgeHits = 0;
-  window.BxEventBus.Stream.on("setting.changed", (p) => { if (p.settingKey === "ui.layout") bridgeHits++; });
-  window.BxEventBus.Script.emit("setting.changed", { settingKey: "ui.layout" });
-  log.push("pont Script→Stream (pref globale ui.layout reçue côté Stream) = " + bridgeHits);
+  // ---- 1. routage réel : une pref GLOBALE part sur le bus Script ----
+  let scriptHits = 0;
+  window.BxEventBus.Script.on("setting.changed", (p) => { if (p && p.settingKey === "audio.volume.booster.enabled") scriptHits++; });
+  window.setPref("ui.layout", "compact", "ui"); // bruit volontaire : pref globale, pas le booster
+  log.push("routage : ui.layout (globale) → bus Script · booster compté=" + scriptHits);
 
   // ---- 2/4. booster activé EN COURS DE PARTIE (aucun patch au chargement) ----
   const ctxBefore = window.STATES.currentStream.audioContext ? window.STATES.currentStream.audioContext.state : "absent";
-  prefs.global["audio.volume.booster.enabled"] = true;
-  window.BxEventBus.Script.emit("setting.changed", { settingKey: "audio.volume.booster.enabled" });
+  window.setPref("audio.volume.booster.enabled", true, "ui");
   await new Promise((r) => setTimeout(r, 300));
+  const mutedOn = $media.muted;
   const ctxAfter = window.STATES.currentStream.audioContext ? window.STATES.currentStream.audioContext.state : "absent";
   log.push("contexte : " + ctxBefore + " → " + ctxAfter + " · muted=" + $media.muted +
     " · audioGainNode=" + (window.STATES.currentStream.audioGainNode ? "présent" : "absent"));
@@ -146,12 +156,11 @@ const result = await page.evaluate(async (engineSrc) => {
   }
 
   // ---- 5. extinction ----
-  prefs.global["audio.volume.booster.enabled"] = false;
-  window.BxEventBus.Script.emit("setting.changed", { settingKey: "audio.volume.booster.enabled" });
+  window.setPref("audio.volume.booster.enabled", false, "ui");
   await new Promise((r) => setTimeout(r, 200));
   log.push("booster off : muted=" + $media.muted + " · gain=" + (E.gain ? "présent" : "absent"));
 
-  return { log, errors, levels, ctxBefore, ctxAfter, bridgeHits, mutedAfterOff: $media.muted };
+  return { log, errors, levels, ctxBefore, ctxAfter, scriptHits, mutedOn, mutedAfterOff: $media.muted };
 }, ENGINE);
 
 let fails = 0;
@@ -166,7 +175,8 @@ if (result.errors && result.errors.length) console.log("  ⚠ erreurs moteur : "
 console.log("");
 
 const L = result.levels || {};
-step("pont de bus : la pref globale atteint le bus Stream", result.bridgeHits >= 1, "hits=" + result.bridgeHits);
+step("routage réel : le booster part sur le bus Script et le moteur réagit", result.scriptHits >= 1 && result.mutedOn === true,
+  "hits=" + result.scriptHits + " · muted=" + result.mutedOn);
 step("branchement live : audioGainNode publié (le slider devient effectif)", result.log.some((l) => l.includes("audioGainNode=présent")));
 step("contexte relancé (Firefox ne le fait pas seul)", result.ctxAfter === "running", result.ctxBefore + " → " + result.ctxAfter);
 step("volume 100 % audible", (L[100] ?? 0) > 0.001, "RMS=" + L[100]);

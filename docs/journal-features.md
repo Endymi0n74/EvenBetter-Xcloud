@@ -159,3 +159,56 @@ traduction) — traduction à ajouter si besoin.
 RTT réels, cohérents géographiquement — ⭐ CSE (Suède) 30 ms, WEU
 (Pays-Bas) 41 ms, UKS (défaut) 43 ms, MXC 104 ms, Japan 804 ms. Preuve :
 `bench/.latency-feature-proof.png`. Aucun timeout, < 1 s par région.
+
+## Audit des bus `setting.changed` — v1.13.7 (24 septembre)
+
+Routage reconstruit depuis le bundle : `Settings.setSetting(key, value, "ui")`
+émet sur le bus **Stream** si `isStreamPref(key)`, sinon sur le bus **Script** —
+autrement dit le bus Stream ne porte que `ALL_PREFS.stream`, le bus Script tout le
+reste. Un listener abonné au mauvais bus est **injoignable** : pas d'erreur, pas
+de log, juste un callback jamais appelé.
+
+L'audit `bench/settings-bus-audit.js` (gate `bench/settings-bus.test.js`) relit
+les deux bundles, extrait les clés filtrées par chaque `.on("setting.changed", …)`
+(callback inline ou `var onChange = …` résolu), regroupe par callback (un même
+handler abonné aux deux bus ne compte qu'une fois) et refuse de conclure si le
+contrat d'émission dérive. Verdict sur la 1.13.6 : **2 listeners amont
+injoignables** (les deux items `audio.volume` attendaient la pref **globale**
+`audio.volume.booster.enabled` sur le bus Stream) + le pont Script→Stream du
+moteur son — béquille qui les masquait jusqu'ici. Les 4 autres listeners amont
+sont corrects (`stats.colors` stream, `StreamSettings` gardé par `isStreamPref`).
+
+Correction (`src/fixes/settings-bus.js`, injecteur `bench/fix-settings-bus.js`) :
+l'item « Son » s'abonne au bus Script ; le handler du panneau stream, qui filtre
+une pref stream **et** la pref globale, est extrait dans `bxOnSettingChanged` et
+abonné aux deux bus. Le pont du moteur est supprimé (le booster reste écouté sur
+les deux bus). Le second fix dépend du premier (`settings-freeze` crée la ligne
+visée) : l'injecteur refuse l'ordre inverse, et l'injecteur du gel considère les
+formes post-bus comme « déjà appliqué » (forme **dérivée** par `rebusItemText`,
+jamais recopiée). Preuve Firefox réelle : `node bench/sound-engine-firefox.mjs`
+— le harnais rejoue le routage réel de `setSetting` au lieu d'un pont → 8/8.
+
+## Banc settings live sous Firefox + fix du stepper « audio.volume » (24 septembre)
+
+`bench/settings-live-firefox.mjs` rejoue le parcours réel (Playwright + Firefox
+153 : clic sur le vrai bouton d'en-tête → dialog → contrôles et clics réels)
+sur les deux scénarios booster (éteint / allumé à l'ouverture) — 9 checks :
+présence et état du contrôle (range / boutons / texte), écriture de pref au clic,
+dégrisage et regrisage live, exceptions de page. **7/9 au premier run**, deux
+défauts réels partageant une cause racine :
+
+- **early-return de `BxNumberStepper.create`** : `options.disabled` retournait
+  AVANT la construction du `input[type=range]` — avec le `params.disabled` de la
+  1.13.6 (booster éteint = défaut), le range n'existait pas : le handler stream
+  crashait (`querySelector("input[type=range")` sur `null` → `TypeError`) et le
+  dégrisage live écrivait une propriété muette sur le div. Correctif (2 paires
+  dans `src/fixes/settings-freeze.js`) : le range est **toujours** construit,
+  désactivé après coup — à la construction seul le range est grisé (pas les
+  boutons), strictement équivalent au monde B après toggle puisque les handlers
+  amont ne touchent que `$range`.
+- **sélecteur amont non fermé** `input[type=range` → fermé + repli `|| $elm`
+  (même forme que l'item « Son »).
+
+Preuve : **9/9** (A2 range désactivé présent · A4 dégrisé en direct · C1 zéro
+exception · A≡B). Migration des bundles dérivée de `rebusItemText` → rebuild
+preview (overlay), es2017 et APK ×2 → `npm test` 22/22.

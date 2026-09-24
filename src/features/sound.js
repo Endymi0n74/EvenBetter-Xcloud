@@ -182,14 +182,10 @@ window.BX_SOUND_ENGINE = {
     };
     try { BxEventBus.Script.on("setting.changed", onChange); } catch (e) {}
     try { BxEventBus.Stream.on("setting.changed", onChange); } catch (e) {}
-    try {
-      // Pont : une pref GLOBALE doit être vue par le panneau stream (items
-      // audio.volume des 2 groupes, qui n'écoutent que le bus Stream).
-      BxEventBus.Script.on("setting.changed", function (payload) {
-        if (!payload || !payload.settingKey || isStreamPref(payload.settingKey)) return;
-        BxEventBus.Stream.emit("setting.changed", payload);
-      });
-    } catch (e) {}
+    // Plus de pont Script -> Stream ici (v1.13.7) : les 2 items audio.volume
+    // sont désormais abonnés au bon bus par src/fixes/settings-bus.js. Le
+    // booster reste écouté sur les DEUX bus (défense en profondeur : si
+    // l'amont re-route un jour la pref, le moteur suit sans rien changer).
     var unlock = function () {
       try { self._resumeOnly(); } catch (e) {}
       document.removeEventListener("pointerdown", unlock, true);

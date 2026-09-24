@@ -123,6 +123,25 @@ jobs:
           # ancre dérive. Lancement local :
           # node bench/feature-sound.test.js [--self-test]
           node bench/feature-sound.test.js
+          # fix-settings-freeze / fix-settings-bus : gates vm des deux correctifs
+          # AMONT (paires from → to) — v1.13.6 gel des settings sous Firefox +
+          # volume figé, v1.13.7 bus `setting.changed` des 2 items audio.volume.
+          # Ils ne passent PAS par le pipeline des features : le test vérifie
+          # qu'ils sont appliqués dans les DEUX builds, rejoue l'injection depuis
+          # une base amont (bundle reproductible octet pour octet), exerce le
+          # chemin d'échec (--self-test) et refuse l'ordre inverse (gel avant
+          # bus). Échoue le job si un rebuild oublie un fix. Lancement local :
+          # node bench/fix-settings-freeze.test.js | node bench/fix-settings-bus.test.js
+          node bench/fix-settings-freeze.test.js
+          node bench/fix-settings-bus.test.js
+          # settings-bus-audit : audit statique du contrat `setting.changed`.
+          # Le bundle route l'événement selon la CLASSE de la pref (bus Stream =
+          # ALL_PREFS.stream seulement, bus Script = le reste) : le gate vérifie
+          # que chaque listener peut recevoir les clés qu'il filtre, prouve sa
+          # non-vacuité (fix bus reversé → les 2 défauts reviennent) et détecte
+          # une dérive du contrat d'émission (sinon l'audit serait périmé).
+          # Lancement local : node bench/settings-bus.test.js
+          node bench/settings-bus.test.js
           # feature-diag-purge : gate vm de la routine « purge des listeners
           # de diagnostic » (BX_PURGE_DIAG, v1.13.0). Héritée par le preview :
           # le test vérifie sa présence dans les DEUX builds, que les ancres

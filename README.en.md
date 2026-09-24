@@ -1,4 +1,4 @@
-# EvenBetterXcloud — v1.13.6
+# EvenBetterXcloud — v1.13.7
 
 [![Release](https://img.shields.io/github/v/release/Endymi0n74/EvenBetter-Xcloud?style=for-the-badge&color=green)](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest)
 [![Install](https://img.shields.io/badge/Install-userscript-blue?style=for-the-badge)](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-xcloud.user.js)
@@ -8,32 +8,38 @@
 
 Performance-oriented fork of the [Better xCloud](https://github.com/redphx/better-xcloud)
 userscript (redphx), performance-oriented **+ user features**. Latest release:
-[evenbetter-xcloud-v1.13.6](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/tag/evenbetter-xcloud-v1.13.6).
+[evenbetter-xcloud-v1.13.7](https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/tag/evenbetter-xcloud-v1.13.7).
 
-listeners attached to `window` during test sessions (marked `win-capture`)
-are tracked at startup and purged in a single call — a forgotten listener can
-no longer pollute the console or interfere with the page. Maintenance:
-validation probes updated (cleanup convention documented).
+User features of the fork:
 
-group, four presets (🔇 Mute / 🔉 Low / 🔊 Normal / 📢 Boost) set
-`audio.volume` (+ booster if needed) and apply it **live on the current
-session** through the native slider channel — no need for the volume
-dropdown.
-
-sets `server.region` directly to the lowest-ping region measured (⭐
-recommendation) — no more copy-pasting the best region into the dropdown.
-
-Settings → *Data* group, three presets based on our **real measurements** (the
-`maxBitrate` cap is the only setting that saves bandwidth WITHOUT losing
-definition): 🚀 Max (unlimited, default), ⚖️ Balanced (10 Mbps cap · 1440p
-kept, ~6.6 Mbps actual) and 🌱 Eco (5 Mbps cap + 720p, ~4.7 Mbps). The group
-is visible even while logged out so you can pick a preset before starting a
-session.
-
-"Test server latency" button measures the RTT to each of the 19 xCloud regions
-(via the region's gssv host, `NATIVE_FETCH` for a clean measurement) and marks
-the best one "⭐ recommended region" — pick the right `server.region` with
-real numbers instead of guessing.
+- **🔧 Diagnostic listener purge**: listeners attached to `window` during
+  test sessions (marked `win-capture`) are tracked at startup and purged in
+  a single call — a forgotten listener can no longer pollute the console or
+  interfere with the page. Maintenance: validation probes updated (cleanup
+  convention documented).
+- **🔊 Sound**: Settings → *Sound* group, four presets (🔇 Mute / 🔉 Low /
+  🔊 Normal / 📢 Boost) set `audio.volume` (+ booster if needed) and apply it
+  **live on the current session** through the native slider channel — no need
+  for the volume dropdown.
+- **⚡ Apply the best region**: after the latency test, one button sets
+  `server.region` directly to the lowest-ping region measured (⭐
+  recommendation) — no more copy-pasting the best region into the dropdown.
+- **📊 Data**: Settings → *Data* group, three presets based on our **real
+  measurements** (the `maxBitrate` cap is the only setting that saves
+  bandwidth WITHOUT losing definition): 🚀 Max (unlimited, default), ⚖️
+  Balanced (10 Mbps cap · 1440p kept, ~6.6 Mbps actual) and 🌱 Eco (5 Mbps
+  cap + 720p, ~4.7 Mbps). The group is visible even while logged out so you
+  can pick a preset before starting a session.
+- **📡 Server latency test**: Settings → *Server* group, a "Test server
+  latency" button measures the RTT to each of the 19 xCloud regions (via the
+  region's gssv host, `NATIVE_FETCH` for a clean measurement) and marks the
+  best one "⭐ recommended region" — pick the right `server.region` with real
+  numbers instead of guessing.
+- **🧩 Robust settings (v1.13.6 → 1.13.7)**: the settings dialog opens
+  without freezing under Firefox (filtered `BxSelectElement` observer), the
+  booster volume slider un-grays **live** (every `setting.changed`
+  subscription audited, the volume control always built) — verified by a
+  real-Firefox bench (9/9).
 
 This repository contains the **built** script (`better-xcloud.user.js`) — this
 is the file to install as-is in a userscript manager. The optimizations are
@@ -81,12 +87,12 @@ Each release contains **two files**:
 | File | Role |
 |---|---|
 | `better-xcloud.meta.js` | Script header only (~0.7 KB) — the URL pointed to by `@updateURL` |
-| `better-xcloud.user.js` | Full script (470 KB) — the URL of `@downloadURL` |
+| `better-xcloud.user.js` | Full script (~420 KB, ES2017 build) — the URL of `@downloadURL` |
 
 At update check time, Tampermonkey downloads **`better-xcloud.meta.js`**
 (light), compares the served `@version` with the installed one, and only
 downloads the full script when a new version exists. Avoids downloading
-470 KB on every check.
+~420 KB on every check.
 
 ```
 @updateURL    → …/releases/latest/download/better-xcloud.meta.js
@@ -126,7 +132,7 @@ contract in `bench/preview/port/README.md`):
 |---|---|---|
 | Role | The classic optimized fork — xbox.com/play (Webpack SPA, WebGL2 renderer) | The variant for the new web client (React Router 7 + rolldown, Babylon.js renderer) |
 | File | `better-xcloud.user.js` | `better-xcloud-preview.user.js` (+ `.meta.js`) |
-| Version | `1.13.6` | `1.13.6-preview1` (prerelease) |
+| Version | `1.13.7` | `1.13.7-preview1` (prerelease) |
 | `@name` | `EvenBetterXcloud` | `EvenBetterXcloud (Preview)` |
 | `@match` | `www.xbox.com/*/play*` | `play.xbox.com/*` only |
 | Auto-update | `releases/latest` (stable channel) | floating channel `evenbetter-xcloud-preview-channel` (re-uploaded at every release — never pruned, unlike versioned tags) |
@@ -149,7 +155,7 @@ https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-
 Preview Features enabled):
 
 ```
-https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.13.6-preview1/better-xcloud-preview.user.js
+https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.13.7-preview1/better-xcloud-preview.user.js
 ```
 
 The preview is **playable and validated live**: settings button in the top

@@ -2,6 +2,38 @@
 
 > **Note repo-hygiene** : ce fichier est le journal interne des sessions Codebuff. Il reste versionné pour l'historique mais les PRs ne doivent pas l'inclure en entier — extraits pertinents uniquement. Voir `CONTRIBUTING.md`.
 
+## Session 24 sept 2026 (suite) — audit des bus `setting.changed` + v1.13.7
+
+**Demande** : « Audite toutes les prefs globales dont l'UI n'écoute que le bus Stream et corrige celles qui n'arrivent jamais. »
+
+**Contrat reconstruit (bundle)** : `Settings.setSetting(key, value, origin)` n'émet `setting.changed` que si `origin === "ui"`, sur le bus **Stream** si `isStreamPref(key)`, sinon sur le bus **Script**. Le bus Stream ne porte donc QUE les 32 prefs de `ALL_PREFS.stream` ; le bus Script les 48 globales + toute clé hors référentiel.
+
+**Audit** : `bench/settings-bus-audit.js` (nouveau) extrait les clés filtrées par chaque `.on("setting.changed", …)` (callback inline ou `var onChange = …` résolu), groupe par callback (un handler abonné à 2 bus = un seul besoin) et rend un verdict par bus. Résultat sur 1.13.6 : **2 défauts** (item `audio.volume` du groupe global « Son » — bus Stream alors que le booster est GLOBAL ; item du panneau stream — branche booster jamais livrée) + **1 défaut chez nous** (le pont Script→Stream du moteur, dont la garde `isStreamPref(...)` avouait la béquille). Les 4 autres listeners amont étaient légitimes (`stats.colors` stream, `StreamSettings` gardé par `isStreamPref`).
+
+**Correctif** (choix utilisateur : corriger la souscription, pas l'émission) : `src/fixes/settings-bus.js` (2 paires from→to) — item « Son » sur le bus Script ; handler du panneau stream extrait dans `bxOnSettingChanged` et abonné aux 2 bus. Pont du moteur **supprimé** (le booster reste écouté sur les 2 bus, défense en profondeur). `bench/settings-bus.test.js` verrouille la non-vacuité (fix reversé → les 2 défauts reviennent) et la dérive du contrat d'émission.
+
+**Piège d'ordre** : le fix bus s'applique APRÈS `settings-freeze` (il vise un `onCreated` créé par lui) ; l'injecteur du gel accepte en retour les formes post-bus comme « déjà appliqué » via `rebusItemText` (forme DÉRIVÉE du payload suivant, zéro duplication) — sinon relancer le gel sur un bundle corrigé sortait ROUGE. Rejeu amont → gel → bus : bundle committé reproduit **octet pour octet**.
+
+**Preuves** : Firefox réel 8/8 (routage `setPref` : booster → bus Script, RMS 0,704 → 1,408 à 200 %, 0 à 0 %, contexte absent→running, extinction → média ré-audible) ; gates vertes : settings-bus, fix-settings-bus, fix-settings-freeze, feature-sound (+self-test), readme-version (+self-test), es2017-check, check:src, features 5/5, tv-defaults (+self-test), mobile-probe, pr-comment-merge, preview (keepalive/t10/p2/capture).
+
+**v1.13.7 / 1.13.7-preview1** : bundles + preview + es2017 rebuildés, APK ×2 (stable 1 176 495 o, versionCode 16 ; preview 1 184 688 o), gates câblées dans `bench.yml`. Pas de tag ni de publication (non demandé).
+
+## Session 24 sept 2026 (suite 2) — banc settings live Firefox + fix du stepper (9/9)
+
+**Demande** : poursuite de la session interrompue — le banc `bench/settings-live-firefox.mjs` venait d'être écrit (15:29) mais jamais exécuté.
+
+**Premier run : 2 échecs réels** (sur 9) : **A4** « cocher le booster DÉGRISE le volume en direct » — clic écrit bien la pref (`setPref → subscribers : OK`) mais `usable=false`, le contrôle reste mort ; **C1** « aucune exception de page » — `TypeError: can't access property "disabled" of null`, levée 2 fois (1/scénario) par le handler de l'item stream : `let $range = $elm.querySelector("input[type=range");`.
+
+**Cause racine unique** : `BxNumberStepper.create` fait `if (…, options.disabled) return $btnInc…, self.disabled = !0, self;` — early-return AVANT la construction du `input[type=range]`. Avec le `params.disabled` de la 1.13.6 (booster éteint = défaut utilisateur), le range N'EXISTE PAS : `querySelector("input[type=range")` (sélecteur amont non fermé, toléré par Firefox/Edge) renvoie `null` → crash C1 ; le dégrisage live ne peut qu'écrire `.disabled` sur le div (propriété muette sans le range) → A4. Le scénario B (booster allumé à l'ouverture → range construit) passait déjà ses 4 checks : le témoin désignait la CONSTRUCTION, pas les handlers.
+
+**Correctif** (`src/fixes/settings-freeze.js`, 3 → 5 paires) : (1) tête — early-return neutralisé (`if (cond) {}` : les effets de bord de la condition `self.$text = …, BxNumberStepper.setValue.call(…)` restent exécutés dans tous les cas) → le range est TOUJOURS construit ; (2) queue — `options.disabled && ($range.disabled = !0)` juste avant `self;` ; (3) sélecteur stream fermé + repli `|| $elm` (même forme que l'item « Son »).
+
+**Choix A≡B** : à la construction on ne désactive QUE le range, pas les boutons — c'est exactement l'état du monde B après toggle OFF (les handlers amont ne touchent que `$range`). Désactiver `self.disabled` (accessor, boutons compris) à la construction recréerait un monde A ≠ B (boutons morts après dégrisage). Résidu connu et volontaire : booster éteint → boutons +/- encore cliquables (bug identique en amont côté toggle, hors périmètre du banc).
+
+**Migration des bundles** : la forme stream appliquée a changé (9 o) → les injecteurs ne matchaient plus → patch old→new DÉRIVÉ de `rebusItemText(VOLUME_ITEM_STREAM_TO)` (garde ×1 sinon REFUSÉ) sur le stable, puis `build-preview.js` pour régénérer le preview (overlay sur stable — jamais migré à la main), freeze appliqué (2 nouvelles paires) + bus no-op sur les deux.
+
+**Preuves** : `node bench/settings-live-firefox.mjs` → **9/9** (A2 `range=true disabled=true texte=100%` — le range existe enfin désactivé ; A4 `disabled=false utilisable=true` live ; C1 `0 erreur` ; A≡B : boutons bloqués=false dans les deux mondes, B inchangé). Gates : esbuild --check (5+2 paires), fix-settings-freeze/bus, settings-bus, feature-sound, readme-version (+ self-tests), es2017-check (`617ae468…`/`7e980caf…`), **npm test 22/22** après rebuild des 2 APK (`VARIANT=stable|preview bash mobile/build.sh`, 19:36 — piège classique : bundles rebuildés sans rebuild APK → tv-defaults 4×sha rouge). Biome via `npx @biomejs/biome` casse sur la config du repo (nouvelle version vs biome.json) — non bloquant (CI `|| true`). Pas de bump : VERSION reste 1.13.7 (non publiée).
+
 ## Session 23 sept 2026 — audit repo-hygiene + réparation release (PR #19, mergée)
 
 **Contexte** : audit externe du repo (fork solide, dette DX) → 4 vagues sur branche `chore/repo-hygiene` (PR #19, merge `3b7d128`), zéro régression exigée et prouvée.

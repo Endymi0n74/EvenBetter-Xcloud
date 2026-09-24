@@ -28,8 +28,10 @@ export const SRC_FEATURES = [
   "diag-purge",
 ];
 
-// Fixes amont (paires from → to, v1.13.6) — même contrôle de pureté LF/parse.
-export const SRC_FIXES = ["settings-freeze"];
+// Fixes amont (paires from → to) — même contrôle de pureté LF/parse.
+// ORDRE D'APPLICATION : settings-freeze puis settings-bus (le second réécrit le
+// contenu de 2 paires du premier ; bench/fix-settings-bus.js refuse l'inverse).
+export const SRC_FIXES = ["settings-freeze", "settings-bus"];
 
 if (process.argv.includes("--check")) {
   const require = createRequire(import.meta.url);
