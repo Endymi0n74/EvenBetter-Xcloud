@@ -28,6 +28,9 @@ export const SRC_FEATURES = [
   "diag-purge",
 ];
 
+// Fixes amont (paires from → to, v1.13.6) — même contrôle de pureté LF/parse.
+export const SRC_FIXES = ["settings-freeze"];
+
 if (process.argv.includes("--check")) {
   const require = createRequire(import.meta.url);
   let fails = 0;
@@ -59,6 +62,52 @@ if (process.argv.includes("--check")) {
     if (!SRC_FEATURES.includes(f.replace(/\.js$/, ""))) {
       fails++;
       console.error(`  ❌ ${f} : présent sur disque mais absent de SRC_FEATURES`);
+    }
+  }
+
+  // src/fixes/* : payloads de REMPLACEMENT (paires from → to). Mêmes garanties
+  // de pureté LF que src/features/*, mais PAS de parse esbuild isolé : une paire
+  // est un FRAGMENT de contexte (elle ferme des structures ouvertes par le
+  // bundle — `…}}]}` clôt l'item, le tableau d'items et le groupe), donc
+  // l'extraire ne se parse pas seul. La validité structurelle est prouvée plus
+  // loin dans la chaîne : le `new Function(...)` sur le bundle ENTIER après
+  // application (bench/fix-settings-freeze.js) et les gates dédiées.
+  console.log("== check src/fixes (esbuild parser + pureté LF) ==");
+  for (const name of SRC_FIXES) {
+    const mod = require(`./src/fixes/${name}.js`);
+    const pairs = Array.isArray(mod.PAIRS) ? mod.PAIRS : [];
+    if (pairs.length === 0) {
+      fails++;
+      console.error(`  ❌ ${name} : export PAIRS manquant/vide`);
+      continue;
+    }
+    let ko = 0;
+    for (const p of pairs) {
+      const label = p && p.name ? p.name : "(paire sans nom)";
+      if (!p || typeof p.from !== "string" || typeof p.to !== "string" || p.from.length === 0 || p.to.length === 0) {
+        ko++;
+        console.error(`  ❌ ${name} : ${label} — from/to manquant ou vide`);
+        continue;
+      }
+      if (p.from.includes("\r") || p.to.includes("\r")) {
+        ko++;
+        console.error(`  ❌ ${name} : ${label} — \\r présent (.gitattributes eol=lf requis)`);
+        continue;
+      }
+      // from ≠ to (une paire identité serait un no-op silencieux : gate morte).
+      if (p.from === p.to) {
+        ko++;
+        console.error(`  ❌ ${name} : ${label} — from et to identiques (paire inutile)`);
+      }
+    }
+    if (ko === 0) console.log(`  ✅ ${name} (${pairs.length} paires)`);
+    else fails += ko;
+  }
+  const onDiskFixes = readdirSync(new URL("./src/fixes/", import.meta.url)).filter((f) => f.endsWith(".js"));
+  for (const f of onDiskFixes) {
+    if (!SRC_FIXES.includes(f.replace(/\.js$/, ""))) {
+      fails++;
+      console.error(`  ❌ src/fixes/${f} : présent sur disque mais absent de SRC_FIXES`);
     }
   }
   console.log(fails === 0 ? "✅ GATE VERT — src/features valides" : `❌ GATE ROUGE : ${fails} échec(s)`);

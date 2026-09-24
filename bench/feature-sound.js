@@ -45,16 +45,25 @@ if (!file) {
 // ---- Implémentation injectée (portée du bundle : CE / t / getStreamPref /
 // setStreamPref / getGlobalPref / setGlobalPref / SoundShortcut / STATES
 // accessibles — mêmes bindings que le groupe audio natif) ----
-const { IMPL, ANCHOR_BX, ANCHOR_TAIL, ITEM_SOUND } = require("../src/features/sound");
+const { IMPL, IMPL_ENGINE, ENGINE_TAIL, ANCHOR_BX, ANCHOR_TAIL, ITEM_SOUND } = require("../src/features/sound");
 
 let s = fs.readFileSync(file, "utf8");
 const original = s;
 const results = [];
+let changed = false;
 
-// Idempotence : déjà injecté → no-op exit 0.
-if (s.includes("window.BX_SOUND_PRESETS")) {
-  console.log("== feature-sound " + file + " : déjà injectée — no-op");
-  process.exit(0);
+// Idempotence PAR BLOC : un bundle peut porter les presets (v1.13.0) sans le
+// moteur (v1.13.6) — un no-op global interdirait d'ajouter un bloc à un bundle
+// déjà injecté.
+const PRESETS_MARKER = "window.BX_SOUND_PRESETS";
+const ENGINE_MARKER = "window.BX_SOUND_ENGINE =";
+// Corps seul (sans le saut de ligne de tête du gabarit) : c'est ce qu'on
+// compare/écrit lors d'un remplacement en place — sinon chaque passage
+// ajouterait une ligne vide.
+const ENGINE_BLOCK = IMPL_ENGINE.replace(/^\r?\n/, "");
+if (!ENGINE_BLOCK.startsWith("window.BX_SOUND_ENGINE = {")) {
+  console.error("❌ gabarit moteur inattendu (début : " + JSON.stringify(ENGINE_BLOCK.slice(0, 40)) + ")");
+  process.exit(1);
 }
 
 
@@ -67,22 +76,69 @@ if (s.includes("window.BX_SOUND_PRESETS")) {
 
 function count(hay, needle) { return hay.split(needle).length - 1; }
 
-// 1. Implémentation (après BX_EXPOSED)
-const n1 = count(s, ANCHOR_BX);
-if (n1 !== 1) {
-  results.push({ ok: false, name: "ancre BX_EXPOSED", found: n1, expected: 1 });
+// 1. Moteur du booster (après BX_EXPOSED, devant l'implémentation : le strip du
+//    gate retire la plage [ancre … fin de IMPL], moteur compris).
+if (count(s, ENGINE_MARKER) > 0) {
+  // Déjà présent : si le bloc a évolué, on le REMPLACE en place — sinon
+  // l'idempotence figerait une version périmée du moteur.
+  const from = s.indexOf("window.BX_SOUND_ENGINE = {");
+  const to = s.indexOf(ENGINE_TAIL, from);
+  const current = from >= 0 && to >= 0 ? s.slice(from, to + ENGINE_TAIL.length) : null;
+  if (current === null) {
+    results.push({ ok: false, name: "bloc moteur illisible (marqueur sans fin)", found: count(s, ENGINE_MARKER), expected: 1 });
+  } else if (current.replace(/\r\n/g, "\n") === ENGINE_BLOCK) {
+    results.push({ ok: true, name: "moteur son (BX_SOUND_ENGINE) déjà à jour — no-op", found: 1 });
+  } else {
+    s = s.slice(0, from) + ENGINE_BLOCK + s.slice(to + ENGINE_TAIL.length);
+    results.push({ ok: true, name: "moteur son (BX_SOUND_ENGINE) remplacé (version périmée)", found: 1 });
+    changed = true;
+  }
 } else {
-  s = s.replace(ANCHOR_BX, ANCHOR_BX + IMPL);
-  results.push({ ok: true, name: "implémentation BX_SOUND_PRESETS injectée", found: 1 });
+  const n0 = count(s, ANCHOR_BX);
+  if (n0 !== 1) {
+    results.push({ ok: false, name: "ancre BX_EXPOSED (moteur)", found: n0, expected: 1 });
+  } else {
+    s = s.replace(ANCHOR_BX, ANCHOR_BX + IMPL_ENGINE);
+    results.push({ ok: true, name: "moteur son (BX_SOUND_ENGINE) injecté", found: 1 });
+    changed = true;
+  }
 }
 
-// 2. Item presets à la fin du groupe « Son » natif (items: [slider, presets])
-const n2 = count(s, ANCHOR_TAIL);
-if (n2 !== 1) {
-  results.push({ ok: false, name: "groupe Son (fin de l'item audio.volume)", found: n2, expected: 1 });
+// 2. Implémentation des presets (après BX_EXPOSED)
+if (count(s, PRESETS_MARKER) > 0) {
+  results.push({ ok: true, name: "implémentation BX_SOUND_PRESETS déjà présente — no-op", found: 1 });
 } else {
-  s = s.replace(ANCHOR_TAIL, ITEM_SOUND);
-  results.push({ ok: true, name: "presets Son ajoutés au groupe audio", found: 1 });
+  const n1 = count(s, ANCHOR_BX);
+  if (n1 !== 1) {
+    results.push({ ok: false, name: "ancre BX_EXPOSED", found: n1, expected: 1 });
+  } else {
+    s = s.replace(ANCHOR_BX, ANCHOR_BX + IMPL);
+    results.push({ ok: true, name: "implémentation BX_SOUND_PRESETS injectée", found: 1 });
+    changed = true;
+  }
+}
+
+// 3. Item presets à la fin du groupe « Son » natif (items: [slider, presets])
+//
+// ⚠ Garde d'idempotence sur le MARQUEUR, pas sur ITEM_SOUND : dès que le fix
+// src/fixes/settings-freeze.js est appliqué, la fin de l'item global corrigé
+// (`params` → getter + onCreated) redevient EXACTEMENT ANCHOR_TAIL — donc
+// ITEM_SOUND n'est plus présent tel quel et cette étape se relançait en
+// réinjectant l'item DANS la fin de l'item (forme `…}}]}` + item + `]}`),
+// qui cassait l'item corrigé. Le marqueur `BX_SOUND_PRESETS.render($parent)`
+// n'apparaît QUE dans notre item : c'est la seule présence fiable.
+const PRESETS_ITEM = "window.BX_SOUND_PRESETS.render($parent)";
+if (count(s, PRESETS_ITEM) > 0) {
+  results.push({ ok: true, name: "item presets déjà présent dans le groupe audio — no-op", found: 1 });
+} else {
+  const n2 = count(s, ANCHOR_TAIL);
+  if (n2 !== 1) {
+    results.push({ ok: false, name: "groupe Son (fin de l'item audio.volume)", found: n2, expected: 1 });
+  } else {
+    s = s.replace(ANCHOR_TAIL, ITEM_SOUND);
+    results.push({ ok: true, name: "presets Son ajoutés au groupe audio", found: 1 });
+    changed = true;
+  }
 }
 
 // Rapport
@@ -94,6 +150,11 @@ for (const r of results) {
 if (fails.length) {
   console.error("\n❌ GATE ROUGE : " + fails.length + " ancre(s) dérivée(s) — la feature ne s'injecte pas");
   process.exit(1);
+}
+
+if (!changed) {
+  console.log("== feature-sound " + file + " : déjà injectée (presets + moteur) — no-op");
+  process.exit(0);
 }
 
 // Syntaxe de l'ensemble

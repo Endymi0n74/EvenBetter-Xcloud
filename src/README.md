@@ -16,6 +16,7 @@ consommé par son script d'injection et vérifié par son gate.
 | `features/region.js` | Feature ⚡ Région — applique la meilleure région |
 | `features/session-import.js` | Feature 📥 Session — transfert WiFi MSAL |
 | `features/diag-purge.js` | Routine BX_PURGE_DIAG — purge listeners win-capture |
+| `fixes/settings-freeze.js` | Fix AMONT (v1.13.6) — gel des settings sous Firefox (attributeFilter de l'observateur BxSelectElement) + items `audio.volume` au `params` figé → `get params()` + onCreated booster |
 
 Chaque module exporte `{ IMPL, ANCHOR_* }` : le payload injecté (texte exact
 servi dans le bundle) + les ancres d'injection. La syntaxe des déclarations
@@ -28,7 +29,22 @@ est un contrat : les gates `bench/feature-*.test.js` les extraient par regex
 src/features/<f>.js --require--> bench/feature-<f>.js --injecte--> better-xcloud.user.js
         |                                                        \
         +--regex--> bench/feature-<f>.test.js (gate CI)           +--build-preview.js--> better-xcloud-preview.user.js
+
+src/fixes/<f>.js    --require--> bench/fix-<f>.js     --applique--> better-xcloud.user.js
+        |                                                        \
+        +--require--> bench/fix-<f>.test.js (gate CI)             +--build-preview.js--> better-xcloud-preview.user.js
 ```
+
+Les **features** ajoutent du code (une `IMPL` textuelle injectée à une ancre) ;
+les **fixes** remplacent du code amont (une liste de paires `from → to`). Les deux
+sont idempotents et gatés — ne jamais éditer un bundle à la main pour ces zones.
+
+⚠ Piège vécu (v1.13.6) : un fix qui réécrit une zone citée comme ANCRE par une
+feature change la forme injectée attendue. `fixes/settings-freeze.js` redonne à
+l'item `audio.volume` global une fin identique à `ANCHOR_TAIL` de la feature son
+→ l'étape « item presets » de `bench/feature-sound.js` se relançait et réinjectait
+son item DANS la fin de l'item corrigé. Sa garde d'idempotence porte donc sur le
+marqueur `BX_SOUND_PRESETS.render($parent)`, pas sur `ITEM_SOUND`.
 
 - `node esbuild.config.mjs --check` : valide les payloads (parse esbuild + pureté LF).
 - `npm run build:es2017` : régénère les builds ES2017 depuis les bundles.

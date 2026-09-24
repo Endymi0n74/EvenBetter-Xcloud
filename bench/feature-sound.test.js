@@ -45,8 +45,13 @@ const ANCHOR_BX = (FEATURE_SRC.match(/const ANCHOR_BX = "([^"]*)";/) || [])[1];
 const ANCHOR_TAIL = (FEATURE_SRC.match(/const ANCHOR_TAIL = '([^']*)';/) || [])[1];
 const ITEM_SOUND = (FEATURE_SRC.match(/const ITEM_SOUND = '([^']*)';/) || [])[1];
 const IMPL = (FEATURE_SRC.match(/const IMPL = `([^]*?)`;/) || [])[1];
+const IMPL_ENGINE = (FEATURE_SRC.match(/const IMPL_ENGINE = `([^]*?)`;/) || [])[1];
 
-if (!ANCHOR_BX || !ANCHOR_TAIL || !ITEM_SOUND || !IMPL) {
+// Marqueurs du moteur (v1.13.6) — noms stables, extraits du module source.
+const ENGINE_MARKER = "window.BX_SOUND_ENGINE =";
+const ENGINE_START = "window.BX_SOUND_ENGINE.start();";
+
+if (!ANCHOR_BX || !ANCHOR_TAIL || !ITEM_SOUND || !IMPL || !IMPL_ENGINE) {
   console.error("❌ GATE : ancres non extractibles depuis src/features/sound.js (const renommée ?)");
   process.exit(1);
 }
@@ -69,8 +74,43 @@ function runChecks(stableSrc, previewSrc) {
   console.log("== 2. Ancres d'injection (bundle stable injecté) ==");
   check("ancre BX_EXPOSED ×1", count(stableSrc, ANCHOR_BX) === 1, "n=" + count(stableSrc, ANCHOR_BX));
   check("implémentation BX_SOUND_PRESETS ×1", count(stableSrc, IMPL) === 1, "n=" + count(stableSrc, IMPL));
-  check("item presets ajouté au groupe audio ×1", count(stableSrc, ITEM_SOUND) === 1, "n=" + count(stableSrc, ITEM_SOUND));
-  check("forme brute (fin de l'item audio.volume) ×0", count(stableSrc, ANCHOR_TAIL) === 0, "n=" + count(stableSrc, ANCHOR_TAIL));
+  // Présence de l'item par son MARQUEUR et non par ITEM_SOUND : le fix
+  // settings-freeze (v1.13.6) réécrit la fin de l'item global, si bien que
+  // ANCHOR_TAIL s'y retrouve et qu'ITEM_SOUND n'est plus la forme injectée.
+  check("item presets ajouté au groupe audio ×1 (marqueur render)",
+    count(stableSrc, "window.BX_SOUND_PRESETS.render($parent)") === 1,
+    "n=" + count(stableSrc, "window.BX_SOUND_PRESETS.render($parent)"));
+  check("item presets suivi de la fermeture du groupe ×1",
+    count(stableSrc, "window.BX_SOUND_PRESETS.render($parent);}]}") === 1,
+    "n=" + count(stableSrc, "window.BX_SOUND_PRESETS.render($parent);}]}"));
+
+  // ---- 2bis. Moteur du booster (v1.13.6) ----
+  // Le slider ne sert à rien tant que le graphe WebAudio n'est pas monté et que
+  // l'événement de la pref GLOBALE n'atteint pas le panneau stream : ces
+  // contrôles verrouillent les 3 mécanismes du correctif (bus, branchement live,
+  // relance du contexte Firefox).
+  console.log("== 2bis. Moteur du booster (BX_SOUND_ENGINE) ==");
+  check("moteur présent dans le bundle stable", count(stableSrc, ENGINE_MARKER) === 1, "n=" + count(stableSrc, ENGINE_MARKER));
+  check("moteur présent dans le build preview", count(previewSrc, ENGINE_MARKER) === 1, "n=" + count(previewSrc, ENGINE_MARKER));
+  check("moteur démarré au chargement", count(stableSrc, ENGINE_START) === 1, "n=" + count(stableSrc, ENGINE_START));
+  check("pont de bus : la pref globale est republiée sur le bus Stream",
+    count(stableSrc, "isStreamPref(payload.settingKey)) return;") === 1 &&
+      count(stableSrc, 'BxEventBus.Stream.emit("setting.changed", payload)') === 1,
+    "garde=" + count(stableSrc, "isStreamPref(payload.settingKey)) return;") +
+    " emit=" + count(stableSrc, 'BxEventBus.Stream.emit("setting.changed", payload)'));
+  check("relance du contexte suspendu (politique Firefox) présente",
+    count(stableSrc, '.state === "suspended"') === 1 && count(stableSrc, "_resumeOnly") >= 2,
+    "garde=" + count(stableSrc, '.state === "suspended"') + " resumeOnly=" + count(stableSrc, "_resumeOnly"));
+  check("un seul AudioContext par moteur (pas de fuite de contexte)",
+    count(stableSrc, "if (!ctx) ctx = this.ctx;") === 1, "n=" + count(stableSrc, "if (!ctx) ctx = this.ctx;"));
+  check("branchement live source → gain → destination présent",
+    count(stableSrc, "createMediaStreamSource") >= 1 && count(stableSrc, "gain.connect(ctx.destination)") === 1,
+    "sources=" + count(stableSrc, "createMediaStreamSource") + " dest=" + count(stableSrc, "gain.connect(ctx.destination)"));
+  check("le média est mis en sourdine APRÈS le branchement (jamais de silence)",
+    count(stableSrc, "$media.muted = true;") === 1, "n=" + count(stableSrc, "$media.muted = true;"));
+  check("extinction : média ré-audible",
+    count(stableSrc, "if ($old && $old.muted) $old.muted = false;") === 1,
+    "n=" + count(stableSrc, "if ($old && $old.muted) $old.muted = false;"));
 
   // ---- 3. rejeu + self-test sur copie sans feature ----
   console.log("== 3. Rejeu d'injection + self-test (copie sans feature) ==");
@@ -88,16 +128,22 @@ function runChecks(stableSrc, previewSrc) {
   if (bxIdx >= 0 && sndIdx >= 0) {
     stripped = stripped.slice(0, bxIdx + ANCHOR_BX.length) + stripped.slice(sndIdx + IMPL.length);
   }
-  if (count(stripped, ITEM_SOUND) === 1) stripped = stripped.replace(ITEM_SOUND, ANCHOR_TAIL);
+  // Retrait de l'ITEM par son segment exact (le marqueur de présence) : la fin
+  // de l'item audio.volume native revient alors à la forme de l'ancre, prête
+  // pour un rejeu — ITEM_SOUND n'est pas fiable comme forme injectée depuis le
+  // fix settings-freeze (voir le gate fix-settings-freeze.test.js).
+  const itemSeg = ",($parent) => {window.BX_SOUND_PRESETS.render($parent);}";
+  if (count(stripped, itemSeg) === 1) stripped = stripped.replace(itemSeg, "");
   fs.writeFileSync(strippedPath, stripped);
 
   const stripOk =
     count(stripped, "window.BX_SOUND_PRESETS") === 0 &&
+    count(stripped, ENGINE_MARKER) === 0 &&
     count(stripped, ANCHOR_BX) === 1 &&
-    count(stripped, ANCHOR_TAIL) === 1;
+    count(stripped, ANCHOR_TAIL) >= 1;
   check("copie sans feature obtenue (injection inversée, ancres revenues)", stripOk,
-    "sound=" + count(stripped, "window.BX_SOUND_PRESETS") + " bxAncre=" + count(stripped, ANCHOR_BX) +
-    " tail=" + count(stripped, ANCHOR_TAIL));
+    "sound=" + count(stripped, "window.BX_SOUND_PRESETS") + " moteur=" + count(stripped, ENGINE_MARKER) +
+    " bxAncre=" + count(stripped, ANCHOR_BX) + " tail=" + count(stripped, ANCHOR_TAIL));
 
   if (stripOk) {
     // feature-sound.js : injection (dry-run, rien écrit) + --self-test du
@@ -132,10 +178,14 @@ const p = fs.readFileSync(PREVIEW, "utf8").replace(/\r\n/g, "\n");
 // Le bundle est DÉJÀ injecté : la corruption doit toucher la forme injectée
 // (ITEM_SOUND), pas l'ancre brute (absente du bundle injecté).
 if (process.argv.includes("--self-test")) {
-  console.log("== SELF-TEST : forme injectée (ITEM_SOUND) corrompue sur une copie ==");
-  const sBad = s.replace(ITEM_SOUND, ITEM_SOUND.replace("BX_SOUND_PRESETS.render", "BX_SOUND_PRESETS.render_CHANGED"));
-  if (count(sBad, ITEM_SOUND) !== 0) {
-    console.error("❌ SELF-TEST : corruption inefficace (forme injectée encore présente)");
+  // Corruption sur le MARQUEUR de l'item (pas sur ITEM_SOUND : depuis le fix
+  // settings-freeze la forme injectée n'est plus ITEM_SOUND, la corruption
+  // serait un no-op et le self-test ne prouverait rien).
+  console.log("== SELF-TEST : marqueur de l'item injecté corrompu sur une copie ==");
+  const MARK = "window.BX_SOUND_PRESETS.render($parent)";
+  const sBad = s.replace(MARK, MARK.replace(".render(", ".render_CHANGED("));
+  if (count(sBad, MARK) !== 0) {
+    console.error("❌ SELF-TEST : corruption inefficace (marqueur encore présent)");
     process.exit(1);
   }
   const red = runChecks(sBad, p) > 0;

@@ -2359,3 +2359,62 @@ Licence.
 meta.js, es2017 ×2, preview user/meta, preview es2017). Commit `338ccc4`.
 
 **Règle mémoire** : faite immédiatement (corrigé le manquement initial).
+
+## Session 24 sept 2026 (suite) — port des deux correctifs sur la base refactorée + release 1.13.6
+
+**Contexte de départ (piège de process, à ne plus repayer)** : le checkout local
+était **10 commits en retard** sur `origin/main` (refactor `src/features/*`,
+hygiène repo, LF bundles, split des docs) et **3 commits en avance** (les deux
+correctifs du 24 sept + docs) — deux branches divergentes. La **1.13.5 publiée**
+était une passe de maintenance : elle ne portait NI le fix du gel settings NI
+celui du volume (`attributeFilter` = 0 occurrence, forme figée
+`params: {disabled: …}` toujours ×2 dans le bundle distant). Leçon : **vérifier
+`git status -sb` (ahead/behind) AVANT d'annoncer un correctif, et comparer le
+bundle DISTANT** (`git show origin/main:better-xcloud.user.js`) au fix local.
+
+**Port (branche `release/1.13.6` depuis `origin/main`, branche de secours
+`wip/sound-engine-1.13.6` = ancien commit local)** :
+- Le payload de l'ancien bundle a été reversé en modules `src/` :
+  `src/fixes/settings-freeze.js` (nouveau dossier) contient les **paires
+  `from → to`** des deux correctifs amont (observateur `BxSelectElement` filtré,
+  les 2 items `audio.volume` en `get params()` + `onCreated` booster) ;
+  `src/features/sound.js` porte désormais aussi `IMPL_ENGINE` (moteur
+  `BX_SOUND_ENGINE`) avec `ENGINE_TAIL`.
+- Les paires ont été **générées depuis les deux bundles** (distant = `from`,
+  ancien local = `to`) par script Python : zéro recopie à la main, chaînes
+  byte-exactes (`count(from) === 1` vérifié des deux côtés).
+- Injecteurs : `bench/fix-settings-freeze.js` (idempotent, GATE ROUGE si une
+  paire n'est ni absente-ni-appliquée, syntaxe du bundle entier vérifiée par
+  `new Function`, self-test) et `bench/feature-sound.js` (per-bloc : moteur +
+  presets + item).
+
+**Piège majeur découvert pendant le port** : le fix settings redonne à l'item
+`audio.volume` global une fin **identique à `ANCHOR_TAIL`** de la feature son
+(`…!0 });});}}]}`). Résultat : après le fix, la garde d'idempotence
+`count(ITEM_SOUND) > 0` devenait fausse et l'injecteur **réinjectait son item
+DANS la fin de l'item corrigé** (forme `…}}]}` + item + `]}`), cassant l'item.
+Fix : la garde porte sur le **marqueur** `BX_SOUND_PRESETS.render($parent)`,
+seule forme qui n'apparaît que dans notre item. Le gate `feature-sound` a été
+aligné (présence par marqueur) et `src/README.md` documente le piège
+(« un fix qui réécrit une zone citée comme ANCRE par une feature »).
+Vérifié : les deux ordres d'injection (fix→feature et feature→fix) convergent.
+
+**Piège self-test** : corrompre un motif en **concaténant** après
+(`motif + "_CHANGED"`) ne le casse pas — il reste un sous-motif, l'injecteur le
+retrouve et sort en 0 (self-test qui ne prouve rien). Corrompre en **insérant
+dans** le motif (`motif[:-1] + "_X" + motif[-1:]`) dans les deux gates.
+
+**Preuves** : Firefox réel (`bench/sound-engine-firefox.mjs`) 8/8 — RMS 0,708 à
+100 %, **1,412 à 200 % (×1,99)**, 0 à 0 %, contexte `suspended → running`, pont
+de bus 1 hit, extinction → média ré-audible. Gates : feature-sound (+self-test),
+fix-settings-freeze (+self-test), datasaver, diag-purge, region, session-import,
+readme-version (+self-test), tv-defaults (APK réembarqués), mobile-probe,
+pr-comment-merge, `check:src` (étendu à `src/fixes/*`), `check:es2017` — verts.
+`npm run lint` non exécuté localement (biome absent de `node_modules`) : couvert
+par le CI.
+
+**Publication 1.13.6** : branche poussée sur `main`, release stable
+(`better-xcloud.user.js` = contenu ES2017 + `.es2017.user.js` + `.meta.js` +
+bundles preview + APK versionné + `evenbetter-xcloud.apk`), prerelease
+`v1.13.6-preview1` (+ APK preview), **canal flottant `evenbetter-xcloud-preview-channel`
+ré-uploadé `--clobber`**, puis `release-prune.sh` et `release-guard.sh`.
