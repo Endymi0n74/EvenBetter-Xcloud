@@ -37,8 +37,10 @@ const SRC = path.join(ROOT, "better-xcloud.user.js");
 const OUT = path.join(ROOT, "better-xcloud-preview.user.js");
 const META_OUT = path.join(ROOT, "better-xcloud-preview.meta.js");
 
-// EOL des ancres : la source peut être CRLF (working tree Windows, autocrlf)
-// ou LF (checkout CI) — on normalise l'entrée en LF, la sortie en CRLF.
+// EOL des ancres : la source peut être CRLF (vieux working tree Windows) ou
+// LF (checkout CI) — on normalise l'entrée comme la sortie en LF (contrat
+// `.gitattributes eol=lf` : la sortie CRLF historique imposait un staging LF
+// manuel à chaque release, cf. session 24 sept).
 const EOL = "\n";
 
 // ---- contrat « deux versions » : identité DISTINCTE du build preview ----
@@ -442,8 +444,9 @@ ${entryAnchor}`;
     "\ninstallKeepAliveIdle();\n}\n";
   s = s + t5Block;
 
-  // normalisation CRLF (le build perf est CRLF pur)
-  s = s.replace(/\r?\n/g, "\r\n");
+  // normalisation LF (contrat `.gitattributes eol=lf` : le CRLF historique
+  // imposait un staging LF manuel à chaque release)
+  s = s.replace(/\r\n/g, "\n");
   return s;
 }
 
@@ -492,7 +495,7 @@ checkTwoVersionInvariants(fs.readFileSync(SRC, "utf8"), out);
 
 fs.writeFileSync(OUT, out);
 console.log(`[build-preview] ecrit ${path.relative(ROOT, OUT)} (${out.length} octets)`);
-fs.writeFileSync(META_OUT, extractMeta(out).replace(/\r?\n/g, "\r\n"));
+fs.writeFileSync(META_OUT, extractMeta(out).replace(/\r\n/g, "\n"));
 console.log(`[build-preview] ecrit ${path.relative(ROOT, META_OUT)}`);
 
 // validation syntaxe

@@ -49,6 +49,11 @@ echo "== bump EvenBetterXcloud -> $NEW (preview: $PREVIEW) =="
 echo "$NEW" > VERSION
 echo "$PREVIEW" > PREVIEW_VERSION
 
+# package.json miroir (champ version ; resté à 1.13.5 pendant que VERSION
+# avançait — oubli sans gate). Le preview n'a pas de champ dédié.
+NEW_VERSION="$NEW" node -e "const fs=require('fs');const p='package.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.version=process.env.NEW_VERSION;fs.writeFileSync(p,JSON.stringify(j,null,2)+'\n');"
+echo "package.json → $NEW"
+
 # Dépendances node (es2017 via bun/node, gates) : un clone frais n'a pas de
 # node_modules → le build ES2017 planterait (vécu sept 2026 sur la 1.13.5).
 # PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD : pas de navigateurs pour un bump.
