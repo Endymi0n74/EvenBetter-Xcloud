@@ -3028,3 +3028,39 @@ mais a reprendre si l'utilisateur le signale.
 
 Non activees : t14 (CDP eager), t10 (auto-spoof), t16 (patch history).
 Non suivis, hors commit : `artifacts/`, `bench/preview/firefox-freeze-bench.mjs`.
+
+## Session 1er nov 2026 (suite) — publication v1.13.10 + v1.13.10-preview1
+
+**Demande** : « on commit / push et release la nouvelle version du script normal /
+preview et apk » (fin de la campagne briques preview).
+
+**Cycle** :
+1. `bun` N'EST PAS INSTALLE sur cette machine -> `command -v bun` echoue et, dans
+   une chaine `cmd && bash bump`, le bump ne demarre jamais (contournement :
+   shim `.tmp/bin/bun` = `exec node "$@"`, PATH prefixe). Le bump lui-meme ne
+   se sert de bun que pour `bench/es2017-build.mjs`, donc le shim est exact.
+2. `bash bench/bump-version.sh 1.13.10 --preview=1.13.10-preview1 --no-verify`
+   (VERSION/PREVIEW_VERSION/package.json/manifest versionCode 19/READMEs/rebrand
+   + es2017 stable et preview), puis `build-preview.js` MANUEL puis es2017
+   preview (l'ordre compte : le rebuild preview regenere le bundle).
+3. APK : `JAVA_HOME=/c/Program Files/Zulu/zulu-21 ANDROID_SDK_ROOT=/d/android-sdk
+   bash mobile/build.sh` puis `VARIANT=preview ...` (stable 1 176 494 o,
+   preview 1 196 976 o). Les noms out-*/1.13.9 doivent disparaitre AVANT le gate
+   readme-version (build.sh fait rm -rf OUT, donc reconstruire suffit).
+4. Entree CHANGELOG 1.13.10 + gates : readme-version (+ self-test), `npm test`,
+   es2017-check (reproductible), check:src — TOUS VERTS.
+5. Commit `ef4161b` (15 fichiers) -> push main. Les APK ne sont PAS suivis par
+   git (seuls les bundles/metas/README/manifest le sont).
+6. Releases : preview `evenbetter-xcloud-v1.13.10-preview1` (3 assets) -> stable
+   `evenbetter-xcloud-v1.13.10` Latest (5 assets, `better-xcloud.user.js` =
+   contenu ES2017) -> canal `evenbetter-xcloud-preview-channel` re-uploade
+   `--clobber` (2 assets). Assets stages en LF dans `.tmp/rel-1.13.10/`.
+7. `release-guard.sh` : ROUGE au premier passage « tag introuvable dans git » —
+   `gh release create` cree le tag DISTANT, pas le local ; `git fetch --tags
+   origin` puis rejeu -> VERT 4/4 (tag ef4161b, 4 liens byte-identiques, APK
+   banniere = versionne). `release-prune.sh` : 0 purge, 4/4 liens 200 ; v1.13.9
+   purgee par le prune automatique.
+
+**Piege retenu** : ne pas enchainer `command -v X && bash script` pour un
+pre-requis : un binaire absent fait silencieusement sauter toute la commande
+(le `$?` rapporte l'echec du test, pas celui du script).
