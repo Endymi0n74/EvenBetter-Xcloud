@@ -3006,3 +3006,25 @@ Piege d'outillage (encore) : une suite `\n` dans un heredoc node traverse deux
 couches d'evaluation et a produit un vrai saut de ligne dans build-preview.js
 (`SyntaxError: Invalid or unexpected token` sur `].join("`). Remede : ne jamais
 concatener des sauts de ligne, utiliser `].join(String.fromCharCode(10))`.
+
+### Campagne briques — etat final (1er nov 2026, build propre valide)
+
+Build livre : `BX_DBG = false`, `BX_ON_SEED = "t4 t5 t7"`, 542 948 octets,
+commit local `75ea61f` (rien pousse). Validation utilisateur en conditions
+reelles : le jeu se lance et reste lance, FAB et dialogue OK, aucun bandeau.
+
+Ce qui est actif :
+- t4 : FAB sur <html> apres load + 1,5 s, jamais dans l'arbre React ;
+- t5 : locateSession() avec file persistante (bq/bqi) et budget 6 ms ;
+- t7 : tick de resilience en fin de bundle, garde `window.__BX_ON_SEED` ;
+- __bxAddCssSafe / __bxAdoptCss : CSS par adoptedStyleSheets partout.
+
+Reserve non levee : le marqueur `t7T` n'a jamais ete observe alors que `t7boot`
+si (le bloc de fin de bundle s'execute donc), et le seed affiche par le bandeau
+etait correct. La garde voit donc probablement un `window.__BX_ON_SEED` vide a
+cet instant. Sans effet observable aujourd'hui (le cas couvert par t7 — dialogue
+de reglages vide/hors ecran apres remplacement du document — ne se produit pas),
+mais a reprendre si l'utilisateur le signale.
+
+Non activees : t14 (CDP eager), t10 (auto-spoof), t16 (patch history).
+Non suivis, hors commit : `artifacts/`, `bench/preview/firefox-freeze-bench.mjs`.
