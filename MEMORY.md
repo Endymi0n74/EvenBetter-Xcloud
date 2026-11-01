@@ -3064,3 +3064,37 @@ preview et apk » (fin de la campagne briques preview).
 **Piege retenu** : ne pas enchainer `command -v X && bash script` pour un
 pre-requis : un binaire absent fait silencieusement sauter toute la commande
 (le `$?` rapporte l'echec du test, pas celui du script).
+
+## Session 1er nov 2026 (suite 17) — Firefox : « navigateur non compatible » (preview2)
+
+**Symptome rapporte** : « la version du preview firefox declare navigateur non
+compatible » — sur play.xbox.com, Firefox recoit le dialog de refus du site
+(gate Chromium-only de entry.client).
+
+**Cause racine** : le seed des briques preview livre en 1.13.10 / preview1 vaut
+`BX_ON_SEED = "t4 t5 t7"` dans bench/preview/port/build-preview.js. La ligne T10
+du bundle est `if (BX_PREVIEW && bxOn("t10") && ... ) profile = "windows-edge"` :
+t10 ABSENT du seed => bxOn("t10") FAUX => aucun spoof d'UA => Firefox se presente
+avec son UA natif => refus. Le correctif CSS de la campagne avait fait sortir t10
+du seed en meme temps que les autres briques (bisect), et rien ne l'a remis :
+la brique est bien necessaire, seule la cause du gel (addCss) etait corrigee.
+
+**Correctif** : seed -> "t4 t5 t7 t10" (spoof windows-edge par defaut hors
+Chromium ; un profil UA explicite n'est jamais ecrase). Gate t10 adapte : le mock
+lit desormais le seed REEL du bundle (`var BX_ON_SEED = "..."`) au lieu de
+supposer "t10 OFF par defaut", et un check dedie exige t10 dans le seed livre.
+Piege outillage : les `s` ecrits dans un heredoc `<<'NODE'` passent par une
+chaine JS et perdent un backslash (`/s+/`) — remplacer par split(" ")/indexOf.
+
+**Cycle** : bump `1.13.10 --preview=1.13.10-preview2` (stable inchange, manifest
+versionCode 20) -> build-preview.js -> es2017 preview -> APK preview ET stable
+rebuildes (le versionCode a bouge : l'APK stable publie 15 min plus tot etait
+perime) -> gates vertes (t10 + self-test, readme-version + self-test, npm test
+0 echec, es2017-check, check:src) -> commit `b854d24` + push -> release
+`evenbetter-xcloud-v1.13.10-preview2` (3 assets) -> canal `--clobber` -> APK
+stable re-uploade `--clobber` sur la release 1.13.10 -> guard VERT.
+
+**Lecon** : une brique `bxOn(...)` n'est livree QUE si son id est dans
+`BX_ON_SEED`. Verifier `grep -n 'BX_ON_SEED = ' better-xcloud-preview.user.js`
+avant toute release preview : `t4 t5 t7` sans `t10` = Firefox casse, et aucun
+test ne le voyait avant que le gate ne lise le seed.
