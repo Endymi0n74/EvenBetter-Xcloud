@@ -846,6 +846,25 @@ ${entryAnchor}`;
   s = s.replace(histPushAnchor, "if (!BX_PREVIEW || bxOn(\"t16\")) " + histPushAnchor);
   s = s.replace(histReplAnchor, "if (!BX_PREVIEW || bxOn(\"t16\")) " + histReplAnchor);
 
+  /* ---------- T17 : panneau de settings complet hors session ----------
+     `renderFullSettings = STATES.supportedRegion && STATES.isSignedIn` gate
+     TOUTES les sections/onglets autres que general/sound/data/session/
+     advanced/footer. Or sur play.xbox.com : (1) `window.xbcUser` n'existe
+     pas (c'est un global de www.xbox.com/play), (2) `xcloud.server ready`
+     n'arrive qu'en pleine session. Resultat constate le 1er nov 2026 :
+     isSignedIn reste faux alors que l'utilisateur EST connecte (gamertag
+     affiche par le site) -> le panneau se reduit au bloc general, onglets
+     stream/controller/mkb/stats invisibles. La preview rend donc tout le
+     panneau des que la region est supportee : ce sont des prefs stockees,
+     appliquees au prochain chargement, sans effet immediat sur le flux.
+     Stable inchange (garde BX_PREVIEW dans la ternaire). */
+  const fullSettingsAnchor = "this.renderFullSettings = STATES.supportedRegion && STATES.isSignedIn";
+  must(s, fullSettingsAnchor, "T17 renderFullSettings");
+  if (s.indexOf(fullSettingsAnchor) !== s.lastIndexOf(fullSettingsAnchor)) throw new Error("[build-preview] T17 : ancre renderFullSettings multiple");
+  s = s.replace(fullSettingsAnchor,
+    "/* T17 preview: xbcUser absent sur play.xbox.com -> panneau complet des que la region est supportee */" +
+    "this.renderFullSettings = BX_PREVIEW ? STATES.supportedRegion : (STATES.supportedRegion && STATES.isSignedIn)");
+
   /* ---------- T13 : la preview lit le flux via video.srcObject ----------
      Le stable masque le <video> tant qu'il n'a pas d'attribut src :
      `#game-stream video:not([src]){visibility:hidden}` (anti-flash noir du
@@ -985,6 +1004,7 @@ for (const probe of [
   'if (bxOn("t5")) installKeepAliveIdle();',
   'if (!bxOn("t14")) return;',
   'BX_PREVIEW && bxOn("t10")',
+  'T17 preview: xbcUser absent',
 ]) {
   if (!out.includes(probe)) { console.error("[build-preview] probe manquante: " + probe); process.exit(1); }
 }
@@ -996,6 +1016,11 @@ if (out.includes("#game-stream video:not([src]){visibility:hidden}")) {
 /* T14 : l'appel eager nu doit avoir disparu (sinon abort au document-start CDP). */
 if (out.includes("NavigationDialogManager.getInstance(); // eager")) {
   console.error("[build-preview] T14 ECHEC : appel eager NavigationDialogManager non garde");
+  process.exit(1);
+}
+/* T17 : le panneau complet ne doit plus etre gate par isSignedIn seul. */
+if (out.includes("renderFullSettings = STATES.supportedRegion &&")) {
+  console.error("[build-preview] T17 ECHEC : renderFullSettings encore gate par isSignedIn dans la preview");
   process.exit(1);
 }
 console.log("[build-preview] probes overlay OK");

@@ -15,8 +15,11 @@ Version de maintenance du **client preview** (`play.xbox.com`) : le gel au clic 
 ### Corrigé (preview 1.13.10-preview2)
 - **Firefox : « navigateur non pris en charge » sur play.xbox.com** — le seed des briques preview valait `t4 t5 t7`, donc `bxOn("t10")` était FAUX et l'auto-spoof d'UA (T10) ne s'appliquait jamais : avec son UA natif, Firefox est refusé par le gate Chromium-only du client. `t10` est remis dans le seed livré (spoof `windows-edge` par défaut pour tout moteur non Chromium ; un profil choisi par l'utilisateur n'est jamais écrasé) ; le gate `t10-auto-spoof.test.js` lit désormais le seed RÉEL du bundle au lieu de supposer un état par défaut.
 
+### Corrigé (preview 1.13.10-preview3)
+- **Panneau de settings réduit à « home » hors session** — `renderFullSettings = supportedRegion && isSignedIn` filtrait toutes les sections et tous les onglets (`stream`, `controller`, `mkb`, `stats`). Or sur `play.xbox.com` la détection de connexion ne peut jamais réussir hors stream : `window.xbcUser` est un global de `www.xbox.com/play`, et `xcloud.server` n'émet `ready` qu'en pleine session — le script se croyait déconnecté alors que le gamertag était affiché. La preview rend désormais le panneau complet dès que la région est supportée (fiche T17, garde `BX_PREVIEW` ; stable inchangé).
+
 ### Infra
-- APK stable + preview rebuildés (versionCode 20) ; bundle preview en sortie LF.
+- APK stable + preview rebuildés (versionCode 21) ; bundle preview en sortie LF.
 - Diagnostic de campagne (marqueurs, bandeau `seed:`/`on:`) conservé dans le code mais **éteint par défaut**.
 
 ## [1.13.9] - 2026-11-01

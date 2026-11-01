@@ -3098,3 +3098,41 @@ stable re-uploade `--clobber` sur la release 1.13.10 -> guard VERT.
 `BX_ON_SEED`. Verifier `grep -n 'BX_ON_SEED = ' better-xcloud-preview.user.js`
 avant toute release preview : `t4 t5 t7` sans `t10` = Firefox casse, et aucun
 test ne le voyait avant que le gate ne lise le seed.
+
+## Session 1er nov 2026 (suite 18) — panneau de settings reduit (preview3)
+
+**Symptome** : « j'ai pas toutes les options du script », puis « il n'y a que le
+bloc home » — le panneau ne montre que general/sound/data/session/advanced
+(langue, region, UI manette, son, debit/resolution, session, avance).
+
+**Cause racine** : `SettingsDialog.renderFullSettings = STATES.supportedRegion &&
+STATES.isSignedIn`. Faux => le rendu filtre (`section.group` limite a
+general/footer/advanced/sound/data/session) ET les onglets de groupe != global
+(`stream`, `controller`, `mkb`, `stats`) ne sont meme pas crees. Or sur
+`play.xbox.com` `isSignedIn` ne peut jamais passer a vrai hors session :
+`window.xbcUser` est un global de www.xbox.com/play (absent ici) et
+`xcloud.server ready` n'arrive qu'en pleine session. Le script se croyait
+deconnecte alors que le gamertag etait affiche par le site.
+
+**Correctif** : fiche preview-only T17 dans bench/preview/port/build-preview.js —
+`this.renderFullSettings = BX_PREVIEW ? STATES.supportedRegion : (STATES.supportedRegion
+&& STATES.isSignedIn)`. Ce sont des prefs stockees appliquees au prochain
+chargement : les exposer hors session est sans effet. Ancre `must()` + garde
+d'unicite + probe 'T17 preview: xbcUser absent' + post-check qui echoue si
+`renderFullSettings = STATES.supportedRegion &&` survit dans la preview. Stable
+inchange (expr d'origine verifiee 1 occurrence).
+
+**Piege** : reconstruire `better-xcloud-preview.user.js` sans relancer
+`VARIANT=preview bash mobile/build.sh` fait echouer `tv-defaults` (« assets/
+better-xcloud.user.js = bundle courant ») : l'APK embarque le bundle, les
+assets suivent par le build, pas par le build-preview.
+
+**Cycle** : bump `1.13.10 --preview=1.13.10-preview3` (versionCode 21) ->
+build-preview + es2017 preview -> APK preview puis stable -> gates vertes (npm
+test, t10 + self-test, readme-version + self-test, es2017-check, check:src) ->
+commit -> push -> release preview3 + canal --clobber + APK stable --clobber ->
+guard VERT.
+
+**Lecon** : un panneau « ampute » n'est presque jamais un bundle tronque —
+verifier `renderFullSettings` et les filtres de groupe avant de suspecter le
+build.
