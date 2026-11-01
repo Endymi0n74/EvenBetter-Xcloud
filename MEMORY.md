@@ -2,6 +2,26 @@
 
 > **Note repo-hygiene** : ce fichier est le journal interne des sessions Codebuff. Il reste versionné pour l'historique mais les PRs ne doivent pas l'inclure en entier — extraits pertinents uniquement. Voir `CONTRIBUTING.md`.
 
+## Session 31 oct – 1er nov 2026 — preview play.xbox.com : gel du flux (T13), shell Bastion (T4), eager CDP (T14)
+
+**Symptôme** : le client preview gèle en jeu alors que le stable `www.xbox.com` fonctionne. Reproduction FF7 (`9NRQVQ7ZRM7Z`) : avec le script, `<video>` à `visibility:hidden` et ~41/42 frames droppées ; sans script, `visible` et ~2 frames droppées après 14 s.
+
+**Cause n°1 — T13 (gel)** : la règle stable `#game-stream video:not([src]){visibility:hidden}` (anti-flash du client www, qui pose `src=blob:`) matche le `<video>` preview qui attache le MediaStream par `srcObject` et n'a jamais d'attribut `src` → vidéo masquée en permanence. Le build preview retire la règle (T13 + probe + check négatif). Stable inchangé.
+
+**Cause n°2 — T4 (shell Bastion)** : plus de `nav.col-container` ni `<header>` ; top bar = `nav.drag-region > div[role=toolbar][aria="Contrôles de l'application"]` (h 48), cluster droit `.justify-end` (Manette/Profil). T4 ancre `[role=toolbar]`/`nav.drag-region`, insère le wrapper avant le conteneur Profil, ajoute `no-drag-region` (sinon le drag WCO avale le clic) ; anciens sélecteurs en repli. Vérifié : bouton (1011,4,152,40), parent `no-drag-region`, dialog opérationnel.
+
+**Cause n°3 — T14 (abort document-start CDP)** : `Page.addScriptToEvaluateOnNewDocument` s'exécute avant `<html>` ; `NavigationDialogManager.getInstance(); // eager` jetait `Cannot read properties of null (reading 'appendChild')` et avortait tout le reste (`BX_SESSION_IMPORT`, `BX_DATA_SAVER`, `BX_REGION_APPLY`, `main()`, T5) → clic settings : `reading 'render'` sur `TAB_GLOBAL_ITEMS`. T14 enveloppe l'appel (try/catch) et le rejoue toutes les 10 ms jusqu'à `<html>` (+ DOMContentLoaded). Stable inchangé.
+
+**Validation réelle** (Edge 157.0.4341.30, profil `edge-cdp-prev`, CDP 9223, bundle 523 249 o) :
+- Home : `BX_DATA_SAVER`/`BX_SESSION_IMPORT`/`BX_SOUND_PRESETS`/`BX_REGION_APPLY`/`BX_LATENCY_TEST`/`PreviewKeepAliveIdle`/`BX_PURGE_DIAG` définis ; dialog settings ouvert, onglet « Données » rendu, 0 erreur `render`.
+- Stream direct `https://play.xbox.com/stream/9NRQVQ7ZRM7Z/final-fantasy-vii-remake-intergrade` : `visibility:visible`, `srcObject` actif, readyState 4, 1920×1080, **0 frame droppée / 1097 en 36,6 s** (run précédent 1/997) ; FF7 title screen rendu ; « Continuer quand même » puis jeu visible.
+- Game bar (T9) : action Settings ouvre le dialog, onglet Données présent, aucune erreur.
+- `Not xCloud page` résiduel = iframe `about:blank` transitoire de Sentry (`fl()`), sans effet ; CSP GitHub/font préexistante.
+
+**Fichiers** : `bench/preview/port/build-preview.js` (T13/T14 + probes/check négatif, T4 Bastion), `better-xcloud-preview.user.js` régénéré. `better-xcloud.user.js` non modifié (hors badge de version au bump).
+
+**Pièges harnais** : `inject-preview.js` lit le bundle UNE fois au démarrage → le relancer après chaque rebuild ; ne pas fermer la dernière page du contexte Edge (sinon Edge quitte, CDP 9223 tombe) ; l'extension `jajiodijcbabgddffcdajcicaimcljmp` pointe vers `D:\Codex\better-xcloud-fork\.edge-inject` (inexistant) → pas de double injection.
+
 ## Session 24 sept 2026 (suite) — audit des bus `setting.changed` + v1.13.7
 
 **Demande** : « Audite toutes les prefs globales dont l'UI n'écoute que le bus Stream et corrige celles qui n'arrivent jamais. »

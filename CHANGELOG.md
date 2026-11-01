@@ -2,6 +2,19 @@
 
 Toutes les modifications notables de ce fork sont documentées ici. Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
+## [1.13.9] - 2026-11-01
+
+Version de maintenance : le **client preview** (`play.xbox.com`) redevient jouable et son panneau settings est de nouveau accessible. Le bundle stable (`www.xbox.com`) est inchangé fonctionnellement (seul le badge de version change).
+
+### Corrigé (preview)
+- **Gel de l'image en jeu** : la règle CSS du stable `#game-stream video:not([src]){visibility:hidden}` (anti-flash du client www, qui pose `src=blob:`) masquait en permanence le `<video>` du preview, lequel attache le MediaStream par `srcObject` et n'a donc jamais d'attribut `src`. Le build preview retire désormais cette règle (T13, avec probe et check négatif). Reproduction FF7 : ~41/42 frames droppées avant, **0/1097 sur 36,6 s** après.
+- **Bouton settings absent de la barre du shell « Bastion »** : plus de `nav.col-container` ni `<header>`. L'entrée settings s'ancre sur `nav.drag-region > [role=toolbar]`, s'insère avant le conteneur Profil et porte `no-drag-region` (sinon le drag de la fenêtre avale le clic). Anciens sélecteurs conservés en repli (T4).
+- **Bundle avorté à l'injection document-start (CDP)** : `NavigationDialogManager.getInstance()` s'exécutait avant la création de `<html>` et jetait `Cannot read properties of null (reading 'appendChild')`, stoppant toute l'initialisation preview (globals, `main()`, keep-alive). L'appel est protégé et rejoué jusqu'à ce que `<html>` existe, avec repli `DOMContentLoaded` (T14).
+
+### Infra
+- `bench/preview/port/build-preview.js` : T13 + T14 et leurs probes/checks négatifs, adaptateur T4 Bastion.
+- APK stable + preview rebuildés (versionCode 18), bundle preview en sortie LF.
+
 ## [1.13.7] - 2026-09-24
 
 Audit **systématique** des bus d'événements, au-delà du cas déjà connu : le bundle route `setting.changed` selon la CLASSE de la pref (`Settings.setSetting(key, value, "ui")` émet sur le bus **Stream** si `isStreamPref(key)`, sinon sur le bus **Script**). Un listener abonné au mauvais bus ne reçoit donc **jamais** rien — sans erreur, sans log, sans trace.

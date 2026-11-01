@@ -134,7 +134,7 @@ function build() {
   s = s.replace(headerAnchor,
     "/* OPTIMISATIONS " + PREVIEW_VERSION + " — VARIANTE PREVIEW (play.xbox.com uniquement) :\n" +
     "   Identite distincte du stable (name/version/updateURL) — les deux versions\n" +
-    "   cohabitent sans se confondre. Overlay T1-T4 (detection BX_PREVIEW, garde\n" +
+    "   cohabitent sans se confondre. Overlay T1-T13 (detection BX_PREVIEW, garde\n" +
     "   du Patcher site, entree settings) + T5 (keep-alive idle P1).\n" +
     "   STABLE:");
 
@@ -171,11 +171,14 @@ if (BX_PREVIEW) {
   BxLogger.info("BX_PREVIEW", "overlay actif (T4 arme) — play.xbox.com");
   var PreviewSettingsEntry = {
     /* 17 août : le shell preview est du Tailwind — pas de <header> sémantique ni
-       de classe Header-* (anchors.md §4). Le vrai top bar est nav.col-container
-       (h 73, rangée interne flex-row h 48). On garde les anciens candidats pour
-       compat et on ajoute l'ancre réelle observée en session. */
-    SELECTORS: ["nav.col-container", "header[class*='Header']", "[class*='AppHeader']", "[class*='shell'] header", "header"],
-    TARGET_SELECTORS: ["[class*='flex-row']", "[class*='right']", "[class*='actions']", "[class*='nav']", "[class*='menu']", "[class*='buttons']"],
+       de classe Header-* (anchors.md §4). 31 oct : le client a basculé sur le
+       shell « Bastion » (dock vertical à gauche + barre de titre WCO) — le top
+       bar est [role="toolbar"][aria="Contrôles de l'application"] (h 48)
+       dans nav.drag-region ; plus aucun nav.col-container ni <header>.
+       Le cluster de droite (.justify-end) porte Manette/Profil : c'est là
+       qu'on insère le bouton. Les anciens candidats restent en repli. */
+    SELECTORS: ["[role='toolbar']", "nav.drag-region", "nav.col-container", "header[class*='Header']", "[class*='AppHeader']", "[class*='shell'] header", "header"],
+    TARGET_SELECTORS: ["[class*='justify-end']", "[class*='flex-row']", "[class*='right']", "[class*='actions']", "[class*='nav']", "[class*='menu']", "[class*='buttons']"],
     /* 17 août : re-rendu SPA du nav (hydratation/React) — on NE disconnecte PAS
        l'observer et on ré-appende le wrapper s'il est détaché (isConnected),
        coalescé à 150 ms pour ne pas travailler à chaque mutation. */
@@ -221,6 +224,23 @@ if (BX_PREVIEW) {
          pointer-events:auto. Le wrapper du bouton doit faire pareil, sinon les
          clics traversent vers le <main> (observé : elementFromPoint = contenu). */
       wrapper.style.pointerEvents = "auto";
+      /* 31 oct : shell Bastion — la barre est une drag-region WCO : un enfant
+         sans no-drag-region reste inerte (le drag de fenêtre avale le clic).
+         On insère le bouton juste avant le conteneur du bouton Profil, comme
+         les autres contrôles (Manette/Profil). */
+      if ($header.getAttribute("role") === "toolbar" || $header.closest("[role='toolbar']")) {
+        wrapper.classList.add("no-drag-region");
+        var $profile = $target.querySelector("button[aria-label='Profil'], button[aria-label='Profile']");
+        var $slot = $profile ? $profile.closest(".no-drag-region") : null;
+        if ($slot && $slot.parentElement) {
+          if (wrapper.parentElement !== $slot.parentElement || wrapper.nextElementSibling !== $slot) {
+            $slot.parentElement.insertBefore(wrapper, $slot);
+            BxLogger.info("PreviewSettingsEntry", "bouton settings (toolbar Bastion) injecte");
+          }
+          this._injected = true;
+          return true;
+        }
+      }
       if (!wrapper.isConnected) {
         $target.appendChild(wrapper);
         BxLogger.info("PreviewSettingsEntry", "bouton settings (re)injecte", $header.className || $header.tagName);
@@ -444,6 +464,52 @@ ${entryAnchor}`;
     "\ninstallKeepAliveIdle();\n}\n";
   s = s + t5Block;
 
+  /* ---------- T13 : la preview lit le flux via video.srcObject ----------
+     Le stable masque le <video> tant qu'il n'a pas d'attribut src :
+     `#game-stream video:not([src]){visibility:hidden}` (anti-flash noir du
+     client www.xbox.com, qui pose src=blob: avant lecture). Le client preview
+     attache le MediaStream par `video.srcObject` et ne pose JAMAIS src :
+     la règle matche donc en permanence → vidéo invisible (visibility:hidden),
+     droppedVideoFrames ≈ 100 %, jeu figé à l'écran (reproduit 30 oct sur FF7,
+     `vis:hidden` + 41/42 frames droppées ; sans script : `vis:visible` + 2
+     frames droppées). On retire la règle UNIQUEMENT dans le build preview. */
+  const hideVideoRule = "#game-stream video:not([src]){visibility:hidden}";
+  must(s, hideVideoRule, "T13 regle video:not([src])");
+  s = s.replace(hideVideoRule, "/* T13 preview: video.srcObject (no src attribute) - hiding rule removed */");
+
+  /* ---------- T14 : eager NavigationDialogManager au document-start CDP ----------
+     Le stable est @run-at document-start, mais Tampermonkey garantit déjà un
+     <html>. L'injection CDP du bench (inject-preview.js,
+     Page.addScriptToEvaluateOnNewDocument) s'exécute PLUS TÔT : documentElement
+     est null et le constructeur fait document.documentElement.appendChild(...)
+     → TypeError qui avorte tout le reste du bundle (BX_SESSION_IMPORT,
+     BX_DATA_SAVER, BX_REGION_APPLY, main(), T5). Constaté le 31 oct :
+     BX_EXPOSED + BX_SOUND_ENGINE définis, tout le reste undefined, et le clic
+     sur le bouton settings lève « reading 'render' » sur TAB_GLOBAL_ITEMS.
+     On diffère l'appel eager tant que <html> n'existe pas ; le listener D-pad
+     (window-capture) est posé dès que possible, bien avant l'interaction. */
+  const eagerNavAnchor = "NavigationDialogManager.getInstance(); // eager : le listener D-pad (window-capture) est enregistré au document-start, avant le handler clavier de la page (course vs React)";
+  must(s, eagerNavAnchor, "T14 eager NavigationDialogManager");
+  s = s.replace(eagerNavAnchor, [
+    "/* T14 preview: CDP document-start -> <html> pas encore cree */",
+    "(function () {",
+    "  function bxEagerNavDialog() {",
+    "    try { NavigationDialogManager.getInstance(); return true; }",
+    "    catch (e) {",
+    "      try { BxLogger.warn(\"PreviewEager\", \"NavigationDialogManager differe: \" + (e && e.message)); } catch (e2) {}",
+    "      return false;",
+    "    }",
+    "  }",
+    "  if (bxEagerNavDialog()) return;",
+    "  var bxTries = 0;",
+    "  var bxTimer = window.setInterval(function () {",
+    "    if (bxEagerNavDialog() || ++bxTries > 500) window.clearInterval(bxTimer);",
+    "  }, 10);",
+    "  document.addEventListener(\"DOMContentLoaded\", function () { window.clearInterval(bxTimer); bxEagerNavDialog(); }, { once: true });",
+    "})();",
+    "// eager : listener D-pad (window-capture) pose des que <html> existe"
+  ].join("\n"));
+
   // normalisation LF (contrat `.gitattributes eol=lf` : le CRLF historique
   // imposait un staging LF manuel à chaque release)
   s = s.replace(/\r\n/g, "\n");
@@ -520,12 +586,25 @@ for (const probe of [
   "if (!BX_PREVIEW && !window.location.pathname.match(/^\\/(?:[a-zA-Z]{2}-[a-zA-Z]{2}\\/)?play/)) throw Error(\"[Better xCloud] Not xCloud page\");",
   "var PreviewSettingsEntry = {",
   "bx-mobile-fab",
+  "T13 preview: video.srcObject",
+  "T14 preview: CDP document-start",
+  "bxEagerNavDialog",
   "if (BX_PREVIEW) {",
   "installKeepAliveIdle",
   "window.PreviewKeepAliveIdle",
   "auto-spoof Edge by default",
 ]) {
   if (!out.includes(probe)) { console.error("[build-preview] probe manquante: " + probe); process.exit(1); }
+}
+/* T13 : la règle de masquage du stable ne doit JAMAIS survivre au build preview. */
+if (out.includes("#game-stream video:not([src]){visibility:hidden}")) {
+  console.error("[build-preview] T13 ECHEC : #game-stream video:not([src]) toujours present (video preview masquee)");
+  process.exit(1);
+}
+/* T14 : l'appel eager nu doit avoir disparu (sinon abort au document-start CDP). */
+if (out.includes("NavigationDialogManager.getInstance(); // eager")) {
+  console.error("[build-preview] T14 ECHEC : appel eager NavigationDialogManager non garde");
+  process.exit(1);
 }
 console.log("[build-preview] probes overlay OK");
 
