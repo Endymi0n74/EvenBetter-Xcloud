@@ -2,6 +2,20 @@
 
 Toutes les modifications notables de ce fork sont documentées ici. Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
+## [1.13.10] - 2026-11-01
+
+Version de maintenance du **client preview** (`play.xbox.com`) : le gel au clic est corrigé à la racine — un nœud `<style>` injecté avant l'hydratation React privait l'application de tous ses gestionnaires d'événements. Le bundle stable (`www.xbox.com`) est inchangé fonctionnellement (seul le badge de version change).
+
+### Corrigé (preview)
+- **Page figée, clic muet** : `addCss()` insérait un `<style>` dans `<head>` **avant** l'hydratation React → erreur React #418 ; l'application gardait son HTML mais perdait tous ses gestionnaires (aucune requête au clic, aucune exception, thread libre). Le CSS est désormais capturé puis adopté via `document.adoptedStyleSheets` (`__bxAddCssSafe` / `__bxAdoptCss`), avec repli insertion après `load` + 3 s.
+- **Bouton settings hors de l'arbre React** : l'entrée settings devient un FAB fixe sur `document.documentElement` (classe `bx-mobile-fab`), injecté après `load` + 1,5 s — plus aucune injection dans la barre d'outils du site.
+- **Blocage de plusieurs secondes au lancement** : `locateSession()` faisait `queue.shift()` (coût O(n) par nœud) sur jusqu'à 20 000 fibres, relancé toutes les 3 s. Remplacé par une file persistante (`bq`/`bqi`) avec budget de 6 ms par tick et abandon après 200 tentatives.
+- **Réinjection du CSS** : `_hasCss` reconnaît `adoptedStyleSheets` et la réinjection passe par `__bxAddCssSafe()` au lieu d'`addCss()` ; le tick de résilience T7 est réenregistré en fin de bundle (son bloc d'adaptateur ne s'exécutait pas) avec une garde autonome sur `window.__BX_ON_SEED`.
+
+### Infra
+- APK stable + preview rebuildés (versionCode 19) ; bundle preview en sortie LF.
+- Diagnostic de campagne (marqueurs, bandeau `seed:`/`on:`) conservé dans le code mais **éteint par défaut**.
+
 ## [1.13.9] - 2026-11-01
 
 Version de maintenance : le **client preview** (`play.xbox.com`) redevient jouable et son panneau settings est de nouveau accessible. Le bundle stable (`www.xbox.com`) est inchangé fonctionnellement (seul le badge de version change).

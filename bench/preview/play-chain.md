@@ -1,6 +1,6 @@
 # Chaîne requestConnection → play (garde anti-dérive)
 
-- Généré le : 2026-11-01T01:16:17.437Z
+- Généré le : 2026-11-01T12:19:10.886Z
 - Statut : **OK — ancres stables** ✅
 - Ancre déclencheuse : mutation `requestConnection` (accs.system) → éligibilité → connect → `sendPlayCloud` → POST `/v5/sessions/cloud/play` (chronologie détaillée dans `port/session.md`)
 
