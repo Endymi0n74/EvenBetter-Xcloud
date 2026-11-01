@@ -3136,3 +3136,38 @@ guard VERT.
 **Lecon** : un panneau « ampute » n'est presque jamais un bundle tronque —
 verifier `renderFullSettings` et les filtres de groupe avant de suspecter le
 build.
+
+**VALIDATION UTILISATEUR (1er nov 2026, Firefox reel)** : sur `1.13.10-preview3`,
+play.xbox.com ne refuse plus le navigateur (T10 : spoof Edge par defaut) et le
+panneau de settings s'ouvre complet, sections Audio/Video visibles (T17). Les
+deux correctifs sont donc confirmes sur materiel, pas seulement par les gates.
+Reste ouvert : le stable `1.13.10` ne contient ni T10 ni T17.
+
+## Session 1er nov 2026 (suite 19) — T10 + T17 portes au stable (1.13.11)
+
+**Demande** : publier une stable qui contient les deux correctifs jusqu'ici
+preview-only.
+
+**Mecanisme (important)** : `better-xcloud.user.js` n'est PAS recompile depuis une
+source — c'est un bundle amont rebrandé. Les correctifs s'y posent par PAIRES
+from→to : `src/fixes/<nom>.js` exporte `PAIRS`, `bench/fix-<nom>.js` les applique
+au bundle (idempotent), et `SRC_FIXES` dans esbuild.config.mjs liste les modules
+(check:src REFUSE un fichier present sur disque et absent de la liste).
+
+**Fait** : `src/fixes/ua-settings-stable.js` (T10 auto-spoof UA hors Chromium,
+sans BX_PREVIEW ni bx-on ; T17 `renderFullSettings = STATES.supportedRegion`) +
+`bench/fix-ua-settings-stable.js` (dry-run/self-test/idempotence). Applique au
+stable, puis build-preview.js ALLEGE : les blocs T10/T17, leurs probes et leurs
+checks sont retires (le preview herite des correctifs du stable). Gate
+`t10-auto-spoof.test.js` reecrit : marker attendu dans les DEUX bundles,
+statement autonome (plus de BX_PREVIEW/bx-on), contexte stable -> spoof.
+
+**Cycle** : bump 1.13.11 (preview 1.13.11-preview1, versionCode 22) -> build
+preview -> es2017 preview -> APK preview + stable -> gates (npm test, t10+self,
+readme+self, es2017-check, check:src) -> commit -> push -> release stable
+(Latest) + preview + canal -> guard.
+
+**Piege** : apres avoir patché le stable, `build-preview.js` echoue sur son
+ancre T10 (`must(s, uaSpoofAnchor)`) tant qu'on n'a pas retire l'etape — et une
+edition de script qui avorte a mi-course laisse le fichier INTACT (aucun write
+avant la fin), donc toujours verifier `grep -c` du marqueur avant de rebuild.

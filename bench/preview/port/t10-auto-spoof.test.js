@@ -97,9 +97,12 @@ function makeRunner(statement, seed) {
 function runChecks(stable, preview) {
   // ---- 1. présence marker + pureté du stable ----
   console.log("== 1. Présence T10 (preview) / pureté (stable) ==");
-  const markerCount = preview.split(T10_MARKER).length - 1;
-  check("marker T10 présent dans le build preview (1 occurrence)", markerCount === 1, `occurrences=${markerCount}`);
-  check("marker T10 ABSENT du bundle stable (guard BX_PREVIEW)", !stable.includes(T10_MARKER));
+  const markerPreview = preview.split(T10_MARKER).length - 1;
+  const markerStable = stable.split(T10_MARKER).length - 1;
+  check("marker T10 présent dans le build preview (1 occurrence)", markerPreview === 1, `occurrences=${markerPreview}`);
+  // Porte au STABLE en 1.13.11 (src/fixes/ua-settings-stable.js) : le canal
+  // Latest sert le meme spoof, sans dependre du seed preview.
+  check("marker T10 présent dans le bundle stable (1 occurrence)", markerStable === 1, `occurrences=${markerStable}`);
 
   const stmtMatch = preview.match(T10_STMT_RE);
   check("statement T10 extrait du bundle preview", !!stmtMatch);
@@ -118,13 +121,11 @@ function runChecks(stable, preview) {
   // ---- 3. comportement vm du statement extrait ----
   console.log("== 3. Comportement vm (mock UserAgent, même contrat que le bundle) ==");
   if (t10Stmt) {
-    // seed livré : c'est LUI qui fixe l'état par défaut des briques preview
-    // (bloc T15). Le mock doit le respecter, sinon il ne teste pas le contrat.
-    const seedMatch = preview.match(/var BX_ON_SEED = "([^"]*)";/);
-    const seed = seedMatch ? seedMatch[1] : "";
-    check("seed livré active t10 (sinon Firefox reçoit le gate Chromium-only)",
-      seed.split(" ").indexOf("t10") !== -1, `seed="${seed}"`);
-    const run = makeRunner(t10Stmt, seed);
+    // T10 est un correctif du STABLE depuis 1.13.11 : plus de garde BX_PREVIEW
+    // ni de bx-on. Le statement doit donc etre autonome.
+    check("statement indépendant de BX_PREVIEW/bx-on (porté au stable)",
+      !/BX_PREVIEW|bxOn/.test(t10Stmt), t10Stmt.slice(0, 80));
+    const run = makeRunner(t10Stmt);
     // Firefox / Safari : gate Chromium-only → auto-spoof windows-edge
     let r = run(UAS.firefox, "default", true, "t10");
     check("Firefox + default + BX_PREVIEW + bx-on t10 → profil windows-edge (gate passé)",
@@ -152,8 +153,8 @@ function runChecks(stable, preview) {
       r.profile === "windows-edge" && r.spoofed === true, JSON.stringify(r));
     // contexte stable : BX_PREVIEW=false → jamais de spoof auto
     r = run(UAS.firefox, "default", false, "t10");
-    check("Firefox + default + BX_PREVIEW=false (contexte stable) → inchangé",
-      r.profile === "default" && r.spoofed === false, JSON.stringify(r));
+    check("Firefox + default sans bx-on (contexte stable) → spoof quand même",
+      r.profile === "windows-edge" && r.spoofed === true, JSON.stringify(r));
     // bloc T15 : bx-on accepte une liste d'ids (bisect sans rebuild)
     r = run(UAS.firefox, "default", true, "t4,t10");
     check("Firefox + default + bx-on \"t4,t10\" → spoof (liste multi-ids respectée)",

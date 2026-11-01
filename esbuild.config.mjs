@@ -31,7 +31,7 @@ export const SRC_FEATURES = [
 // Fixes amont (paires from → to) — même contrôle de pureté LF/parse.
 // ORDRE D'APPLICATION : settings-freeze puis settings-bus (le second réécrit le
 // contenu de 2 paires du premier ; bench/fix-settings-bus.js refuse l'inverse).
-export const SRC_FIXES = ["settings-freeze", "settings-bus"];
+export const SRC_FIXES = ["settings-freeze", "settings-bus", "ua-settings-stable"];
 
 if (process.argv.includes("--check")) {
   const require = createRequire(import.meta.url);

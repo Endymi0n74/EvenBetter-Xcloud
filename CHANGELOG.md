@@ -2,6 +2,17 @@
 
 Toutes les modifications notables de ce fork sont documentées ici. Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
+## [1.13.11] - 2026-11-01
+
+Les deux correctifs du client preview passent dans le **bundle stable** : plus besoin d'installer la préversion pour en profiter, y compris sur `www.xbox.com/play`.
+
+### Corrigé
+- **Firefox : « votre navigateur ne prend pas en charge la diffusion en continu »** — `play.xbox.com` n'accepte que des moteurs Chromium, alors que le flux WebRTC H.264 fonctionne sous Firefox. Le moteur qui n'est pas Chromium (Firefox, Safari Windows) est désormais présenté comme Edge par défaut ; un profil d'User-Agent choisi explicitement dans les settings n'est jamais écrasé, et Chrome/Edge/Crios ne sont pas touchés.
+- **Panneau de settings réduit à « home » hors session** — `renderFullSettings = supportedRegion && isSignedIn` masquait les sections et les onglets `stream`, `controller`, `mkb`, `stats`. Sur `play.xbox.com` la connexion n'est pas détectable hors partie (`window.xbcUser` n'existe que sur `www.xbox.com/play`, `xcloud.server ready` n'arrive qu'en session) : le script se croyait déconnecté alors que le gamertag était affiché. Le panneau complet s'ouvre maintenant dès que la région est supportée.
+
+### Interne
+- Correctifs portés en paires from→to (`src/fixes/ua-settings-stable.js`, injecteur idempotent `bench/fix-ua-settings-stable.js` avec self-test) ; `bench/preview/port/build-preview.js` n'a plus à les réappliquer, et le gate `t10-auto-spoof` vérifie désormais les **deux** bundles (marker, indépendance vis-à-vis de `BX_PREVIEW`/`bx-on`, comportement vm).
+
 ## [1.13.10] - 2026-11-01
 
 Version de maintenance du **client preview** (`play.xbox.com`) : le gel au clic est corrigé à la racine — un nœud `<style>` injecté avant l'hydratation React privait l'application de tous ses gestionnaires d'événements. Le bundle stable (`www.xbox.com`) est inchangé fonctionnellement (seul le badge de version change).
