@@ -22,6 +22,23 @@
 
 **Pièges harnais** : `inject-preview.js` lit le bundle UNE fois au démarrage → le relancer après chaque rebuild ; ne pas fermer la dernière page du contexte Edge (sinon Edge quitte, CDP 9223 tombe) ; l'extension `jajiodijcbabgddffcdajcicaimcljmp` pointe vers `D:\Codex\better-xcloud-fork\.edge-inject` (inexistant) → pas de double injection.
 
+## Session 1er nov 2026 — publication v1.13.9 + v1.13.9-preview1
+
+**Demande** : arrêter le harnais (watcher CDP + Edge de test) puis publier la version stable et la preview (commit/push/release).
+
+**Publication** :
+1. `bash bench/bump-version.sh 1.13.9 --preview=1.13.9-preview1 --build-apk`. **Piège** : le gate `readme-version` tourne AVANT la construction des APK (`--build-apk` est traité en fin de script) → il échoue sur les anciens noms `out-*/evenbetter-xcloud-1.13.8*.apk`. Correctif : construire les deux APK (`bash mobile/build.sh` puis `VARIANT=preview bash mobile/build.sh`, avec `JAVA_HOME=/c/Program Files/Zulu/zulu-21` et `ANDROID_SDK_ROOT=/d/android-sdk`) puis relancer `node bench/readme-version.test.js` → VERT. **Ne pas relancer le bump après un échec partiel** : `OLD_VERSION` a déjà avancé, la passe README ne remplacerait plus rien — restaurer d'abord les fichiers bumpés (`git checkout -- …`).
+2. Autre piège : ne pas piper le bump dans `head` (SIGPIPE 141 au milieu du script → état partiel incohérent).
+3. Commit `7d8a6ea` (17 fichiers : T13/T14/T4, CHANGELOG, READMEs, VERSION/PREVIEW_VERSION/package.json, manifest versionCode 18, bundles stable + preview + es2017 + metas) → push `main`.
+4. Releases créées par `gh release create` (tags créés à la publication, jamais poussés avant — règle anti-course) : prerelease `evenbetter-xcloud-v1.13.9-preview1` (3 assets), puis stable `evenbetter-xcloud-v1.13.9` **Latest** (5 assets, `better-xcloud.user.js` = contenu ES2017), puis canal `evenbetter-xcloud-preview-channel` ré-uploadé `--clobber` (2 assets). Assets stagés en LF dans `.tmp/rel-1.13.9/` (hors git).
+5. `release-guard.sh` **VERT 4/4** (tag → `7d8a6ea`, 4 liens byte-identiques, APK bannière = versionné, APK preview 200). Prune auto : v1.13.8 purgée, 4 releases conservées, 4/4 liens 200 ; CI bench vert.
+
+**Tests** : `npm test` **22/22** (lancer sous Git Bash — `unzip` absent du PATH PowerShell fait échouer `tv-defaults` à tort), `readme-version.test.js` + `--self-test` verts, invariants preview OK (règle hide absente, garde eager présente, ancre toolbar).
+
+**Stable** : aucun changement fonctionnel (seul le badge de version change) — les correctifs T13/T14/T4 sont spécifiques au build preview.
+
+**Reste hors commit** : `artifacts/firefox-freeze-error.png` (capture d'une ancienne session, sans lien avec ce correctif) laissé non suivi.
+
 ## Session 24 sept 2026 (suite) — audit des bus `setting.changed` + v1.13.7
 
 **Demande** : « Audite toutes les prefs globales dont l'UI n'écoute que le bus Stream et corrige celles qui n'arrivent jamais. »
