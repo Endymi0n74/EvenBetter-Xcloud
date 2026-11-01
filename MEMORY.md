@@ -2857,3 +2857,152 @@ Build propre livre ensuite :
 Pour rediagnostiquer plus tard : passer BX_DBG a true dans build-preview.js, ou
 localStorage.setItem("bx-debug","1") si la ligne de lecture est adaptee ; le
 bandeau revient au prochain chargement.
+
+## Session 1er nov 2026 (suite 12) — campagne de test des briques (apres correctif CSS)
+
+Interrupteur ajoute dans build-preview.js : `BX_ON_SEED` (chaine d'ids separes
+par des espaces) est insere en tete de BX_ON, donc les briques listees sont
+actives PAR DEFAUT dans le build, sans toucher aux gardes `!bxOn(id)` et sans
+console. Vide = etat livre (toutes coupees).
+
+Ordre de campagne : t4 (entree settings) -> t5 (keep-alive) -> t7 (CSS/overlay)
+-> t14 (eager CDP) -> t10 (auto-spoof) -> t16 (history). Un build et un test
+utilisateur par etape, le jeu doit continuer a se lancer a chaque fois.
+
+Piege a ne PAS reintroduire : le badge de diagnostic ajoutait un div dans
+<html> avant l'hydratation — exactement ce qui a cause React #418. Pas de badge
+pendant la campagne : l'identification se fait par le fichier livre.
+
+Premier build de la campagne : BX_ON_SEED = "t4".
+
+### Campagne briques — etape 1 : t4 VALIDEE
+
+Build BX_ON_SEED = "t4" installe par l'utilisateur : le bouton settings
+apparait dans la barre du shell et le dialogue s'ouvre (capture du 1er nov :
+"EvenBetterXcloud 1.13.9-preview1", sections Language / Bypass region /
+Controller-friendly UI / Sound / Donnees, presets de debit). Le jeu se lance
+normalement. t4 n'a donc jamais ete en cause dans le gel — c'etait bien le CSS.
+
+Etape 2 : BX_ON_SEED = "t4 t5" (keep-alive).
+
+### Campagne briques — etape 2 : t5 GELE, cause trouvee et corrigee
+
+Build BX_ON_SEED = "t4 t5" : l'utilisateur signale un gel au lancement du jeu.
+t4 seule fonctionnait -> t5 est la variable.
+
+Cause dans `installKeepAliveIdle()` (keepalive-idle.js) :
+- `locateSession()` parcourait les fibres React avec `queue.shift()` — cout O(n)
+  PAR NOEUD — sur jusqu'a 20 000 fibres ;
+- relance toutes les 3 s par `setInterval` ;
+- sur le shell actuel la session n'est jamais trouvee -> chaque tick parcourait
+  tout l'arbre, soit plusieurs secondes de main thread bloque, en boucle.
+D'ou un « gel » au lancement (l'arbre est le plus gros a ce moment).
+
+Correctif :
+- file d'attente PERSISTANTE (`bq`/`bqi`, reprise au tick suivant) au lieu de
+  `shift()` ;
+- BUDGET DE TEMPS de 6 ms par tick (verifie tous les 64 noeuds) : plus jamais de
+  blocage perceptible ;
+- plafond de 40 000 noeuds en file, abandon du locator apres 200 tentatives
+  (~10 min) pour ne pas tourner indefiniment ;
+- `attempts` remis a zero des qu'une session est vue (reconnexion).
+
+Tests : keepalive-idle.test.js PASS (locator + interception WarningForBeingIdle).
+Build t4+t5 reconstruit, BX_DBG temporairement a true pour lire `duree:t5.watch`
+dans le bandeau pendant ce test.
+
+### Campagne briques — etape 3 : t4 RE-CASSE l'hydratation, corrigee
+
+Build t4+t5 : gel a nouveau, bandeau `log:Minified React error #418` et
+`t5.watch:3` (3 ms). Conclusion : t5 corrigee (budget ok), c'est **t4** qui
+casse l'hydratation — elle injectait son bouton DANS la toolbar du site
+(`[role='toolbar']`, insertion `insertBefore` avant le bouton Profil), donc un
+noeud etranger dans un conteneur pilote par React -> hydration mismatch -> plus
+aucun gestionnaire -> tuiles inertes. La capture « ok? » du dialogue settings ne
+prouvait rien : le dialog a ses propres listeners, hors React.
+
+Correctif (T4 reecrit) :
+- plus AUCUNE injection dans l'arbre React (ni toolbar, ni header, ni FAB mobile
+  immediat) : `tryInject()` ne fait plus que planifier ;
+- `injectFab()` ajoute le bouton en FAB fixe sur `document.documentElement`
+  (classe `bx-mobile-fab`, probe du build conservee), seulement apres
+  `load` + 1,5 s (hydratation terminee) ;
+- CSS du FAB via `window.__bxAdoptCss` (feuille adoptee, aucun noeud `<style>`) ;
+  repli style apres 3 s seulement si le navigateur ne sait pas adopter ;
+- re-injection a 300 ms si le wrapper est detache (document remplace par T7).
+
+Correctif T7 (meme classe de bug) : `_hasCss` reconnait desormais
+`document.adoptedStyleSheets`, et la re-injection passe par `__bxAddCssSafe()`
+au lieu de `addCss()` — sans quoi t7 aurait reintroduit un `<style>` et le meme
+gel toutes les 2 s.
+
+Etat : build t4+t5 avec BX_DBG=true (bandeau pour ce test), FAB visible en bas a
+droite. A valider : clic tuile OK, pas de `log:Minified React error`.
+
+### Campagne briques — etape 4 : t4 (FAB) + t5 VALIDEES
+
+Bandeau du build precedent : `base.play:1`, `base.config`, `res:[... v5/sessions/cloud/play#486ms,
+.../waittime/...]`, `t5.watch:3` (3 ms), `t4.inject:22 t4.try:1` (1 ms), FAB visible
+en bas a droite, et AUCUN `log:Minified React error`. Le jeu se lance.
+
+Conclusion : le FAB hors arbre React corrige t4 (l'injection dans la toolbar etait
+la seule cause du #418), et t5 est saine depuis le budget de 6 ms.
+
+Etape suivante : BX_ON_SEED = "t4 t5 t7" (resilience dialog). T7 a ete corrigee
+preventivement : elle reconnait document.adoptedStyleSheets et reinjecte le CSS
+via __bxAddCssSafe() au lieu d'addCss() — sinon elle aurait replante un <style>
+toutes les 2 s et ramene le gel. Bandeau laisse actif pour ce test.
+
+### Campagne briques — etape 5 : identite de build dans le bandeau
+
+Bandeau du build t4+t5+t7 : dialogue ouvert et correctement style, jeu lance,
+`base.play:1`, `res:[...v5/sessions/cloud/play#31ms...]`, aucun #418 — MAIS
+aucune cle `t7S` dans les compteurs alors que le bundle contient bien la garde
+`if (!bxOn("t7")) return;`, le marqueur `__BX_MARK("t7S")` et le seed
+`"t4 t5 t7"`. Explication la plus probable : l'utilisateur testait encore le
+build precedent (t4+t5), qui ne contient pas t7 du tout.
+
+Pour lever l'ambiguite sans badge DOM (le badge casserait l'hydratation), le
+bandeau affiche desormais ` seed:[...]` avec la valeur de BX_ON_SEED. A chaque
+prochain test : verifier d'abord ce champ. Si `seed:[t4 t5 t7]` apparait mais
+`t7S` reste absent, la garde bxOn est en cause ; si le champ est absent, la
+version installee est ancienne.
+
+### Campagne briques — etape 6 : sondes t7z / on:[...]
+
+Le bandeau du build t4+t5+t7 affiche `seed:[t4 t5 t7]` (donc le bon fichier est
+installe) mais toujours AUCUNE cle `t7S`. Deux sondes ajoutees pour trancher :
+- `t7z` : marqueur pose AVANT la garde `if (!bxOn("t7")) return;` -> si `t7z`
+  monte sans `t7S`, la garde est fausse ; si rien ne monte, l'intervalle n'est
+  pas execute ;
+- `on:[...]` : valeur reelle de BX_ON dans le bandeau, espaces remplaces par des
+  soulignes -> montre exactement ce que voit bxOn().
+
+### Campagne briques — etape 7 : T7 armee en fin de script
+
+Preuve decisive du bandeau precedent : `seed:[t4 t5 t7]` ET `on:[_t4_t5_t7_]`
+(saine) mais AUCUN `t7z` -> l'intervalle de T7 ne s'execute pas du tout : le
+bloc n'est pas atteint dans le build (placement dans l'adaptateur).
+
+Correctif : le tick T7 est re-enregistre a la FIN du script, dans le bloc T5
+(zone dont l'execution est prouvee : `if (bxOn("t5")) installKeepAliveIdle();`
+tourne). Nouveau marqueur `t7T` toutes les 2 s. Le tick ne fait que le strict
+necessaire et sans noeud <style> :
+- re-append overlay + container du dialogue s'ils sont detaches ;
+- si aucune feuille adoptee, re-injection via `__bxAddCssSafe()` ;
+- re-injecte le FAB si le wrapper est detache.
+Le bloc T7 d'origine reste en place (inerte) : son marqueur t7z sert de temoin.
+
+### Campagne briques — etape 9 : tick T7 relocalise (marqueur t7T)
+
+Le bloc T7 de l'adaptateur ne s'execute pas (seed et BX_ON corrects, aucun
+`t7z`). Le tick est donc re-enregistre APRES `s = s + t5Block;`, a la toute fin
+du bundle, avec une garde autonome `BX_PREVIEW && String(BX_ON_SEED).indexOf("t7") !== -1`.
+Marqueur `t7T` toutes les 2 s ; travail minimal et sans noeud <style> :
+re-append overlay/container detaches, readoption du CSS via `__bxAddCssSafe()`,
+re-injection du FAB si le wrapper est detache.
+
+Piege d'outillage (encore) : une suite `\n` dans un heredoc node traverse deux
+couches d'evaluation et a produit un vrai saut de ligne dans build-preview.js
+(`SyntaxError: Invalid or unexpected token` sur `].join("`). Remede : ne jamais
+concatener des sauts de ligne, utiliser `].join(String.fromCharCode(10))`.

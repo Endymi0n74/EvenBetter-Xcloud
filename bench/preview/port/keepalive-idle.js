@@ -122,54 +122,76 @@ function installKeepAliveIdle() {
   //    fibre .Connection → chaîne d'état (memoizedState.next…) → memoizedState.data._session
   //    (objet avec sendKeepAlive + onServerDisconnectMessage). Le walk est par
   //    FORME (sendKeepAlive), pas par nom de composant (minifié/instable).
+  /* BFS persistant : etat conserve d'un tick a l'autre. */
+  var bqKey = null, bq = [], bqi = 0;
+
   function locateSession() {
     try {
-      // le preview monte l'app sur des DIV de body (PAS de #root — vérifié 17
-      // août) → fallback document.body, sinon le walk ne démarre jamais.
       var root = document.getElementById("root") || document.body;
       if (!root) return null;
-      var fiberKey = null;
-      var keys = Object.keys(root);
+      var fiberKey = null, keys = Object.keys(root);
       for (var i = 0; i < keys.length; i++) if (keys[i].indexOf("__reactFiber$") === 0) { fiberKey = keys[i]; break; }
       if (!fiberKey) return null;
-      var queue = [root[fiberKey]];
-      var guard = 0;
-      while (queue.length && guard++ < 20000) {
-        var f = queue.shift();
+      /* 1er nov : BUDGET DE TEMPS + file d'attente PERSISTANTE.
+         L'ancienne version faisait queue.shift() (O(n) par noeud) sur jusqu'a
+         20000 fibres, relancee toutes les 3 s : sur le shell actuel la session
+         n'est jamais trouvee, donc chaque tick parcourait tout l'arbre — gel de
+         plusieurs secondes a repetition (constate au lancement du jeu, brique
+         t5 activee). Desormais chaque tick traite au plus ~6 ms et reprend la
+         ou il s'etait arrete. */
+      if (bqKey !== fiberKey || bqi >= bq.length) { bqKey = fiberKey; bq = [root[fiberKey]]; bqi = 0; }
+      var t0 = typeof performance !== "undefined" ? performance.now() : Date.now(), steps = 0;
+      while (bqi < bq.length && bq.length < 40000) {
+        if ((steps++ & 63) === 0) {
+          var now = typeof performance !== "undefined" ? performance.now() : Date.now();
+          if (now - t0 > 6) return null;
+        }
+        var f = bq[bqi++];
         if (!f) continue;
-        var st = f.memoizedState;
-        var steps = 0;
-        while (st && steps++ < 10) {
+        var st = f.memoizedState, depth = 0;
+        while (st && depth++ < 10) {
           var ms = st.memoizedState;
           if (ms && ms.data && ms.data._session && typeof ms.data._session.sendKeepAlive === "function") {
+            bqKey = null; bq = []; bqi = 0;
             return ms.data._session;
           }
           st = st.next;
         }
-        if (f.child) queue.push(f.child);
-        if (f.sibling) queue.push(f.sibling);
+        if (f.child) bq.push(f.child);
+        if (f.sibling) bq.push(f.sibling);
       }
+      if (bqi >= bq.length) { bq = []; bqi = 0; }
     } catch (e) {}
     return null;
   }
 
-  // watcher : wrap la session dès qu'elle apparaît (montage du stream), et
-  // re-wrap si une NOUVELLE session est créée (relance / reconnexion — la
-  // garde _bxKeepAliveWrapped rend le wrap idempotent par instance).
+  /* watcher : wrap la session des qu'elle apparait (montage du stream), et
+     re-wrap si une NOUVELLE session est creee (relance / reconnexion — la
+     garde _bxKeepAliveWrapped rend le wrap idempotent par instance).
+     Cadence 3 s, cout borne par le budget de locateSession ; abandon apres
+     10 min sans session pour ne pas tourner indefiniment. */
+  var attempts = 0, timerId = null;
   function watchSession() {
-    var _t5s = (typeof performance !== "undefined" ? performance.now() : 0);
+    var _t5s = typeof performance !== "undefined" ? performance.now() : 0;
     try { if (typeof window.__BX_MARK === "function") window.__BX_MARK("t5.watchS"); } catch (e) {}
     var s = locateSession();
     try { if (typeof window.__BX_MARK === "function") window.__BX_MARK("t5.watch", (typeof performance !== "undefined" ? performance.now() : 0) - _t5s); } catch (e) {}
-    if (s && !s._bxKeepAliveWrapped) {
-      try {
-        if (window.PreviewKeepAliveIdle.wrapSession(s)) {
-          BxLogger && BxLogger.info("PreviewKeepAliveIdle", "session wrapper (fibers)");
-        }
-      } catch (e) {}
+    if (s) {
+      attempts = 0;
+      if (!s._bxKeepAliveWrapped) {
+        try {
+          if (window.PreviewKeepAliveIdle.wrapSession(s)) BxLogger && BxLogger.info("PreviewKeepAliveIdle", "session wrapper (fibers)");
+        } catch (e) {}
+      }
+      return;
+    }
+    if (++attempts > 200) {
+      if (timerId !== null && typeof window.clearInterval === "function") window.clearInterval(timerId);
+      timerId = null;
+      BxLogger && BxLogger.info("PreviewKeepAliveIdle", "session introuvable apres 10 min — locator arrete");
     }
   }
-  if (typeof window.setInterval === "function") window.setInterval(watchSession, 3000);
+  if (typeof window.setInterval === "function") timerId = window.setInterval(watchSession, 3000);
   watchSession();
 }
 

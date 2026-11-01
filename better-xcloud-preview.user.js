@@ -85,9 +85,14 @@ var BX_PREVIEW = window.location.hostname === "play.xbox.com" || window.location
    Nettoyage : localStorage.removeItem("bx-off"); removeItem("bx-debug"). */
 var BX_OFF = (function () { var o = " "; try { o += (window.localStorage.getItem("bx-off") || "") + " "; } catch (e) {} return o; })();
 function bxOff(id) { return BX_OFF.indexOf(" " + id + " ") !== -1; }
-var BX_ON = (function () { var o = " "; try { o += (window.localStorage.getItem("bx-on") || "") + " "; } catch (e) {} return o; })();
+/* Campagne de test des briques (1er nov, apres correctif CSS) : briques
+   activees PAR DEFAUT dans ce build. Vide = toutes coupees (etat livre).
+   "t4 t5 t7 t14" pour la campagne complete. */
+var BX_ON_SEED = "t4 t5 t7";
+try { window.__BX_ON_SEED = BX_ON_SEED; } catch (e) {}
+var BX_ON = (function () { var o = " " + BX_ON_SEED + " "; try { o += (window.localStorage.getItem("bx-on") || "") + " "; } catch (e) {} return o; })();
 function bxOn(id) { return BX_ON.indexOf(" " + id + " ") !== -1; }
-var BX_DBG = false; /* 1er nov : correctif CSS livre -> diagnostic OFF ("1" ou bx-debug dans le code pour le rallumer) */
+var BX_DBG = false; /* campagne briques : diagnostic eteint, correctifs actifs */ /* 1er nov : correctif CSS livre -> diagnostic OFF ("1" ou bx-debug dans le code pour le rallumer) */
 try { if (window.localStorage.getItem("bx-debug") === "0") BX_DBG = false; } catch (e) {}
 /* 1er nov (suite 5) : URL lisible dans le bandeau — l'ancienne troncature par la
    fin ne donnait que "t-type=application%2Fx-json-stream&w=2..." sans l'hote. */
@@ -140,6 +145,20 @@ window.__bxAddCssSafe = function () {
   };
   if (document.readyState === "complete") window.setTimeout(inject, 3000);
   else window.addEventListener("load", function () { window.setTimeout(inject, 3000); });
+};
+/* 1er nov (suite 13) : adoption de CSS sans noeud DOM (meme raison que
+   __bxAddCssSafe) — utilise par le FAB settings de T4. */
+window.__bxAdoptCss = function (css) {
+  try {
+    if (!css) return false;
+    if (window.CSSStyleSheet && "replaceSync" in CSSStyleSheet.prototype && "adoptedStyleSheets" in document) {
+      var sheet = new CSSStyleSheet();
+      sheet.replaceSync(css);
+      document.adoptedStyleSheets = document.adoptedStyleSheets.concat([sheet]);
+      return true;
+    }
+  } catch (e) {}
+  return false;
 };
 window.__BX_MARK = !BX_DBG ? function () {} : (function () {
   var w = { n: {}, max: {}, last: "boot", t0: Date.now() };
@@ -290,6 +309,11 @@ window.__BX_MARK = !BX_DBG ? function () {} : (function () {
         try { if (window.__BX_RES && window.__BX_RES.length) _pe += " res:[" + window.__BX_RES.slice(-4).join(" ") + "]"; } catch (e) {}
         try { if (window.__BX_FRS && window.__BX_FRS.length) _pe += " fr:[" + window.__BX_FRS.slice(-2).join(" ") + "]"; } catch (e) {}
         try { if (window.__BX_CLK && window.__BX_CLK.length) _pe += " cl:[" + window.__BX_CLK.slice(-2).join(" | ") + "]"; } catch (e) {}
+        /* identite du build : sans badge DOM (qui casserait l'hydratation), le
+           bandeau porte le seed — permet de voir d'un coup d'oeil si la version
+           installee est bien celle livree. */
+        try { _pe += " seed:[" + (typeof BX_ON_SEED !== "undefined" ? BX_ON_SEED : "?") + "]"; } catch (e) {}
+        try { _pe += " on:[" + String(BX_ON).split(" ").join("_") + "]"; } catch (e) {}
         window.localStorage.setItem("bx-watch.last", id + " #" + w.n[id] + " @" + Math.round(performance.now()) + "ms" + (ms ? " duree:" + Math.round(ms) + "ms" : "") + _sum + _pe + " masques:[" + BX_OFF.replace(/ /g, "") + "]");
       }
     } catch (e) {}
@@ -540,65 +564,54 @@ if (BX_PREVIEW) {
     _injected: false,
     tryInject() {
       window.__BX_MARK("t4.inject");
-      var section = HeaderSection.getInstance();
-      section.$btnSettings.classList.remove("bx-gone");
-      var wrapper = this._wrapper || (this._wrapper = section.$buttonsWrapper);
-      /* 19 août : shell MOBILE (play.xbox.com en WebView téléphone) — pas de
-         nav.col-container ni de <header> (observé à 390 px, CDP emulation
-         BlueStacks) → le top bar desktop n'existe pas et T4 ne trouvait
-         aucune ancre : aucun bouton, aucun accès aux settings. Fallback :
-         bouton flottant (FAB) fixe au-dessus de la mini-nav basse,
-         indépendant de la structure du site. Circulaire compact (56 px),
-         z-index au-dessus de z-shell-bottom. */
-      if (window.innerWidth < 768) {
-        wrapper.classList.add("bx-mobile-fab");
-        if (!document.getElementById("bx-mobile-fab-css")) {
-          var st = document.createElement("style");
-          st.id = "bx-mobile-fab-css";
-          st.textContent = ".bx-mobile-fab{position:fixed!important;right:16px!important;bottom:112px!important;z-index:9999!important;pointer-events:auto!important;margin:0!important;}.bx-mobile-fab [class*=\"bx-header-settings\"]{height:48px!important;min-height:48px!important;padding:0 18px!important;border-radius:999px!important;box-shadow:0 4px 12px rgba(0,0,0,.5)!important;}";
-          document.documentElement.appendChild(st);
-        }
-        if (!wrapper.isConnected) {
-          document.documentElement.appendChild(wrapper);
-          BxLogger.info("PreviewSettingsEntry", "bouton settings mobile (FAB) injecte");
-        }
-        this._injected = true;
-        return true;
-      }
-      var $header = null, i = 0;
-      for (; i < this.SELECTORS.length; i++) { $header = document.querySelector(this.SELECTORS[i]); if ($header) break; }
-      if (!$header) return false;
-      var $target = null, j = 0;
-      for (; j < this.TARGET_SELECTORS.length; j++) { $target = $header.querySelector(this.TARGET_SELECTORS[j]); if ($target) break; }
-      $target = $target || $header;
-      /* 17 août : le top bar preview est dans un container pointer-events-none
-         (z-shell-top) — chaque élément interactif du site se ré-arme en
-         pointer-events:auto. Le wrapper du bouton doit faire pareil, sinon les
-         clics traversent vers le <main> (observé : elementFromPoint = contenu). */
-      wrapper.style.pointerEvents = "auto";
-      /* 31 oct : shell Bastion — la barre est une drag-region WCO : un enfant
-         sans no-drag-region reste inerte (le drag de fenêtre avale le clic).
-         On insère le bouton juste avant le conteneur du bouton Profil, comme
-         les autres contrôles (Manette/Profil). */
-      if ($header.getAttribute("role") === "toolbar" || $header.closest("[role='toolbar']")) {
-        wrapper.classList.add("no-drag-region");
-        var $profile = $target.querySelector("button[aria-label='Profil'], button[aria-label='Profile']");
-        var $slot = $profile ? $profile.closest(".no-drag-region") : null;
-        if ($slot && $slot.parentElement) {
-          if (wrapper.parentElement !== $slot.parentElement || wrapper.nextElementSibling !== $slot) {
-            $slot.parentElement.insertBefore(wrapper, $slot);
-            BxLogger.info("PreviewSettingsEntry", "bouton settings (toolbar Bastion) injecte");
-          }
-          this._injected = true;
-          return true;
-        }
-      }
-      if (!wrapper.isConnected) {
-        $target.appendChild(wrapper);
-        BxLogger.info("PreviewSettingsEntry", "bouton settings (re)injecte", $header.className || $header.tagName);
+      /* 1er nov (suite 13) : SURTOUT PAS d'injection dans la toolbar du site.
+         Un noeud etranger dans un conteneur pilote par React casse
+         l'hydratation (React #418) : l'app garde son HTML, perd tous ses
+         gestionnaires, et le clic sur une tuile ne fait plus rien — aucune
+         requete, aucune exception, thread libre. C'est le gel reproduit en
+         activant t4. Le bouton sort donc de l'arbre React : FAB fixe sur
+         <html>, injecte seulement apres load + 1,5 s (hydratation finie) et
+         sans aucun noeud <style> (feuille adoptee). */
+      var self = this;
+      if (!this._fabScheduled) {
+        this._fabScheduled = true;
+        var go = function () { window.setTimeout(function () { self.injectFab(); }, 1500); };
+        if (document.readyState === "complete") go();
+        else window.addEventListener("load", function () { go(); }, { once: true });
+      } else if (this._wrapper && !this._wrapper.isConnected) {
+        window.setTimeout(function () { self.injectFab(); }, 300);
       }
       this._injected = true;
       return true;
+    },
+    injectFab() {
+      try {
+        var section = HeaderSection.getInstance();
+        try { section.$btnSettings.classList.remove("bx-gone"); } catch (e) {}
+        var wrapper = this._wrapper || (this._wrapper = section.$buttonsWrapper);
+        wrapper.classList.add("bx-mobile-fab");
+        wrapper.classList.add("no-drag-region");
+        wrapper.style.pointerEvents = "auto";
+        var css = ".bx-mobile-fab{position:fixed!important;right:16px!important;bottom:24px!important;z-index:2147483646!important;pointer-events:auto!important;margin:0!important;}.bx-mobile-fab [class*='bx-header-settings']{height:44px!important;min-height:44px!important;padding:0 16px!important;border-radius:999px!important;box-shadow:0 4px 12px rgba(0,0,0,.5)!important;}";
+        var adopted = false;
+        try { if (window.__bxAdoptCss) adopted = window.__bxAdoptCss(css); } catch (e) {}
+        if (!adopted) window.setTimeout(function () {
+          try {
+            if (document.getElementById("bx-fab-css")) return;
+            var st = document.createElement("style");
+            st.id = "bx-fab-css";
+            st.textContent = css;
+            document.documentElement.appendChild(st);
+          } catch (e) {}
+        }, 3000);
+        if (!wrapper.isConnected && document.documentElement) {
+          document.documentElement.appendChild(wrapper);
+          BxLogger.info("PreviewSettingsEntry", "bouton settings (FAB hors arbre React) injecte");
+        }
+        this._injected = true;
+        return true;
+      } catch (e) {}
+      return false;
     },
     /* 19 août : le shell preview remplace le document (document.open / re-render
        html) → le body observé meurt avec l'ancien document et plus aucune
@@ -635,6 +648,7 @@ if (BX_PREVIEW) {
      Interval 2 s : coût nul (check isConnected), couvre tout remplacement
      futur du document (document.open, hydratation, re-render html). */
   setInterval(function () {
+    window.__BX_MARK("t7z");
     if (!bxOn("t7")) return;
     var _t7s = performance.now();
     window.__BX_MARK("t7S");
@@ -652,13 +666,13 @@ if (BX_PREVIEW) {
             idempotent ici car l'ancien <style> n'existe plus ; on ne ré-injecte
             que si aucun style porteur du CSS n'est présent (évite les doublons
             si le retrait vient d'ailleurs que du remplacement document). */
-      var _hasCss = false;
+      var _hasCss = !!(document.adoptedStyleSheets && document.adoptedStyleSheets.length);
       var _styles = document.querySelectorAll("style");
       for (var _si = 0; _si < _styles.length; _si++) {
         if ((_styles[_si].textContent || "").indexOf(".bx-navigation-dialog-overlay{") !== -1) { _hasCss = true; break; }
       }
       if (!_hasCss) { window.__BX_MARK("t7.css");
-        try { addCss(); BxLogger.info("BX_PREVIEW", "CSS re-injecte (document remplace par le shell)"); } catch (e2) { /* non bloquant */ }
+        try { (window.__bxAddCssSafe || addCss)(); BxLogger.info("BX_PREVIEW", "CSS re-injecte sans noeud DOM (document remplace par le shell)"); } catch (e2) { /* non bloquant */ }
       }
       /* 3. T4 : le shell remplace le document → l'observer du bouton observe
             l'ancien body (mort) et le FAB/header est détaché. Re-armer sur le
@@ -1303,55 +1317,96 @@ function installKeepAliveIdle() {
   //    fibre .Connection → chaîne d'état (memoizedState.next…) → memoizedState.data._session
   //    (objet avec sendKeepAlive + onServerDisconnectMessage). Le walk est par
   //    FORME (sendKeepAlive), pas par nom de composant (minifié/instable).
+  /* BFS persistant : etat conserve d'un tick a l'autre. */
+  var bqKey = null, bq = [], bqi = 0;
+
   function locateSession() {
     try {
-      // le preview monte l'app sur des DIV de body (PAS de #root — vérifié 17
-      // août) → fallback document.body, sinon le walk ne démarre jamais.
       var root = document.getElementById("root") || document.body;
       if (!root) return null;
-      var fiberKey = null;
-      var keys = Object.keys(root);
+      var fiberKey = null, keys = Object.keys(root);
       for (var i = 0; i < keys.length; i++) if (keys[i].indexOf("__reactFiber$") === 0) { fiberKey = keys[i]; break; }
       if (!fiberKey) return null;
-      var queue = [root[fiberKey]];
-      var guard = 0;
-      while (queue.length && guard++ < 20000) {
-        var f = queue.shift();
+      /* 1er nov : BUDGET DE TEMPS + file d'attente PERSISTANTE.
+         L'ancienne version faisait queue.shift() (O(n) par noeud) sur jusqu'a
+         20000 fibres, relancee toutes les 3 s : sur le shell actuel la session
+         n'est jamais trouvee, donc chaque tick parcourait tout l'arbre — gel de
+         plusieurs secondes a repetition (constate au lancement du jeu, brique
+         t5 activee). Desormais chaque tick traite au plus ~6 ms et reprend la
+         ou il s'etait arrete. */
+      if (bqKey !== fiberKey || bqi >= bq.length) { bqKey = fiberKey; bq = [root[fiberKey]]; bqi = 0; }
+      var t0 = typeof performance !== "undefined" ? performance.now() : Date.now(), steps = 0;
+      while (bqi < bq.length && bq.length < 40000) {
+        if ((steps++ & 63) === 0) {
+          var now = typeof performance !== "undefined" ? performance.now() : Date.now();
+          if (now - t0 > 6) return null;
+        }
+        var f = bq[bqi++];
         if (!f) continue;
-        var st = f.memoizedState;
-        var steps = 0;
-        while (st && steps++ < 10) {
+        var st = f.memoizedState, depth = 0;
+        while (st && depth++ < 10) {
           var ms = st.memoizedState;
           if (ms && ms.data && ms.data._session && typeof ms.data._session.sendKeepAlive === "function") {
+            bqKey = null; bq = []; bqi = 0;
             return ms.data._session;
           }
           st = st.next;
         }
-        if (f.child) queue.push(f.child);
-        if (f.sibling) queue.push(f.sibling);
+        if (f.child) bq.push(f.child);
+        if (f.sibling) bq.push(f.sibling);
       }
+      if (bqi >= bq.length) { bq = []; bqi = 0; }
     } catch (e) {}
     return null;
   }
 
-  // watcher : wrap la session dès qu'elle apparaît (montage du stream), et
-  // re-wrap si une NOUVELLE session est créée (relance / reconnexion — la
-  // garde _bxKeepAliveWrapped rend le wrap idempotent par instance).
+  /* watcher : wrap la session des qu'elle apparait (montage du stream), et
+     re-wrap si une NOUVELLE session est creee (relance / reconnexion — la
+     garde _bxKeepAliveWrapped rend le wrap idempotent par instance).
+     Cadence 3 s, cout borne par le budget de locateSession ; abandon apres
+     10 min sans session pour ne pas tourner indefiniment. */
+  var attempts = 0, timerId = null;
   function watchSession() {
-    var _t5s = (typeof performance !== "undefined" ? performance.now() : 0);
+    var _t5s = typeof performance !== "undefined" ? performance.now() : 0;
     try { if (typeof window.__BX_MARK === "function") window.__BX_MARK("t5.watchS"); } catch (e) {}
     var s = locateSession();
     try { if (typeof window.__BX_MARK === "function") window.__BX_MARK("t5.watch", (typeof performance !== "undefined" ? performance.now() : 0) - _t5s); } catch (e) {}
-    if (s && !s._bxKeepAliveWrapped) {
-      try {
-        if (window.PreviewKeepAliveIdle.wrapSession(s)) {
-          BxLogger && BxLogger.info("PreviewKeepAliveIdle", "session wrapper (fibers)");
-        }
-      } catch (e) {}
+    if (s) {
+      attempts = 0;
+      if (!s._bxKeepAliveWrapped) {
+        try {
+          if (window.PreviewKeepAliveIdle.wrapSession(s)) BxLogger && BxLogger.info("PreviewKeepAliveIdle", "session wrapper (fibers)");
+        } catch (e) {}
+      }
+      return;
+    }
+    if (++attempts > 200) {
+      if (timerId !== null && typeof window.clearInterval === "function") window.clearInterval(timerId);
+      timerId = null;
+      BxLogger && BxLogger.info("PreviewKeepAliveIdle", "session introuvable apres 10 min — locator arrete");
     }
   }
-  if (typeof window.setInterval === "function") window.setInterval(watchSession, 3000);
+  if (typeof window.setInterval === "function") timerId = window.setInterval(watchSession, 3000);
   watchSession();
 }
 if (bxOn("t5")) installKeepAliveIdle();
 }
+try {
+  if (window.__BX_MARK) window.__BX_MARK("t7boot");
+  var __bxSeed = " " + String(window.__BX_ON_SEED || "") + " ";
+  if (__bxSeed.indexOf(" t7 ") !== -1 && String(location.hostname).indexOf("play.xbox.com") !== -1) {
+    window.setInterval(function () {
+      if (window.__BX_MARK) window.__BX_MARK("t7T");
+      try {
+        var mgr = (typeof NavigationDialogManager !== "undefined") ? NavigationDialogManager.getInstance() : null;
+        if (mgr && mgr.$overlay && !mgr.$overlay.isConnected && document.documentElement && document.documentElement.isConnected) {
+          document.documentElement.appendChild(mgr.$overlay);
+          document.documentElement.appendChild(mgr.$container);
+        }
+        if (!(document.adoptedStyleSheets && document.adoptedStyleSheets.length)) { try { (window.__bxAddCssSafe || addCss)(); } catch (e2) {} }
+        var PSE = (typeof PreviewSettingsEntry !== "undefined") ? PreviewSettingsEntry : null;
+        if (PSE && PSE._wrapper && !PSE._wrapper.isConnected) PSE.tryInject();
+      } catch (e) {}
+    }, 2000);
+  }
+} catch (e) {}
