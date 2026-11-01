@@ -12,8 +12,11 @@ Version de maintenance du **client preview** (`play.xbox.com`) : le gel au clic 
 - **Blocage de plusieurs secondes au lancement** : `locateSession()` faisait `queue.shift()` (coût O(n) par nœud) sur jusqu'à 20 000 fibres, relancé toutes les 3 s. Remplacé par une file persistante (`bq`/`bqi`) avec budget de 6 ms par tick et abandon après 200 tentatives.
 - **Réinjection du CSS** : `_hasCss` reconnaît `adoptedStyleSheets` et la réinjection passe par `__bxAddCssSafe()` au lieu d'`addCss()` ; le tick de résilience T7 est réenregistré en fin de bundle (son bloc d'adaptateur ne s'exécutait pas) avec une garde autonome sur `window.__BX_ON_SEED`.
 
+### Corrigé (preview 1.13.10-preview2)
+- **Firefox : « navigateur non pris en charge » sur play.xbox.com** — le seed des briques preview valait `t4 t5 t7`, donc `bxOn("t10")` était FAUX et l'auto-spoof d'UA (T10) ne s'appliquait jamais : avec son UA natif, Firefox est refusé par le gate Chromium-only du client. `t10` est remis dans le seed livré (spoof `windows-edge` par défaut pour tout moteur non Chromium ; un profil choisi par l'utilisateur n'est jamais écrasé) ; le gate `t10-auto-spoof.test.js` lit désormais le seed RÉEL du bundle au lieu de supposer un état par défaut.
+
 ### Infra
-- APK stable + preview rebuildés (versionCode 19) ; bundle preview en sortie LF.
+- APK stable + preview rebuildés (versionCode 20) ; bundle preview en sortie LF.
 - Diagnostic de campagne (marqueurs, bandeau `seed:`/`on:`) conservé dans le code mais **éteint par défaut**.
 
 ## [1.13.9] - 2026-11-01

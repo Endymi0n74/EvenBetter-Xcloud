@@ -137,7 +137,7 @@ détaillé dans `bench/preview/port/README.md`) :
 |---|---|---|
 | Rôle | Le fork optimisé classique — xbox.com/play (SPA Webpack, renderer WebGL2) | La variante du nouveau client web (React Router 7 + rolldown, renderer Babylon.js) |
 | Fichier | `better-xcloud.user.js` | `better-xcloud-preview.user.js` (+ `.meta.js`) |
-| Version | `1.13.10` | `1.13.10-preview1` (prerelease) |
+| Version | `1.13.10` | `1.13.10-preview2` (prerelease) |
 | `@name` | `EvenBetterXcloud` | `EvenBetterXcloud (Preview)` |
 | `@match` | `www.xbox.com/*/play*` | `play.xbox.com/*` uniquement |
 | Auto-update | `releases/latest` (canal stable) | canal flottant `evenbetter-xcloud-preview-channel` (ré-uploadé à chaque publication — jamais purgé, contrairement aux tags versionnés) |
@@ -160,7 +160,7 @@ https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/latest/download/better-
 Preview Features activé) :
 
 ```
-https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.13.10-preview1/better-xcloud-preview.user.js
+https://github.com/Endymi0n74/EvenBetter-Xcloud/releases/download/evenbetter-xcloud-v1.13.10-preview2/better-xcloud-preview.user.js
 ```
 
 Le preview est **jouable et validé en réel** : bouton settings dans le top bar

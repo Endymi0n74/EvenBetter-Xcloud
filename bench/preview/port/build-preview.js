@@ -102,8 +102,12 @@ var BX_OFF = (function () { var o = " "; try { o += (window.localStorage.getItem
 function bxOff(id) { return BX_OFF.indexOf(" " + id + " ") !== -1; }
 /* Campagne de test des briques (1er nov, apres correctif CSS) : briques
    activees PAR DEFAUT dans ce build. Vide = toutes coupees (etat livre).
-   "t4 t5 t7 t14" pour la campagne complete. */
-var BX_ON_SEED = "t4 t5 t7";
+   "t4 t5 t7 t14" pour la campagne complete.
+   1er nov (suite 16) : t10 (auto-spoof UA) est REVENU DANS LE SEED — sans lui
+   Firefox recoit le dialog « navigateur non pris en charge » de play.xbox.com
+   (gate Chromium-only : UA natif Firefox, aucun spoof). Le correctif CSS a
+   supprime la raison du bisect, pas la porte du site. */
+var BX_ON_SEED = "t4 t5 t7 t10";
 try { window.__BX_ON_SEED = BX_ON_SEED; } catch (e) {}
 var BX_ON = (function () { var o = " " + BX_ON_SEED + " "; try { o += (window.localStorage.getItem("bx-on") || "") + " "; } catch (e) {} return o; })();
 function bxOn(id) { return BX_ON.indexOf(" " + id + " ") !== -1; }

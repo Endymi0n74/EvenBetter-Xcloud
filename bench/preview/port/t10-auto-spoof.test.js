@@ -14,8 +14,8 @@
  * 3. Comportement vm : le statement extrait est exécuté dans un mock
  *    UserAgent (même contrat que le bundle : #config + spoof() no-op quand
  *    profile === "default") pour chaque UA réelle —
- *    Firefox/Safari AVEC bx-on t10 → profil forcé windows-edge (gate passé),
- *    sans bx-on (défaut 1er nov : t10 OFF) → inchangé,
+ *    Firefox/Safari avec t10 dans le seed livré → profil forcé windows-edge
+ *    (gate passé) SANS aucun réglage utilisateur ; sans t10 ni bx-on → inchangé,
  *    Edge/Chrome/Crios → inchangé, profil explicite → jamais écrasé,
  *    BX_PREVIEW=false (contexte stable) → inchangé.
  *
@@ -57,18 +57,18 @@ function check(label, cond, extra) {
   else { failures++; console.error(`  ❌ ${label}${extra ? " :: " + extra : ""}`); }
 }
 
-function makeRunner(statement) {
+function makeRunner(statement, seed) {
   // mock UserAgent : #config privé + spoof() no-op quand profile === "default"
   // (contrat exact du bundle) — le statement est exécuté DANS le corps de la
   // classe (accès #config valide, comme dans UserAgent.init() du bundle).
-  // bx-on (bloc T15 du build preview) : depuis le 1er nov le spoof UA est
-  // DÉSACTIVÉ par défaut sur la preview (gel au clic Play) et se réactive par
-  // localStorage bx-on = "t10". Le mock reproduit le contrat du bundle.
-  const mask = { on: [] };
+  // bx-on / seed (bloc T15 du build preview) : le seed livré active t10 par
+  // défaut ; localStorage bx-on reste la soupape de bisect. Le mock reproduit
+  // le contrat exact : BX_ON = seed + bx-on.
+  const mask = { seed: String(seed || "").split(" ").filter(Boolean), on: [] };
   const sandbox = {
     navigator: { userAgent: "" },
     BX_PREVIEW: false,
-    bxOn: function (id) { return mask.on.indexOf(id) !== -1; },
+    bxOn: function (id) { return mask.seed.indexOf(id) !== -1 || mask.on.indexOf(id) !== -1; },
     bxOff: function () { return false; },
     __bxSetOn: function (ids) { mask.on = ids ? String(ids).split(",").filter(Boolean) : []; },
   };
@@ -118,7 +118,13 @@ function runChecks(stable, preview) {
   // ---- 3. comportement vm du statement extrait ----
   console.log("== 3. Comportement vm (mock UserAgent, même contrat que le bundle) ==");
   if (t10Stmt) {
-    const run = makeRunner(t10Stmt);
+    // seed livré : c'est LUI qui fixe l'état par défaut des briques preview
+    // (bloc T15). Le mock doit le respecter, sinon il ne teste pas le contrat.
+    const seedMatch = preview.match(/var BX_ON_SEED = "([^"]*)";/);
+    const seed = seedMatch ? seedMatch[1] : "";
+    check("seed livré active t10 (sinon Firefox reçoit le gate Chromium-only)",
+      seed.split(" ").indexOf("t10") !== -1, `seed="${seed}"`);
+    const run = makeRunner(t10Stmt, seed);
     // Firefox / Safari : gate Chromium-only → auto-spoof windows-edge
     let r = run(UAS.firefox, "default", true, "t10");
     check("Firefox + default + BX_PREVIEW + bx-on t10 → profil windows-edge (gate passé)",
@@ -126,10 +132,11 @@ function runChecks(stable, preview) {
     r = run(UAS.safariWin, "default", true, "t10");
     check("Safari Windows + default + bx-on t10 → windows-edge",
       r.profile === "windows-edge" && r.spoofed === true, JSON.stringify(r));
-    // état par défaut du build preview depuis le 1er nov : t10 OFF (bx-on vide)
+    // état par défaut LIVRÉ (1er nov, suite 16) : t10 est dans le seed — le spoof
+    // doit donc s'appliquer sans aucun réglage utilisateur.
     r = run(UAS.firefox, "default", true);
-    check("Firefox + default + BX_PREVIEW sans bx-on → pas de spoof (t10 OFF par défaut)",
-      r.profile === "default" && r.spoofed === false, JSON.stringify(r));
+    check("Firefox + default + BX_PREVIEW sans bx-on → spoof quand même (t10 dans le seed)",
+      r.profile === "windows-edge" && r.spoofed === true, JSON.stringify(r));
     // Chromium réels : jamais spoofés
     for (const [name, ua] of [["Edge", UAS.edge], ["Chrome", UAS.chrome], ["Crios (Chrome iOS)", UAS.crios]]) {
       r = run(ua, "default", true, "t10");
