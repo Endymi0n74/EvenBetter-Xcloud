@@ -2,6 +2,43 @@
 
 > **Note repo-hygiene** : ce fichier est le journal interne des sessions Codebuff. Il reste versionné pour l'historique mais les PRs ne doivent pas l'inclure en entier — extraits pertinents uniquement. Voir `CONTRIBUTING.md`.
 
+## Session 1er nov 2026 (suite) — gel de la HOME du preview sous Firefox : mesures et hypothèses ÉCARTÉES (non résolu)
+
+**Symptôme rapporté** (capture devtools Firefox sur play.xbox.com, home connectée « Replongez dans ces jeux ») : gel **total** de l'onglet (il faut attendre / tuer), **aucune erreur console**, uniquement avec EvenBetterXcloud **preview** ; le **stable** (`www.xbox.com/play`) reste fluide dans le **même** Firefox. Gel sur la home, avant tout jeu (≠ session 31 oct, qui traitait le gel *en flux*).
+
+**Ce qui est MESURÉ et donc exclu** (banc `bench/preview/firefox-freeze-bench.mjs`, Firefox Playwright 1.62.1, headless) :
+
+- timers preview-only : T7 `setInterval(2000)` = 0,2–0,4 ms/tick ; T5 `setInterval(3000)` (parcours des fibres React) = **1,7 ms** même avec **12 000 fibres** `__reactFiber$` attachées à `<body>` (avant attache : 0 ms) ; observer T4 (debounce 150 ms) = 0 ms. Trous rAF max 130 ms (phase témoin) / 48 ms (phase fibres), **0 trou > 200 ms**, DOM stable (2038 → 2084 nœuds, **2 `<style>`**) → aucune boucle `addCss`.
+- page `play.xbox.com` **réelle** chargée dans Firefox, avec et sans le bundle (`addInitScript`) : trous rAF max 45 ms (avec) vs 52 ms (sans), `BX_*` + `PreviewKeepAliveIdle` définis. Seule différence : 5 × `TypeError: NetworkError when attempting to fetch resource.` **avec** le bundle (0 sans) → échecs réseau réels (uBlock Origin est installé dans ce profil), **pas** un corps de `Response` déjà lu (Firefox dit alors `Body has already been consumed.`, vérifié par sonde).
+- A/B du **spoof d'UA (T10, `windows-edge` quand le navigateur n'est pas Chromium)** sur `play.xbox.com` sous Firefox : témoin UA natif vs UA Edge → mêmes nœuds (1295 / 1297), rAF max 8 vs 7 ms, **aucune erreur** des deux côtés, `navigator.userAgentData` = `undefined` dans les deux (le spoof ne le crée pas). Pas de piste.
+- `attributeFilter` du fix du gel settings (`src/fixes/settings-freeze.js`) **bien présent** dans le bundle preview (`observe(document.documentElement || document, {… attributeFilter: ["selected","disabled","hidden","value","data-label"]})`) → le mécanisme du gel v1.13.5 est neutralisé.
+- ancre CSS de T7 (`.bx-navigation-dialog-overlay{`) **présente une fois** dans le bundle → la ré-injection de CSS toutes les 2 s ne peut pas boucler.
+- T14 (« eager » NavigationDialogManager) : le constructeur jette sur sa **première** instruction (`document.documentElement.appendChild(this.$overlay)`) quand `<html>` n'existe pas → les 500 essais à 10 ms ne construisent aucun manager partiel, et `NavigationDialogManager.instance` n'est pas affecté en cas de throw → pas de fuite d'observers.
+
+**Reste non élucidé** : le gel exige l'état **connecté** (arbre React complet de la home). Impossible à rejouer ici : la copie du profil Firefox réel sous `D:\Codex` refuse de démarrer avec le Firefox de Playwright (`-allow-downgrade` → `launchPersistentContext: Timeout 180000ms`, logs `ContextualIdentityService - Unknown version`, `Juggler` puis `NS_ERROR_FAILURE`), et le binaire Firefox de l'utilisateur n'est ni dans `Program Files` ni dans le `PATH` (`where firefox` vide ; profils sous `%APPDATA%\Mozilla\Firefox\Profiles`, défaut = `10shc6jb.default-1529686807310`, avec **Tampermonkey** et **uBlock Origin**).
+
+**Outils laissés sur disque** (non suivis par git) : `bench/preview/firefox-freeze-bench.mjs` (banc : `--duration=`, `--fibers=`, `--no-churn`, `--headless` ; chronomètre chaque tick de `setInterval` par période **et par phase** A/B, les trous de rAF et la croissance DOM / `<style>` ; force `BX_PREVIEW = true` en réécrivant l'ancre, ne touche pas au bundle). Les sondes temporaires (`.tmp-ff-probe`, `.tmp-ff-profile`, `tmp-body-read`, `tmp-ua-ab`) ont été supprimées, ainsi que la copie de profil de 2,3 Go ; **aucun bundle ni source n'a été modifié**.
+
+**Prochaine étape utile** : bisecter côté utilisateur (script preview désactivé sur play.xbox.com : la home gèle-t-elle encore ?) — si oui, le gel vient du client et non du script ; si non, instrumenter le bundle avec un watchdog de main thread (patch `setTimeout` / `setInterval` / `requestAnimationFrame` + détection de boucle synchrone) plutôt que de continuer à déduire. Ne **pas** patcher T5 / T7 / T4 « au cas où » : les mesures ci-dessus les innocentent.
+
+## Session 1er nov 2026 (suite 2) — gel de la HOME preview Firefox : bisect tranché, bloc T15 (masques + watchdog)
+
+**Bisect utilisateur** : script preview DÉSACTIVÉ sur play.xbox.com → la home connectée est fluide ; script actif → gel total. Le déclencheur est donc notre overlay, l'état connecté n'étant que la condition d'apparition (l'hypothèse « le client Bastion gèle de lui-même » est écartée).
+
+**Ce qui reste à attribuer** : le gel est muet (aucune exception console) → boucle synchrone, récursion ou tempête de microtasks. Aucun timer preview n'est coûteux isolément (banc : T7 0,2–0,4 ms/tick, T5 1,7 ms même avec 12 000 fibres, observer T4 0 ms) : il faut donc instrumenter le blocage en vol, plus déduire.
+
+**Livré (non commité)** — bloc **T15** dans `bench/preview/port/build-preview.js` (inséré juste après T2, donc présent dans `better-xcloud-preview.user.js`), inerte par défaut :
+
+- `bx-off` : `localStorage.setItem("bx-off","t4,t7")` puis recharger → désactive T4 (observer + entrée settings), T5 (keep-alive idle), T7 (interval 2 s), T10 (spoof UA), T14 (eager dialog). Bisect sans rebuild : un rechargement par essai.
+- `bx-debug` : `localStorage.setItem("bx-debug","1")` → compteurs, dernier marqueur et durée max par point d'entrée (`t7`, `t4.obs`, `t4.try`, `t4.inject`, `t14.try`), flush toutes les 200 ms dans `localStorage["bx-watch"]`. Au chargement SUIVANT, un `console.warn` annonce le run précédent (uptime, dernier marqueur, compteurs). Si le flush s'arrête net, l'onglet a gelé : le dernier marqueur et les compteurs désignent la boucle.
+- Nettoyage : `localStorage.removeItem("bx-off")` et `removeItem("bx-debug")`. Le bloc n'existe que dans le build preview (jamais dans le stable).
+
+**Gates** : `node bench/preview/port/build-preview.js` OK (invariants deux versions, 8 nouvelles probes, `node --check`, bundle 525 617 octets) ; gate `t10-auto-spoof` OK 10/10 + `--self-test` OK (le mock `vm` fournit désormais `bxOff`, contrat du bundle réel, et un cas « masque bx-off t10 → pas de spoof » a été ajouté) ; `npm test` **21/22**. Seul `tv-defaults` est rouge : `mobile/out-preview/evenbetter-xcloud-1.13.9-preview1.apk` embarque encore l'ANCIEN bundle preview (sha 55db97e5 vs 8d7ac7f3 attendu) — c'est la gate connue « bundle reconstruit sans APK » ; elle ne repasse au vert qu'en reconstruisant l'APK preview.
+
+**Pièges d'outillage (à retenir pour ce dépôt)** : `str_replace` répond « The file does not exist, skipping » pour tout chemin, même absolu et même fichier existant → passer par un script node avec ancres vérifiées (`indexOf` + test d'unicité). Un heredoc bash passé à node MANGE les échappements (une séquence antislash-n arrive en vraie newline) → construire les antislashs via `String.fromCharCode(92)`. Et ne jamais réparer avec un find-index générique (« première ligne contenant … ») : cela a écrasé deux lignes du bloc T4, réparées par `git checkout -- bench/preview/port/build-preview.js` puis réapplication propre.
+
+**Prochaine étape** : faire tourner le bisect `bx-off` (t7 → t4 → t5 → t14) puis `bx-debug` si aucun masque ne suffit ; corriger ensuite dans `build-preview.js` (preview-only), régénérer le bundle et rejouer les gates. `tv-defaults` restera rouge jusqu'à un rebuild de l'APK preview.
+
 ## Session 31 oct – 1er nov 2026 — preview play.xbox.com : gel du flux (T13), shell Bastion (T4), eager CDP (T14)
 
 **Symptôme** : le client preview gèle en jeu alors que le stable `www.xbox.com` fonctionne. Reproduction FF7 (`9NRQVQ7ZRM7Z`) : avec le script, `<video>` à `visibility:hidden` et ~41/42 frames droppées ; sans script, `visible` et ~2 frames droppées après 14 s.
@@ -2526,3 +2563,297 @@ par le CI.
 bundles preview + APK versionné + `evenbetter-xcloud.apk`), prerelease
 `v1.13.6-preview1` (+ APK preview), **canal flottant `evenbetter-xcloud-preview-channel`
 ré-uploadé `--clobber`**, puis `release-prune.sh` et `release-guard.sh`.
+
+## Session 1er nov 2026 (suite 3) — gel au clic Play : brique T4 identifiee
+
+Bisect mene par rechargement (pilotage `bx-on` / `bx-off` dans localStorage,
+aucune console demandee a l'utilisateur). Le build de diagnostic ecrit un
+marqueur **synchrone** (`localStorage[“bx-watch.last”]`) *avant* et *apres*
+chaque appel risque, plus un battement de coeur de 500 ms (`hb`) qui echantillonne
+la taille du DOM et l'etat du dialogue ; le tout s'affiche en bandeau dans la page
+au chargement suivant.
+
+| configuration active | resultat |
+|---|---|
+| les six briques preview coupees | le clic Play fonctionne |
+| t4 + t5 + t7 + t14 | gel ; dernier marqueur `t7 #11 @22651ms duree:0ms` |
+| t4 + t5 + t7 + t14 (2e run) | gel ; tous les couples demarre/termine equilibres (`t5.watchS:8`=`t5.watch:8`, `t4.tryS:4`=`t4.try:4`, `t7S:10`=`t7:10`) |
+| t4 + t14 | gel ; `hb #14 @8086ms`, `dom:1207` |
+| t4 seul | gel ; `hb #24 @12975ms`, `dom:1207`, `dlg:absent` |
+
+Conclusion : le gel **n'est pas dans nos callbacks** (aucun marqueur « en vol »,
+toutes les durees mesurees 0-1 ms, DOM stable a 1207 noeuds). Il survient dans le
+travail du moteur, apres que T4 a insere le wrapper du bouton settings *a
+l'interieur* du `[role=toolbar]` du site (`insertBefore` avant le bouton Profil) :
+un noeud etranger dans un conteneur pilote par React, dans une drag-region WCO.
+T5, T7, T10, T14 et T16 sont hors de cause.
+
+Etat livre : les six briques sont **OFF par defaut** (gardes `!bxOn(...)`) et
+`bx-debug` est OFF par defaut (`bxOn("bx-debug")`) -> comportement de la version
+stable, la partie se lance, bandeau muet.
+
+Piste suivante : reutiliser le chemin FAB deja ecrit pour le mobile
+(`wrapper.classList.add("bx-mobile-fab")` + `document.documentElement.appendChild`)
+pour sortir le bouton de l'arbre React du header au lieu de l'y inserer.
+
+Piege d'outillage : les gardes existent en deux formes d'echappement (`"t4"` et
+`\"t4\"`). Une bascule qui n'en traite qu'une laisse la probe du build en echec
+(`probe manquante`, EXIT 1) tout en ecrivant le bundle -> toujours traiter les deux
+et verifier les deux.
+
+## Session 1er nov 2026 (suite 4) — le clic Play n'emet aucune requete
+
+Instrumentation du **code de base** (T20) puisque les six briques preview etaient
+deja innocentees. Bandeau obtenu, briques toutes OFF :
+
+```
+hb #33 @6402ms | base.main:1 base.hooks:1 base.css:1 base.fetch:33
+url:uks.core.gssv-play-prod.xboxlive.com/v2/titles base.handle:13 base.patcher:1
+dom:1188 dlg:absent hb:11 base.login:1 masques:[]
+```
+
+Lecture decisive :
+
+- `main()` va au bout (`base.main/hooks/css/patcher:1`), `hb` et `fetch` tournent ;
+- `base.fetch:33` et `base.handle:13` : toutes les requetes passent bien par
+  notre wrapper, et `base.login:1` prouve que `/v2/login/user` est interceptee ;
+- **`base.play:0`, `base.config:0`, `base.wait:0`** et une seule URL vue
+  (`/v2/titles`) : le clic Play n'emet **jamais** `/sessions/cloud/play` ;
+- `hb` continuait de battre (`@6402ms`, `dom:1188`) -> **le thread n'est pas
+  bloque**. Le « gel » est un enchainement de promesses qui ne se resout jamais
+  (spinner eternel), pas une boucle infinie.
+
+Donc la cause n'est ni un callback synchrone, ni React : c'est **une promesse
+issue de notre code patche qui ne se termine pas** (ou une exception avalee par
+le site qui interrompt le flux du clic avant la requete de lancement).
+
+Instrumentation ajoutee (meme build de diagnostic) :
+
+- T21 : le `fetch` patche enregistre ses requetes **en vol** (`__BX_PEND`) et
+  les retire a la resolution ; `pend:[urls]` dans le bandeau = la requete
+  suspendue, nommee explicitement ;
+- `__BX_ERRS` : ecoutes `error` + `unhandledrejection` (le site avale peut-etre
+  la cause), affichees `err:[...]` ;
+- `__BX_XHR` : journal des `XMLHttpRequest.open` (`xhr:[...]`) -> tranche la
+  question « le play passe-t-il en XHR ? » ;
+- le wrapper `fetch` est devenu synchrone autour d'un `async function
+  __bxInner(request, init)` interne : c'est le seul moyen d'observer la
+  resolution sans recopier le corps de la fonction.
+
+Pieges rencontres (a ne pas repayer) :
+
+- un marqueur insere dans `function main() {if (GhPagesUtils...` doit garder le
+  `if (` : la premiere version l'avalait -> `SyntaxError: Unexpected token ')'` ;
+- les marqueurs du code de base sont aussi executes par `userscript-rewrite`
+  dans un mock sans `__BX_MARK` -> forme tolerante
+  `(window.__BX_MARK||function(){})(...)` obligatoire, sinon gate rouge ;
+- l'ancre T21 doit viser la forme **deja gardee** par la normalisation T20, pas
+  la forme d'origine.
+
+## Session 1er nov 2026 (suite 5) — pend/err/xhr : ou est passee la requete ?
+
+Second bandeau (briques toujours OFF, off:[]) :
+
+```
+hb #33 @18590ms | base.main:1 base.hooks:1 base.css:1 base.fetch:33
+url:.../v2/titles base.handle:13 base.patcher:1 hb:34 base.login:1
+pend:[t-type=application%2Fx-json-stream&w=2&upload-time=1793531996651]
+err:[fetch:Failed to fetch ; fetch:Failed to fetch ; fetch:Failed to fetch]
+xhr:[qqqqqqq... ; qqqqqqq... ; qqqqqqq...]
+```
+
+- pend: = un upload 1DS/OneCollector (x-json-stream&w=2&upload-time=) reste
+  ouvert ; a l'arret de la page toute requete en vol reste pendante, donc
+  temoin plutot que cause ;
+- err: = trois Failed to fetch SANS URL (troncature par la fin) -> la mesure
+  suivante doit nommer l'hote ;
+- xhr: = URL faites de q repetes, longueur inconnue -> illisible ;
+- toujours base.play:0 et hb:34 sur 18,6 s : le flow du clic s'arrete avant
+  l'emission de /sessions/cloud/play, thread libre.
+
+Sondes ajoutees (suite 5) : __BX_SHORT (hote + chemin, fin de la troncature
+aveugle par la fin), pend horodate, ko:<url>!<message>, journal XHR
+methode+url+len, res: via PerformanceObserver (voit XHR/beacon/iframe/worker du
+document), click: (le clic atteint-il le document) et fr: (etat des scripts
+dans les iframes same-origin, le lancement peut tourner hors du cadre principal).
+
+Piege : une regex inseree via heredoc traverse deux couches d'echappement ;
+un slash echappe y arrive en "/" et casse le bundle (Invalid regular expression
+flags). Ne pas mettre de slash dans les regex inserees, et reparer par position
+(indexOf + slice) plutot que par ancre textuelle quand des antislashs sont en jeu.
+
+## Session 1er nov 2026 (suite 6) — le clic est recu, le lancement ne part pas
+
+Troisieme bandeau :
+
+```
+#33 @7789ms | base.main:1 base.hooks:1 base.css:1 base.fetch:33 base.handle:13
+base.patcher:1 dom:1188 dlg:absent hb:13 base.login:1 click:1
+pend:[data.microsoft.com/OneCollector/1.0/?cors=true&content-type=app@0s]
+err:[ko:data.microsoft.com/OneCollector/1.0/...!Failed to fetch x3]
+xhr:[GET qqqqqq... len:51913 | GET qqq len:3635 | GET qqq len:4979]
+res:[userpresence.xboxlive.com/devices/current/titles/current#0ms
+     notificationinbox.xboxlive.com/users/.../inbox/push?...]
+```
+
+- click:1 : le clic ATTEINT le document ;
+- res: ne contient AUCUNE requete de session/play/configuration -> la requete
+de lancement n'existe pas, meme hors de notre fetch (XHR, beacon, iframe) ;
+- les 3 Failed to fetch sont la telemetrie OneCollector (data.microsoft.com),
+  pas le jeu : bruit, a ignorer ;
+- les XHR "q" ont une longueur (51913 / 3635 / 4979) : ce sont des URL relatives
+de remplissage, pas le play.
+
+Donc notre code empeche le flow du clic d'aller jusqu'a l'emission. Test
+suivant : BISECT A = main() inerte (marqueur + return), pour confirmer que le
+coupable est bien dans main() et pas dans la coquille du script. Ajout de cl:
+(tag + libelle de la cible du clic) : si c'est un div au lieu du bouton, un
+overlay de notre CSS avale le clic.
+
+Build BISECT A livre (538562 octets) : main() = marqueur + "if (1) return;", cl:[tag:libelle] ajoute. Gates : build/node --check OK, t10, keepalive, userscript-rewrite OK. Test utilisateur en attente : si le lancement fonctionne avec main() inerte, le coupable est dans un appel de main() ; sinon il est dans la coquille du script (CSS/adapter/badge).
+
+## Session 1er nov 2026 (suite 7) — BISECT A : le coupable est dans main()
+
+Avec main() inerte (marqueur + return), le jeu DEMARRE. Bandeau :
+
+```
+#2 @3675ms | base.main:1 hb:29 click:2
+res:[gssv-play-prod.xboxlive.com/api-4047-8084-1264?727028/ice#157ms
+     gssv-play-prod.xboxlive.com/.../ice gssv-play-prod.xboxlive.com/.../input?ms=...]
+cl:[button:Se preparer a diffuser en | span:Se connecter]   masques:[]
+```
+
+Conclusions :
+- la requete de session / le flux ICE partent normalement des que main() ne fait rien
+  -> le gel est bien cause par un appel de main(), pas par la coquille du script
+  (ni par l injection, ni par le CSS de base, ni par le badge/diag) ;
+- la cible du clic est le bon bouton (pas d overlay dans cette configuration) ;
+- les "Failed to fetch" vus plus tot sont la telemetrie, ils apparaissent aussi
+  sans notre wrapper (en rejet non gere) : bruit definitif.
+
+Build suivant : main() reactive + cl: enrichi de la CLASSE de la cible (un
+overlay a nous n a pas de libelle) + journalisation de console.error (React
+avale ses exceptions sans unhandledrejection). Si cl: montre notre classe ->
+overlay ; si cl: montre le bouton et log: une exception -> le patch fautif est
+nomme ; sinon bisect par moitie des appels de main().
+
+## Session 1er nov 2026 (suite 8) — bisect de main() : moitie "patchs d'API" coupee
+
+Quatrieme bandeau (build avec cl: et log:) :
+
+```
+#1 @7391ms | base.main:1 base.hooks:1 base.css:1 base.fetch:33 base.handle:12
+base.patcher:1 dom:1514 dlg:absent hb:49 click:3
+url:https/decoration/GamePass.Tile.History.Stats
+err:[ko:data.microsoft.com/OneCollector/...!Failed to fetch x3]
+xhr:[GET qqq len:3635 | GET qqq len:5199 | GET qqq len:4979]
+res:[play.xbox.com/companionGuide/redirect?data=... | play.xbox.com/completeData?id=22
+     play.xbox.com/assets?Off=modules | play.xbox.com/assets?dist=remoteApp]
+cl:[div:relative flex h-full w-full | div:relative flex h-full w-full]   masques:[]
+```
+
+Lectures :
+- cl: = la tuile du site elle-meme, pas un element a nous -> AUCUN overlay
+  de notre CSS n'avale le clic (hypothese ecartee) ;
+- err: ne contient aucun log: -> aucune exception levee, meme via React ;
+- res: = uniquement des assets play.xbox.com, rien de session/play -> le routeur
+  ne navigue pas ;
+- la telemetrie OneCollector reste du bruit.
+
+Audits du jour :
+- Patcher est deja no-op sur preview (T3) -> hors de cause ;
+- le patch history (pushState/replaceState) est deja neutralise par defaut par
+  T16 sur la preview -> hors de cause (ma coupe T23 etait redondante, retiree) ;
+- GameTile injecte seulement un badge dans les tuiles, EmulatedMkb/TouchController
+  ne s'arment qu'en session.
+
+Build suivant (T24) : moitie "patchs d'API" de main() coupee (RTC, codecs,
+fetch/XHR, video, canvas, pointer lock, audio). Restent : StreamSettings,
+tracking, addCss, stats, badges, WebGPU, Patcher, PWA, TouchController, GameTile,
+EmulatedMkb. Si le clic repart -> coupable dans la moitie coupee ; sinon -> dans
+l'autre moitie (2 essais de plus pour le nommer).
+
+Piege outillage : une transformation inseree AVANT une autre peut lui voler son
+ancre (T23 avait casse le must() de T16). Toujours placer les coupes APRES les
+transformations existantes, ou couper par position (indexOf/slice).
+
+## Session 1er nov 2026 (suite 9) — React #418 : hydratation ratee, addCss() blanchit
+
+Cinquieme bandeau (moitie "patchs d'API" coupee) :
+
+```
+#1 @8279ms | base.main:1 base.css:1 base.patcher:1 dom:1815 dlg:absent hb:14 click:1
+err:[rej:Failed to fetch ; log:Minified React error #418; visit
+     https://reactjs.org/docs/error-decoder.html?invariant=418]
+res:[play.xbox.com/completeData?module=GamePassV... | play.xbox.com/completeData?id=22
+     play.xbox.com/assets?dist=remoteApp]
+cl:[div:h-full w-full rounded-[6]   masques:[]
+```
+
+- React #418 = echec d'HYDRATATION : l'app garde son HTML mais perd ses
+gestionnaires -> clic sans effet, sans requete, sans exception. C'est le
+mecanisme du "gel" ;
+- la coupe des patchs d'API n'a rien change -> coupable dans la moitie restante
+de main() ;
+- notre CSS ne met pointer-events:none que sur nos propres classes
+  (.bx-unclickable, .bx-toast, .bx-select desactive, StreamHud) : rien qui
+  couvre la tuile.
+
+Build suivant (T25) : addCss() coupe SEUL (l'instruction garde les autres
+appels). Si le clic repart -> c'est notre feuille de style qui casse
+l'hydratation ; sinon on blanchit le reste de la moitie (stats, badges, WebGPU,
+touch, vibration, update, PWA, Patcher, GameTile, EmulatedMkb).
+
+Etat cumule du build de diagnostic : T20 (marqueurs base), T21 (pending/XHR),
+T24 (coupe API), T25 (coupe addCss), plus cl:/res:/fr:/pend:/ko:/log: et le
+bandeau. Rien n'est commite ; le bundle preview n'est pas versionne.
+
+## Session 1er nov 2026 (suite 10) — CORRECTIF : addCss() cassait l'hydratation
+
+Sixieme bandeau (addCss coupe, patchs d'API toujours coupes) : JEU LANCE.
+
+```
+#1 @3929ms | base.main:1 base.patcher:1 dom:2151 dlg:absent hb:29 click:3
+err:[rej:Failed to fetch x3]   res:[gssv-play-prod.xboxlive.com/.../ice x2, play.xbox.com/launch...]
+```
+
+Diagnostic final : React #418 (echec d'hydratation) etait cause par le <style>
+insere par addCss() AVANT que React n'hydrate le document. L'app conservait son
+HTML mais perdait tous ses gestionnaires -> clic muet, aucune requete, aucune
+exception, thread libre. Avec addCss coupe, tout fonctionne.
+
+Correctif livre : __bxAddCssSafe() — capture du CSS produit par addCss(),
+retrait des noeuds <style> crees, puis adoption de la feuille SANS noeud DOM
+(document.adoptedStyleSheets + CSSStyleSheet.replaceSync). Repli pour les
+navigateurs sans constructible stylesheets : insertion apres load + 3 s.
+Les patchs d'API (RTC, codecs, fetch/XHR, video, canvas, audio) sont RETABLIS :
+la coupe T24 n'aidait pas (le gel persistait avec), elle est retiree.
+
+Piege : T25 cherchait "addCss()," et a mordu le commentaire du helper qui
+contenait la meme chaine -> cibler l'appel complet
+"addCss(), StreamStatsCollector.setupEvents()" (unique).
+
+## Session 1er nov 2026 (suite 11) — CORRECTIF VALIDE et build propre livre
+
+Septieme bandeau (correctif CSS + patchs d'API retablis) : JEU LANCE, avec
+
+```
+res:[... v5/sessions/cloud/play#?2ms ...]   -> la requete de session part
+base.fetch:36 base.handle:15 base.login:1  -> interception reseau active
+click:2   err:[rej:Failed to fetch, ko:data.microsoft.com/...]  -> bruit telemetrie
+```
+
+Correctif definitif : __bxAddCssSafe() (feuille adoptee sans noeud DOM). C'etait
+la seule cause du gel : React #418 par <style> precoce.
+
+Build propre livre ensuite :
+- BX_DBG = false par defaut (aucun bandeau, aucun battement, aucune ecriture
+  localStorage, aucun observer) ;
+- badge BX-BADGE-DEBUG supprime ;
+- journalisation console.error et journal XHR et suivi __BX_PEND gates par BX_DBG ;
+- les marqueurs base/T20 restent en place mais inertes (__BX_MARK = no-op) ;
+- le correctif CSS (__bxAddCssSafe) reste actif en permanence.
+
+Pour rediagnostiquer plus tard : passer BX_DBG a true dans build-preview.js, ou
+localStorage.setItem("bx-debug","1") si la ligne de lecture est adaptee ; le
+bandeau revient au prochain chargement.

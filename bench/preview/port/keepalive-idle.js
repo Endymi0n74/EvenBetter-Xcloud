@@ -157,7 +157,10 @@ function installKeepAliveIdle() {
   // re-wrap si une NOUVELLE session est créée (relance / reconnexion — la
   // garde _bxKeepAliveWrapped rend le wrap idempotent par instance).
   function watchSession() {
+    var _t5s = (typeof performance !== "undefined" ? performance.now() : 0);
+    try { if (typeof window.__BX_MARK === "function") window.__BX_MARK("t5.watchS"); } catch (e) {}
     var s = locateSession();
+    try { if (typeof window.__BX_MARK === "function") window.__BX_MARK("t5.watch", (typeof performance !== "undefined" ? performance.now() : 0) - _t5s); } catch (e) {}
     if (s && !s._bxKeepAliveWrapped) {
       try {
         if (window.PreviewKeepAliveIdle.wrapSession(s)) {

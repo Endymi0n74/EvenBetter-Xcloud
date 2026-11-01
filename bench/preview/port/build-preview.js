@@ -78,6 +78,241 @@ const PREVIEW_TAG = "evenbetter-xcloud-v" + PREVIEW_VERSION; // release versionn
 // un tag fixe dédié sert de canal : `releases/download/evenbetter-xcloud-preview-channel/...`.
 const PREVIEW_CHANNEL = "evenbetter-xcloud-preview-channel";
 
+/* T15 (1er nov) : bloc de diagnostic du gel Firefox — inséré après T2 dans le
+   build preview SEULEMENT (masques bx-off + watchdog bx-debug). Aucun effet
+   par défaut : localStorage vide = aucun log, aucun compteur, aucun
+   changement de comportement. */
+const BX_DIAG_BLOCK = `/* ============ T15 preview : diag gel Firefox (opt-in localStorage) ============
+   Gel total sans exception => main thread bloque : la console ne peut rien
+   dire d'utile, et devtools ne repond plus. Outils inertes par defaut :
+   - bx-on    : reactiver une brique preview neutralisee PAR DEFAUT.
+                Etat courant (1er nov, gel clic Play) : LES SIX briques OFF
+                (t4, t5, t7, t10, t14, t16) -> comportement de la version
+                stable. bx-on = "t4" (ou "t7", "t5", "t14") pour les rallumer.
+   - bx-off   : masquer une brique active (aucune par defaut).
+   - bx-debug : ON PAR DEFAUT dans ce build de diagnostic ("0" pour
+                couper). Ecrit le dernier marqueur dans localStorage
+                ["bx-watch.last"] de facon SYNCHRONE (survit au gel) et
+                l'affiche en bandeau au chargement suivant.
+   - bx-debug : compteurs + dernier marqueur + duree max, flush 200 ms dans
+                localStorage["bx-watch"] ; le run suivant annonce le run
+                precedent (flush arrete net = onglet gele).
+   Nettoyage : localStorage.removeItem("bx-off"); removeItem("bx-debug"). */
+var BX_OFF = (function () { var o = " "; try { o += (window.localStorage.getItem("bx-off") || "") + " "; } catch (e) {} return o; })();
+function bxOff(id) { return BX_OFF.indexOf(" " + id + " ") !== -1; }
+var BX_ON = (function () { var o = " "; try { o += (window.localStorage.getItem("bx-on") || "") + " "; } catch (e) {} return o; })();
+function bxOn(id) { return BX_ON.indexOf(" " + id + " ") !== -1; }
+var BX_DBG = false; /* 1er nov : correctif CSS livre -> diagnostic OFF ("1" ou bx-debug dans le code pour le rallumer) */
+try { if (window.localStorage.getItem("bx-debug") === "0") BX_DBG = false; } catch (e) {}
+/* 1er nov (suite 5) : URL lisible dans le bandeau — l'ancienne troncature par la
+   fin ne donnait que "t-type=application%2Fx-json-stream&w=2..." sans l'hote. */
+window.__BX_SHORT = function (u) {
+  u = String(u);
+  try {
+    var o = new URL(u, location.href), h = o.hostname.split(".");
+    var k = h.length > 2 ? h.slice(-3).join(".") : o.hostname;
+    return k + o.pathname.slice(-30) + (o.search ? "?" + o.search.slice(1, 26) : "");
+  } catch (e) { return u.slice(-52); }
+};
+/* 1er nov (suite 10) : addCss() est LA cause du gel. Un <style> insere dans le
+   document avant l'hydratation React desynchronise serveur et client
+   (React #418) : l'app garde son HTML mais perd ses gestionnaires, donc le clic
+   ne fait plus rien — aucune requete, aucune exception, thread libre.
+   Correctif : on capture le CSS produit par addCss(), on RETIRE les noeuds
+   <style> crees, puis on adopte la feuille sans noeud DOM
+   (document.adoptedStyleSheets). Repli (navigateur sans constructible
+   stylesheets) : insertion seulement apres load + 3 s, hydratation terminee. */
+window.__bxAddCssSafe = function () {
+  function listStyles() {
+    var out = [], list = [];
+    try { list = document.getElementsByTagName("style"); } catch (e) {}
+    for (var i = 0; i < list.length; i++) out.push(list[i]);
+    return out;
+  }
+  var before = listStyles();
+  try { if (typeof addCss === "function") addCss(); } catch (e) {}
+  var after = listStyles(), css = "", i;
+  for (i = 0; i < after.length; i++) {
+    if (before.indexOf(after[i]) === -1) {
+      try { css += after[i].textContent || ""; } catch (e) {}
+      try { after[i].parentNode.removeChild(after[i]); } catch (e) {}
+    }
+  }
+  try {
+    if (css && window.CSSStyleSheet && "replaceSync" in CSSStyleSheet.prototype && "adoptedStyleSheets" in document) {
+      var sheet = new CSSStyleSheet();
+      sheet.replaceSync(css);
+      document.adoptedStyleSheets = document.adoptedStyleSheets.concat([sheet]);
+      return;
+    }
+  } catch (e) {}
+  var inject = function () {
+    try {
+      var st = document.createElement("style");
+      st.textContent = css;
+      (document.head || document.documentElement).appendChild(st);
+    } catch (e) {}
+  };
+  if (document.readyState === "complete") window.setTimeout(inject, 3000);
+  else window.addEventListener("load", function () { window.setTimeout(inject, 3000); });
+};
+window.__BX_MARK = !BX_DBG ? function () {} : (function () {
+  var w = { n: {}, max: {}, last: "boot", t0: Date.now() };
+  var _syncId = "", _syncT = 0;
+  window.__BX_WATCH = w;
+  try {
+    var prev = window.localStorage.getItem("bx-watch");
+    window.localStorage.removeItem("bx-watch");
+    window.__BX_PREVLAST = window.localStorage.getItem("bx-watch.last");
+    window.localStorage.removeItem("bx-watch.last");
+    if (prev) {
+      var p = JSON.parse(prev);
+      if (p && p.t && Date.now() - p.t < 900000) {
+        console.warn("[BX watch] run precedent interrompu a " + Math.round((p.t - (p.t0 || p.t)) / 1000) + " s - dernier marqueur " + p.last + " - masques:[" + (p.off || "") + "]", p.n, p.max);
+      }
+    }
+  } catch (e) {}
+  try { if (window.__BX_PREVLAST) console.warn("[BX watch] dernier marqueur SYNCHRONE (survit au gel) : " + window.__BX_PREVLAST); } catch (e) {}
+  /* Bandeau visible SANS console (build de diagnostic) : affiche le dernier
+     marqueur ecrit avant le gel du run precedent. */
+  try {
+    if (window.__BX_PREVLAST) window.setTimeout(function () {
+      try {
+        var d = document.createElement("div");
+        d.style.cssText = "position:fixed;left:10px;top:10px;z-index:2147483647;background:#101010;color:#00e676;font:12px/1.45 monospace;padding:8px 12px;border:1px solid #00e676;border-radius:6px;max-width:62vw;white-space:pre-wrap;pointer-events:none";
+        d.textContent = "BX diag (run precedent) : " + window.__BX_PREVLAST;
+        (document.documentElement || document.body || {}).appendChild(d);
+      } catch (e) {}
+    }, 1200);
+  } catch (e) {}
+  window.setInterval(function () {
+    try { window.localStorage.setItem("bx-watch", JSON.stringify({ t: Date.now(), t0: w.t0, last: w.last, n: w.n, max: w.max, off: BX_OFF.replace(/ /g, "") })); } catch (e) {}
+  }, 200);
+  /* 1er nov : battement de coeur — si le dernier marqueur est "hb", le gel
+     est survenu pendant le travail moteur (layout/paint) et non dans nos
+     callbacks ; "dom:NNNN" donne la taille du DOM au dernier battement. */
+  window.setInterval(function () {
+    try {
+      var _w = window.__BX_WATCH;
+      if (_w) {
+        _w.n.dom = document.getElementsByTagName("*").length;
+        var _d = document.querySelector("[class*='bx-navigation-dialog']");
+        _w.n.dlg = _d ? String(window.getComputedStyle(_d).display) : "absent";
+      }
+    } catch (e) {}
+    try { window.__BX_MARK("hb"); } catch (e) {}
+  }, 500);
+  /* 1er nov (suite 4) : le clic Play n'emet aucune requete et le thread n'est pas
+     bloque -> soit une promesse jamais resolue (pend:), soit une exception
+     avalee par le site (err:). Ces ecoutes nomment la cause sans console. */
+  try {
+    window.addEventListener("unhandledrejection", function (ev) {
+      try { (window.__BX_ERRS = window.__BX_ERRS || []).push("rej:" + String((ev && ev.reason && (ev.reason.message || ev.reason)) || "?").slice(0, 70)); } catch (e) {}
+    });
+    window.addEventListener("error", function (ev) {
+      try { (window.__BX_ERRS = window.__BX_ERRS || []).push("err:" + String((ev && ev.message) || "?").slice(0, 70) + "@" + String((ev && ev.filename) || "").split("/").pop() + ":" + String((ev && ev.lineno) || "?")); } catch (e) {}
+    });
+  } catch (e) {}
+  /* 1er nov (suite 7) : React avale ses exceptions — journalisation utile
+     seulement pendant le diagnostic. */
+  try {
+    if (BX_DBG) {
+      var _bxCE = console.error;
+      console.error = function () {
+        try {
+          var _m = "";
+          for (var _i = 0; _i < arguments.length; _i++) _m += String((arguments[_i] && arguments[_i].message) || arguments[_i]) + " ";
+          (window.__BX_ERRS = window.__BX_ERRS || []).push("log:" + _m.slice(0, 90));
+        } catch (e) {}
+        return _bxCE.apply(console, arguments);
+      };
+    }
+  } catch (e) {}
+  /* 1er nov (suite 5) : le clic n'emet aucune requete interceptee et le thread
+     reste libre. Trois sondes pour savoir si la requete de lancement existe
+     malgre tout, HORS de notre fetch : journal des ressources (PerformanceObserver :
+     XHR, beacon, iframe, worker du document), clics recus par le document, et
+     etat des scripts injectes dans les iframes same-origin. */
+  try {
+    if (window.PerformanceObserver) {
+      new window.PerformanceObserver(function (list) {
+        try {
+          var _r = list.getEntries(), _a = (window.__BX_RES = window.__BX_RES || []);
+          for (var _ri = 0; _ri < _r.length; _ri++) {
+            var _nm = String(_r[_ri].name || "");
+            if (/session|play|configur|waittime|ice/i.test(_nm)) {
+              _a.push((window.__BX_SHORT ? window.__BX_SHORT(_nm) : _nm.slice(-44)) + "#" + Math.round(_r[_ri].duration || 0) + "ms");
+              if (_a.length > 8) _a.shift();
+            }
+          }
+        } catch (e) {}
+      }).observe({ entryTypes: ["resource"] });
+    }
+  } catch (e) {}
+  try {
+    document.addEventListener("click", function (ev) {
+      try {
+        var _t = ev && ev.target, _tag = _t && _t.tagName ? _t.tagName.toLowerCase() : "?";
+        var _lab = (_t && _t.getAttribute && (_t.getAttribute("aria-label") || _t.getAttribute("title"))) || (_t && typeof _t.className === "string" && _t.className.slice(0, 24)) || (_t && _t.textContent) || "";
+        _lab = String(_lab).trim().slice(0, 26);
+        var _c = (window.__BX_CLK = window.__BX_CLK || []);
+        _c.push(_tag + ":" + _lab);
+        if (_c.length > 3) _c.shift();
+      } catch (e) {}
+      try { window.__BX_MARK("click"); } catch (e) {}
+    }, true);
+  } catch (e) {}
+  try {
+    window.__BX_FRS = [];
+    window.setInterval(function () {
+      var _o = [];
+      try {
+        var _f = window.frames;
+        for (var _i = 0; _i < _f.length && _i < 3; _i++) {
+          try { var _w2 = _f[_i]; if (_w2 && _w2.__BX_WATCH) _o.push("f" + _i + ":" + String(_w2.__BX_WATCH.last).slice(0, 40)); } catch (e) {}
+        }
+      } catch (e) {}
+      try { window.__BX_FRS = _o; } catch (e) {}
+    }, 2000);
+  } catch (e) {}
+  return function (id, ms) {
+    w.n[id] = (w.n[id] || 0) + 1;
+    /* 1er nov (suite) : ecriture SYNCHRONE — quand le main thread est bloque
+       (exactement le cas recherche), aucun timer de flush ne tourne plus ; le
+       setItem, lui, survit au kill de l'onglet. Throttle 100 ms sauf si le
+       marqueur change (une rafale du meme marqueur reste a 10 ecritures/s). */
+    try {
+      var _nowS = Date.now();
+      if (id !== _syncId || _nowS - _syncT >= 100) {
+        _syncId = id; _syncT = _nowS;
+        var _sum = "";
+        try {
+          var _k = Object.keys(w.n), _p = [];
+          for (var _i = 0; _i < _k.length; _i++) _p.push(_k[_i] + ":" + w.n[_k[_i]]);
+          _sum = " | " + _p.join(" ");
+        } catch (e) {}
+        var _pe = "";
+        try {
+          var _pk = Object.keys(window.__BX_PEND || {}), _pv = [];
+          for (var _j = 0; _j < _pk.length; _j++) {
+            var _pi = window.__BX_PEND[_pk[_j]];
+            _pv.push((_pi && _pi.u ? _pi.u : String(_pi)) + "@" + Math.round((Date.now() - ((_pi && _pi.t) || Date.now())) / 1000) + "s");
+          }
+          if (_pv.length) _pe += " pend:[" + _pv.join(" | ") + "]";
+        } catch (e) {}
+        try { if (window.__BX_ERRS && window.__BX_ERRS.length) _pe += " err:[" + window.__BX_ERRS.slice(-3).join(" ; ") + "]"; } catch (e) {}
+        try { if (window.__BX_XHR && window.__BX_XHR.length) _pe += " xhr:[" + window.__BX_XHR.slice(-3).join(" | ") + "]"; } catch (e) {}
+        try { if (window.__BX_RES && window.__BX_RES.length) _pe += " res:[" + window.__BX_RES.slice(-4).join(" ") + "]"; } catch (e) {}
+        try { if (window.__BX_FRS && window.__BX_FRS.length) _pe += " fr:[" + window.__BX_FRS.slice(-2).join(" ") + "]"; } catch (e) {}
+        try { if (window.__BX_CLK && window.__BX_CLK.length) _pe += " cl:[" + window.__BX_CLK.slice(-2).join(" | ") + "]"; } catch (e) {}
+        window.localStorage.setItem("bx-watch.last", id + " #" + w.n[id] + " @" + Math.round(performance.now()) + "ms" + (ms ? " duree:" + Math.round(ms) + "ms" : "") + _sum + _pe + " masques:[" + BX_OFF.replace(/ /g, "") + "]");
+      }
+    } catch (e) {}
+    w.last = id + " #" + w.n[id] + " @" + Math.round(performance.now()) + "ms";
+    if (ms > (w.max[id] || 0)) w.max[id] = Math.round(ms);
+  };
+})();`;
+
 function must(src, needle, label) {
   const i = src.indexOf(needle);
   if (i < 0) throw new Error(`[build-preview] ancre introuvable: ${label} :: ${JSON.stringify(needle.slice(0, 80))}`);
@@ -145,7 +380,9 @@ function build() {
     detAnchor,
     detAnchor +
       EOL +
-      `var BX_PREVIEW = window.location.hostname === "play.xbox.com" || window.location.hostname.endsWith(".play.xbox.com");`
+      `var BX_PREVIEW = window.location.hostname === "play.xbox.com" || window.location.hostname.endsWith(".play.xbox.com");` +
+      EOL +
+      BX_DIAG_BLOCK
   );
 
   /* ---------- T3 : garde du Patcher site ---------- */
@@ -157,6 +394,63 @@ function build() {
   must(s, chunksAnchor, "T3 checkChunks");
   s = s.replace(chunksAnchor, "static checkChunks(item) {if (BX_PREVIEW) return;let patchesToCheck,");
 
+  /* ---------- T20 : marqueurs du code de BASE (diag gel clic Play, 1er nov) ----------
+     Les six briques preview etant coupees et le gel persistant, la cause est dans
+     le code de base commun. Ces marqueurs nomment les points d'entree qui tournent
+     au moment du clic Play (fetch patche, handlePlay, configuration, ICE) ; le
+     bandeau affiche le dernier atteint et l'URL en cours ("url:"). */
+  const baseMarks = [
+    ["function main() {if (GhPagesUtils.fetchLatestCommit(),", "function main() {window.__BX_MARK(\"base.main\");if (GhPagesUtils.fetchLatestCommit(),"],
+    ["if (addCss(), StreamStatsCollector.setupEvents(),", "if (window.__BX_MARK(\"base.css\"), addCss(), StreamStatsCollector.setupEvents(),"],
+    ["interceptHttpRequests(), patchVideoApi(),", "window.__BX_MARK(\"base.hooks\"), interceptHttpRequests(), patchVideoApi(),"],
+    ["Patcher.init(), disablePwa(),", "window.__BX_MARK(\"base.patcher\"), Patcher.init(), disablePwa(),"],
+    ["window.BX_FETCH = window.fetch = async (request, init) => {", "window.BX_FETCH = window.fetch = async (request, init) => {try { window.__BX_MARK(\"base.fetch\"); } catch (e) {}"],
+    ["static async handle(request, init) {let url = typeof request === \"string\" ? request : request.url;", "static async handle(request, init) {let url = typeof request === \"string\" ? request : request.url;try { if (window.__BX_WATCH) window.__BX_WATCH.n.url = String(url).slice(-46); window.__BX_MARK(\"base.handle\"); } catch (e) {}"],
+    ["static async handlePlay(request, init) {", "static async handlePlay(request, init) {window.__BX_MARK(\"base.play\");"],
+    ["static async handleConfiguration(request, init) {", "static async handleConfiguration(request, init) {window.__BX_MARK(\"base.config\");"],
+    ["static async handleWaitTime(request, init) {", "static async handleWaitTime(request, init) {window.__BX_MARK(\"base.wait\");"],
+    ["static async handleLogin(request, init) {", "static async handleLogin(request, init) {window.__BX_MARK(\"base.login\");"]
+  ];
+  for (const pair of baseMarks) {
+    const n = s.split(pair[0]).length - 1;
+    if (n !== 1) { console.warn("[build-preview] T20 ignore (" + n + "x) : " + pair[0].slice(0, 60)); continue; }
+    s = s.replace(pair[0], pair[1]);
+  }
+
+  /* ---------- T25 : addCss() injectee sans noeud DOM (correctif du gel) ----------
+     React #418 (hydratation ratee) = l'app garde son HTML mais perd ses
+     gestionnaires : clic sans effet, sans requete, sans exception. addCss() est
+     le seul appel restant qui touche au rendu, donc le premier a blanchir. */
+  {
+            const t25old = "addCss(), StreamStatsCollector.setupEvents()";
+    const t25i = s.indexOf(t25old);
+    if (t25i < 0) throw new Error("[build-preview] T25 : appel addCss de main() introuvable");
+    s = s.slice(0, t25i) + "__bxAddCssSafe(), StreamStatsCollector.setupEvents()" + s.slice(t25i + t25old.length);
+    console.log("[build-preview] T25 : addCss() remplacee par __bxAddCssSafe()");
+  }
+  /* le code de base est aussi execute par les gates dans un mock sans
+     __BX_MARK : marqueur neutre quand la fonction n'existe pas. */
+  s = s.split('window.__BX_MARK("base.').join('(window.__BX_MARK||function(){})("base.');
+
+  /* ---------- T21 : requetes en vol + XHR (diag gel clic Play, 1er nov, suite 4) ----------
+     Mesure du bandeau : base.fetch:33 / base.handle:13 mais base.play:0 et aucune
+     URL /sessions/cloud/play -> le clic n'emet pas la requete de lancement, et le
+     heartbeat continue de battre (thread libre). Donc : promesse jamais resolue
+     (pend:) ou exception avalee (err:) ou requete hors fetch (xhr:).
+     - pend:[urls] : entrees dans le fetch patche jamais resolues (le suspect).
+     - xhr:[[urls]] : derniers XMLHttpRequest.open -> le play passe-t-il en XHR ? */
+  const t21 = [
+    ['window.BX_FETCH = window.fetch = async (request, init) => {try { (window.__BX_MARK||function(){})("base.fetch"); } catch (e) {}',
+     'window.BX_FETCH = window.fetch = (request, init) => {var __bxP = (BX_DBG ? (window.__BX_PEND = window.__BX_PEND || {}) : {}), __bxI = (window.__BX_SEQ = (window.__BX_SEQ || 0) + 1);try { __bxP[__bxI] = { u: (window.__BX_SHORT || function (u) { return String(u).slice(-52); })(typeof request === "string" ? request : (request && request.url) || "?"), t: Date.now() }; } catch (e) {}var __bxR = __bxInner(request, init);if (!__bxR || !__bxR.then) return __bxR;return __bxR.then(function (v) { try { delete __bxP[__bxI]; } catch (e) {} return v; }, function (e) { try { delete __bxP[__bxI]; } catch (_) {} try { (window.__BX_ERRS = window.__BX_ERRS || []).push("ko:" + (window.__BX_SHORT || function (u) { return String(u).slice(-40); })(typeof request === "string" ? request : (request && request.url) || "?") + "!" + String((e && e.message) || e).slice(0, 30)); } catch (_) {} throw e; });};async function __bxInner(request, init) {try { window.__BX_MARK("base.fetch"); } catch (e) {}'],
+    ['xhrPrototype.open = function(method, url) {return this._url = url, nativeXhrOpen.apply(this, arguments);}',
+     'xhrPrototype.open = function(method, url) {try { var _x = BX_DBG ? (window.__BX_XHR = window.__BX_XHR || []) : []; _x.push(String(method) + " " + (window.__BX_SHORT || function (u) { return String(u).slice(-44); })(url) + " len:" + String(url).length); if (_x.length > 6) _x.shift(); } catch (e) {}return this._url = url, nativeXhrOpen.apply(this, arguments);}']
+  ];
+  for (const pair of t21) {
+    must(s, pair[0], "T21 " + pair[0].slice(0, 46));
+    s = s.replace(pair[0], pair[1]);
+  }
+
+  
   /* ---------- T4 : entrée settings preview ---------- */
   const entryAnchor = "class HeaderSection {";
   must(s, entryAnchor, "T4 HeaderSection");
@@ -169,6 +463,7 @@ function build() {
    MutationObserver delegue sur les selecteurs candidats (anchors.md, T4). */
 if (BX_PREVIEW) {
   BxLogger.info("BX_PREVIEW", "overlay actif (T4 arme) — play.xbox.com");
+
   var PreviewSettingsEntry = {
     /* 17 août : le shell preview est du Tailwind — pas de <header> sémantique ni
        de classe Header-* (anchors.md §4). 31 oct : le client a basculé sur le
@@ -188,6 +483,7 @@ if (BX_PREVIEW) {
     _t: 0,
     _injected: false,
     tryInject() {
+      window.__BX_MARK("t4.inject");
       var section = HeaderSection.getInstance();
       section.$btnSettings.classList.remove("bx-gone");
       var wrapper = this._wrapper || (this._wrapper = section.$buttonsWrapper);
@@ -257,14 +553,16 @@ if (BX_PREVIEW) {
       if (this._observer) { try { this._observer.disconnect(); } catch (e) {} }
       var self = this;
       this._observer = new MutationObserver(function () {
+        window.__BX_MARK("t4.obs");
         if (self._t) return;
-        self._t = setTimeout(function () { self._t = 0; self.tryInject(); }, 150);
+        self._t = setTimeout(function () { self._t = 0; var _s4 = performance.now(); window.__BX_MARK("t4.tryS"); self.tryInject(); window.__BX_MARK("t4.try", performance.now() - _s4); }, 150);
       });
       var root = document.body || document.documentElement;
       if (root) this._observer.observe(root, { childList: true, subtree: true });
       this._root = document.documentElement;
     },
     start() {
+      if (!bxOn("t4")) { BxLogger.info("PreviewSettingsEntry", "desactive (bx-off t4)"); return; }
       this.arm();
       if (document.readyState !== "loading") this.tryInject();
       BxLogger.info("PreviewSettingsEntry", "observer arme (resilient SPA)", document.readyState);
@@ -281,6 +579,9 @@ if (BX_PREVIEW) {
      Interval 2 s : coût nul (check isConnected), couvre tout remplacement
      futur du document (document.open, hydratation, re-render html). */
   setInterval(function () {
+    if (!bxOn("t7")) return;
+    var _t7s = performance.now();
+    window.__BX_MARK("t7S");
     try {
       /* 1. nœuds du dialog : ré-append overlay + container si détachés (le
             document remplacé les a orphelins sous l'ancien <html>). */
@@ -300,7 +601,7 @@ if (BX_PREVIEW) {
       for (var _si = 0; _si < _styles.length; _si++) {
         if ((_styles[_si].textContent || "").indexOf(".bx-navigation-dialog-overlay{") !== -1) { _hasCss = true; break; }
       }
-      if (!_hasCss) {
+      if (!_hasCss) { window.__BX_MARK("t7.css");
         try { addCss(); BxLogger.info("BX_PREVIEW", "CSS re-injecte (document remplace par le shell)"); } catch (e2) { /* non bloquant */ }
       }
       /* 3. T4 : le shell remplace le document → l'observer du bouton observe
@@ -309,6 +610,7 @@ if (BX_PREVIEW) {
             19 août en WebView : document.open → bouton mort, jamais revenu). */
       try {
         if (PreviewSettingsEntry._root && PreviewSettingsEntry._root !== document.documentElement) {
+          window.__BX_MARK("t7.rearm");
           PreviewSettingsEntry._root = document.documentElement;
           PreviewSettingsEntry.arm();
           BxLogger.info("PreviewSettingsEntry", "document remplace — observer re-arme");
@@ -327,6 +629,7 @@ if (BX_PREVIEW) {
         var _gb = typeof GameBar !== "undefined" ? GameBar.getInstance() : null;
         if (_gb && _gb.$gameBar && _gb.$container) {
           if (!_gb.$gameBar.isConnected && document.documentElement && document.documentElement.isConnected) {
+            window.__BX_MARK("t7.gb");
             document.documentElement.appendChild(_gb.$gameBar);
             BxLogger.info("GameBar", "re-appende (document remplace par le shell)");
           }
@@ -356,12 +659,14 @@ if (BX_PREVIEW) {
             if (_t && _t.getAudioTracks && _t.getAudioTracks().length > 0 && !_als[_ai].muted) { _aud = _als[_ai]; break; }
           }
           if (_aud && typeof window.BX_EXPOSED !== "undefined" && window.BX_EXPOSED.setupGainNode) {
+            window.__BX_MARK("t7.gain");
             window.BX_EXPOSED.setupGainNode(_aud, _aud.srcObject);
             BxLogger.info("BX_PREVIEW", "T12 gain node branche (volume live preview)");
           }
         }
       } catch (e5) { /* non bloquant */ }
     } catch (e) { /* non bloquant */ }
+    window.__BX_MARK("t7", performance.now() - _t7s);
   }, 2000);
 }
 /* ============ FIN PREVIEW ============ */
@@ -443,7 +748,7 @@ ${entryAnchor}`;
   s = s.replace(uaSpoofAnchor,
     'if (!UserAgent.#config.custom) UserAgent.#config.custom = "";' +
     '/* T10 : gate play.xbox.com = Chromium-only (Firefox/Safari not listed). WebRTC H.264 works in Firefox: auto-spoof Edge by default. */' +
-    'if (BX_PREVIEW && UserAgent.#config.profile === "default" && !(/chrom(e|ium)|edg\\/|crios/i.test(navigator.userAgent))) UserAgent.#config.profile = "windows-edge";' +
+    'if (BX_PREVIEW && bxOn("t10") && UserAgent.#config.profile === "default" && !(/chrom(e|ium)|edg\\/|crios/i.test(navigator.userAgent))) UserAgent.#config.profile = "windows-edge";' +
     'UserAgent.spoof();');
 
   /* ---------- T5 : keep-alive idle (P1) — inséré en FIN de script ----------
@@ -461,8 +766,40 @@ ${entryAnchor}`;
     "======================================================================== */\n" +
     "if (BX_PREVIEW) {\n" +
     keepAlive.installKeepAliveIdle.toString() +
-    "\ninstallKeepAliveIdle();\n}\n";
+    "\nif (bxOn(\"t5\")) installKeepAliveIdle();\n}\n";
   s = s + t5Block;
+
+  /* ---------- T16 : patch history (pushState/replaceState) — suspicion gel ----------
+     Le build perf enveloppe history.pushState/replaceState et, a CHAQUE appel,
+     emet BxEvent.POPSTATE de facon SYNCHRONE -> onHistoryChanged() ->
+     NavigationDialogManager.hide() + LoadingScreen.reset() +
+     BxEventBus.Stream.emit("state.stopped"). Sur www.xbox.com (React Router du
+     stable) c'est inoffensif. Sur le client preview, un clic « Se preparer a
+     diffuser en continu » declenche une navigation SPA : si un handler de
+     state.stopped rappelle pushState/replaceState, la chaine
+     navigation -> state.stopped -> navigation tourne sans jamais rendre la
+     main = gel total MUET (aucune exception), dans TOUS les navigateurs
+     (reproduit 1er nov sur Edge ET Firefox, apres le clic Play).
+     - compteur : window.__BX_MARK("hist") a chaque appel (bx-debug) : une
+       rafale de "hist" en dernier marqueur avant le gel = preuve.
+     - masque   : localStorage bx-off = "t16" -> le patch history n'est PAS
+       installe (methodes natives) : bisect sans rebuild.
+     Etat 1er nov : NEUTRALISE PAR DEFAUT sur la preview (liste bx-on
+     vide) — le patch history ne sert qu'a www.xbox.com. Reactiver sans
+     rebuild : localStorage bx-on = "t16". */
+  const histMarkerAnchor = "return function(...args) {return BxEvent.dispatch(window, BxEvent.POPSTATE, {arguments: args})";
+  must(s, histMarkerAnchor, "T16 patchHistoryMethod wrapper");
+  if (s.indexOf(histMarkerAnchor) !== s.lastIndexOf(histMarkerAnchor)) throw new Error("[build-preview] T16 : ancre wrapper multiple");
+  s = s.replace(histMarkerAnchor, "return function(...args) {return window.__BX_MARK&&window.__BX_MARK(\"hist\"),BxEvent.dispatch(window, BxEvent.POPSTATE, {arguments: args})");
+
+  const histPushAnchor = "window.history.pushState = patchHistoryMethod(\"pushState\");";
+  const histReplAnchor = "window.history.replaceState = patchHistoryMethod(\"replaceState\");";
+  must(s, histPushAnchor, "T16 pushState assign");
+  must(s, histReplAnchor, "T16 replaceState assign");
+  if (s.indexOf(histPushAnchor) !== s.lastIndexOf(histPushAnchor)) throw new Error("[build-preview] T16 : ancre pushState multiple");
+  if (s.indexOf(histReplAnchor) !== s.lastIndexOf(histReplAnchor)) throw new Error("[build-preview] T16 : ancre replaceState multiple");
+  s = s.replace(histPushAnchor, "if (!BX_PREVIEW || bxOn(\"t16\")) " + histPushAnchor);
+  s = s.replace(histReplAnchor, "if (!BX_PREVIEW || bxOn(\"t16\")) " + histReplAnchor);
 
   /* ---------- T13 : la preview lit le flux via video.srcObject ----------
      Le stable masque le <video> tant qu'il n'a pas d'attribut src :
@@ -493,7 +830,9 @@ ${entryAnchor}`;
   s = s.replace(eagerNavAnchor, [
     "/* T14 preview: CDP document-start -> <html> pas encore cree */",
     "(function () {",
+    "  if (!bxOn(\"t14\")) return;",
     "  function bxEagerNavDialog() {",
+    "    window.__BX_MARK(\"t14.try\");",
     "    try { NavigationDialogManager.getInstance(); return true; }",
     "    catch (e) {",
     "      try { BxLogger.warn(\"PreviewEager\", \"NavigationDialogManager differe: \" + (e && e.message)); } catch (e2) {}",
@@ -593,6 +932,14 @@ for (const probe of [
   "installKeepAliveIdle",
   "window.PreviewKeepAliveIdle",
   "auto-spoof Edge by default",
+  "var BX_OFF =",
+  "window.__BX_MARK",
+  "function bxOff(id)",
+  'if (!bxOn("t4"))',
+  'if (!bxOn("t7")) return;',
+  'if (bxOn("t5")) installKeepAliveIdle();',
+  'if (!bxOn("t14")) return;',
+  'BX_PREVIEW && bxOn("t10")',
 ]) {
   if (!out.includes(probe)) { console.error("[build-preview] probe manquante: " + probe); process.exit(1); }
 }

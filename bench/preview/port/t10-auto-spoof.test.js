@@ -14,7 +14,8 @@
  * 3. Comportement vm : le statement extrait est exécuté dans un mock
  *    UserAgent (même contrat que le bundle : #config + spoof() no-op quand
  *    profile === "default") pour chaque UA réelle —
- *    Firefox/Safari → profil forcé windows-edge (gate passé),
+ *    Firefox/Safari AVEC bx-on t10 → profil forcé windows-edge (gate passé),
+ *    sans bx-on (défaut 1er nov : t10 OFF) → inchangé,
  *    Edge/Chrome/Crios → inchangé, profil explicite → jamais écrasé,
  *    BX_PREVIEW=false (contexte stable) → inchangé.
  *
@@ -60,26 +61,34 @@ function makeRunner(statement) {
   // mock UserAgent : #config privé + spoof() no-op quand profile === "default"
   // (contrat exact du bundle) — le statement est exécuté DANS le corps de la
   // classe (accès #config valide, comme dans UserAgent.init() du bundle).
+  // bx-on (bloc T15 du build preview) : depuis le 1er nov le spoof UA est
+  // DÉSACTIVÉ par défaut sur la preview (gel au clic Play) et se réactive par
+  // localStorage bx-on = "t10". Le mock reproduit le contrat du bundle.
+  const mask = { on: [] };
   const sandbox = {
     navigator: { userAgent: "" },
     BX_PREVIEW: false,
+    bxOn: function (id) { return mask.on.indexOf(id) !== -1; },
+    bxOff: function () { return false; },
+    __bxSetOn: function (ids) { mask.on = ids ? String(ids).split(",").filter(Boolean) : []; },
   };
   vm.createContext(sandbox);
   const src = `
     class UserAgent {
       static #config = { custom: "", profile: "default" };
       static spoof() { this._spoofed = UserAgent.#config.profile !== "default"; }
-      static run(ua, profile, bxPreview) {
+      static run(ua, profile, bxPreview, maskOn) {
         navigator.userAgent = ua;
         BX_PREVIEW = bxPreview;
         UserAgent.#config = { custom: "", profile };
         UserAgent._spoofed = false;
+        __bxSetOn(maskOn);
         ${statement}
         UserAgent.spoof(); // flux réel du bundle : init() → [T10] → spoof()
         return { profile: UserAgent.#config.profile, spoofed: !!UserAgent._spoofed };
       }
     }
-    this.runCase = (ua, profile, bxPreview) => UserAgent.run(ua, profile, bxPreview);
+    this.runCase = (ua, profile, bxPreview, maskOn) => UserAgent.run(ua, profile, bxPreview, maskOn);
   `;
   vm.runInContext(src, sandbox);
   return sandbox.runCase;
@@ -111,29 +120,37 @@ function runChecks(stable, preview) {
   if (t10Stmt) {
     const run = makeRunner(t10Stmt);
     // Firefox / Safari : gate Chromium-only → auto-spoof windows-edge
-    let r = run(UAS.firefox, "default", true);
-    check("Firefox + default + BX_PREVIEW → profil windows-edge (gate passé)",
+    let r = run(UAS.firefox, "default", true, "t10");
+    check("Firefox + default + BX_PREVIEW + bx-on t10 → profil windows-edge (gate passé)",
       r.profile === "windows-edge" && r.spoofed === true, JSON.stringify(r));
-    r = run(UAS.safariWin, "default", true);
-    check("Safari Windows + default + BX_PREVIEW → windows-edge",
+    r = run(UAS.safariWin, "default", true, "t10");
+    check("Safari Windows + default + bx-on t10 → windows-edge",
       r.profile === "windows-edge" && r.spoofed === true, JSON.stringify(r));
+    // état par défaut du build preview depuis le 1er nov : t10 OFF (bx-on vide)
+    r = run(UAS.firefox, "default", true);
+    check("Firefox + default + BX_PREVIEW sans bx-on → pas de spoof (t10 OFF par défaut)",
+      r.profile === "default" && r.spoofed === false, JSON.stringify(r));
     // Chromium réels : jamais spoofés
     for (const [name, ua] of [["Edge", UAS.edge], ["Chrome", UAS.chrome], ["Crios (Chrome iOS)", UAS.crios]]) {
-      r = run(ua, "default", true);
+      r = run(ua, "default", true, "t10");
       check(`${name} + default → inchangé (default, pas de spoof)`,
         r.profile === "default" && r.spoofed === false, JSON.stringify(r));
     }
     // le setting garde la main : profil explicite jamais écrasé
-    r = run(UAS.firefox, "custom", true);
+    r = run(UAS.firefox, "custom", true, "t10");
     check("Firefox + profil explicite (custom) → jamais écrasé",
       r.profile === "custom" && r.spoofed === true, JSON.stringify(r));
-    r = run(UAS.firefox, "windows-edge", true);
+    r = run(UAS.firefox, "windows-edge", true, "t10");
     check("Firefox + profil explicite (windows-edge) → inchangé",
       r.profile === "windows-edge" && r.spoofed === true, JSON.stringify(r));
     // contexte stable : BX_PREVIEW=false → jamais de spoof auto
-    r = run(UAS.firefox, "default", false);
+    r = run(UAS.firefox, "default", false, "t10");
     check("Firefox + default + BX_PREVIEW=false (contexte stable) → inchangé",
       r.profile === "default" && r.spoofed === false, JSON.stringify(r));
+    // bloc T15 : bx-on accepte une liste d'ids (bisect sans rebuild)
+    r = run(UAS.firefox, "default", true, "t4,t10");
+    check("Firefox + default + bx-on \"t4,t10\" → spoof (liste multi-ids respectée)",
+      r.profile === "windows-edge" && r.spoofed === true, JSON.stringify(r));
   } else {
     failures++;
     console.error("  ❌ comportement vm non testé (statement non extrait)");
